@@ -1,0 +1,48 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function hasRole(role) {
+      return isSignedIn() && request.auth.token.role == role;
+    }
+
+    function isStaffOrAdmin() {
+      return hasRole('admin') || hasRole('staff');
+    }
+
+    // Public can read active products; staff/admin can read all products
+    // (including pending/inactive ones) for the admin panel. All writes go
+    // through server code using firebase-admin, which bypasses these rules.
+    match /products/{productId} {
+      allow read: if resource.data.isActive == true || isStaffOrAdmin();
+      allow write: if false;
+    }
+
+    match /stockMovements/{movementId} {
+      allow read: if isStaffOrAdmin();
+      allow write: if false;
+    }
+
+    match /sales/{saleId} {
+      allow read: if isStaffOrAdmin();
+      allow write: if false;
+    }
+
+    match /users/{userId} {
+      allow read: if isStaffOrAdmin();
+      allow write: if false;
+    }
+
+    match /counters/{counterId} {
+      allow read, write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "print:pricing": "tsx scripts/print-pricing-table.ts",
+    "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "test:oversell": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-oversell.ts\""
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
@@ -33,6 +36,7 @@
     "eslint": "^9",
     "eslint-config-next": "^15.5.22",
     "tailwindcss": "^4",
+    "tsx": "^4.23.1",
     "typescript": "^5"
   }
 }
