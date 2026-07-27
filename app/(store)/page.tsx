@@ -1,15 +1,27 @@
-export default function HomePage() {
+import type { Metadata } from "next";
+import { getFeaturedProducts } from "@/lib/store/queries";
+import { Hero } from "@/components/store/hero";
+import { FeaturedProducts } from "@/components/store/featured-products";
+import { OurStory } from "@/components/store/our-story";
+
+// Revalidate periodically instead of serving a build-time snapshot forever —
+// stock and pricing change with every sale.
+export const revalidate = 60;
+
+export const metadata: Metadata = {
+  title: "KISWA — Pure Attar Oils & Perfume Sprays",
+  description:
+    "KISWA crafts concentrated attar oils and the fine perfume sprays distilled from them. Explore the collection.",
+};
+
+export default async function HomePage() {
+  const products = await getFeaturedProducts(8);
+
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-4 px-6 py-32 text-center">
-      <p className="text-sm uppercase tracking-[0.3em] text-amber-400">
-        Kiswa
-      </p>
-      <h1 className="max-w-2xl text-4xl font-semibold tracking-tight sm:text-6xl">
-        Attar &amp; Perfume Storefront
-      </h1>
-      <p className="max-w-md text-zinc-400">
-        The storefront is under construction. Check back soon.
-      </p>
+    <main className="flex flex-1 flex-col">
+      <Hero />
+      <FeaturedProducts products={products} />
+      <OurStory />
     </main>
   );
 }
