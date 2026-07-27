@@ -48,6 +48,21 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ---- KISWA storefront theme (scoped to the (store) route group) ---- */
+@theme {
+  --color-kiswa-void: #0c0a09;
+  --color-kiswa-surface: #17130e;
+  --color-kiswa-surface-2: #201a12;
+  --color-kiswa-border: #2b241a;
+  --color-kiswa-ink: #f6f1e6;
+  --color-kiswa-ink-muted: #a99a83;
+  --color-kiswa-gold: #d4af37;
+  --color-kiswa-gold-soft: #e8c96a;
+  --color-kiswa-gold-dim: #8a6d28;
+  --font-display: var(--font-playfair);
+  --font-body: var(--font-inter);
+}
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -126,5 +141,51 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* ---- Printable receipts/invoices ----
+   Named pages (`page:`) scope each @page size to its own element so the
+   80mm thermal receipt and the A4 customer invoice don't fight over a
+   single global @page rule. Browsers without named-page support just fall
+   back to the user's default print paper size for both — a safe no-op. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #pos-receipt,
+  #pos-receipt *,
+  #order-invoice,
+  #order-invoice * {
+    visibility: visible;
+    color: #000 !important;
+    background: transparent !important;
+    border-color: #000 !important;
+  }
+  #pos-receipt {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 80mm;
+    padding: 4mm;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 11px;
+    page: pos-receipt;
+  }
+  #order-invoice {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 12mm;
+    page: order-invoice;
+  }
+  @page pos-receipt {
+    size: 80mm auto;
+    margin: 0;
+  }
+  @page order-invoice {
+    size: A4;
+    margin: 12mm;
   }
 }

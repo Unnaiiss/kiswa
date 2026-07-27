@@ -9,10 +9,13 @@
     "lint": "eslint",
     "print:pricing": "tsx scripts/print-pricing-table.ts",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
-    "test:oversell": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-oversell.ts\""
+    "set-role": "tsx --env-file=.env.local scripts/set-role.ts",
+    "test:oversell": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-oversell.ts\"",
+    "test:checkout": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-checkout-stock-conflict.ts\""
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
+    "@paper-design/shaders-react": "^0.0.78",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "firebase": "^12.16.0",
@@ -22,6 +25,7 @@
     "next": "^15.5.22",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "recharts": "^3.10.1",
     "server-only": "^0.0.1",
     "shadcn": "^4.15.0",
     "tailwind-merge": "^3.6.0",
