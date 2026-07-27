@@ -41,6 +41,19 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Bridges Razorpay order creation and payment verification; only touched
+    // by server code (firebase-admin) between checkout and recordSale.
+    match /pendingOrders/{orderId} {
+      allow read, write: if false;
+    }
+
+    // Captured payments whose stock re-check failed at verification time;
+    // staff/admin need to see these to process manual refunds.
+    match /refundFlags/{flagId} {
+      allow read: if isStaffOrAdmin();
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

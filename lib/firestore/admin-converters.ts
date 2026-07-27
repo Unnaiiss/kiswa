@@ -8,7 +8,9 @@ import type {
 import type {
   AppUserDoc,
   InvoiceCounter,
+  PendingOrderDoc,
   ProductDoc,
+  RefundFlagDoc,
   SaleDoc,
   StockMovementDoc,
 } from "./types";
@@ -29,3 +31,5 @@ export const stockMovementConverter = makeConverter<StockMovementDoc>();
 export const saleConverter = makeConverter<SaleDoc>();
 export const userConverter = makeConverter<AppUserDoc>();
 export const invoiceCounterConverter = makeConverter<InvoiceCounter>();
+export const pendingOrderConverter = makeConverter<PendingOrderDoc>();
+export const refundFlagConverter = makeConverter<RefundFlagDoc>();

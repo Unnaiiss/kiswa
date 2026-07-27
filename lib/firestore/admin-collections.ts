@@ -1,7 +1,9 @@
 import { adminDb } from "@/lib/firebase/admin";
 import {
   invoiceCounterConverter,
+  pendingOrderConverter,
   productConverter,
+  refundFlagConverter,
   saleConverter,
   stockMovementConverter,
   userConverter,
@@ -30,4 +32,16 @@ export function invoiceCounterDoc() {
     .collection("counters")
     .doc("invoices")
     .withConverter(invoiceCounterConverter);
+}
+
+export function pendingOrdersCollection() {
+  return adminDb
+    .collection("pendingOrders")
+    .withConverter(pendingOrderConverter);
+}
+
+export function refundFlagsCollection() {
+  return adminDb
+    .collection("refundFlags")
+    .withConverter(refundFlagConverter);
 }

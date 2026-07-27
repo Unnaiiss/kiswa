@@ -117,6 +117,11 @@ export async function recordSale(
           const variant = product.variants.find(
             (v) => v.variantId === variantId,
           )!;
+          if (!variant.isActive) {
+            throw new Error(
+              `${product.name} (${variant.type} ${variant.sizeMl}ml) is not available for sale`,
+            );
+          }
           if (variant.stock < qty) {
             throw new Error(
               `Insufficient stock for ${product.name} (${variant.type} ${variant.sizeMl}ml): have ${variant.stock}, need ${qty}`,

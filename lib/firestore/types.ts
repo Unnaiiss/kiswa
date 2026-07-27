@@ -14,6 +14,9 @@ export interface ProductVariant {
   mrpInr: number;
   stock: number;
   lowStockThreshold: number;
+  /** Discontinued variants stay in the array (stock history refers to them by
+   * variantId) but are hidden from sale everywhere until reactivated. */
+  isActive: boolean;
 }
 
 /** Shape as stored in Firestore (no doc id). */
@@ -125,4 +128,61 @@ export interface AppUser extends AppUserDoc {
 export interface InvoiceCounter {
   year: number;
   seq: number;
+}
+
+/**
+ * Bridges Razorpay order creation and payment verification. Created before
+ * the customer pays (no stock touched yet); consumed by finalizeOnlineOrder
+ * once the payment is verified (via redirect handler or webhook), which
+ * calls recordSale to do the atomic stock check + decrement.
+ */
+export type PendingOrderStatus =
+  | "created"
+  | "processing"
+  | "completed"
+  | "refund_flagged";
+
+export interface PendingOrderItem {
+  productId: string;
+  variantId: string;
+  qty: number;
+}
+
+export interface PendingOrderDoc {
+  items: PendingOrderItem[];
+  customerName: string;
+  customerPhone: string;
+  shippingAddress: ShippingAddress;
+  amountPaise: number;
+  status: PendingOrderStatus;
+  saleId: string | null;
+  invoiceNo: string | null;
+  createdAt: TimestampLike;
+}
+
+export interface PendingOrder extends PendingOrderDoc {
+  id: string;
+}
+
+/**
+ * A payment Razorpay confirmed as captured, but recordSale's transactional
+ * stock re-check rejected it (the variant sold out between order creation
+ * and payment capture). Money was taken; stock was NOT decremented and no
+ * sale was recorded. Surfaced in admin so staff can process a manual refund.
+ */
+export interface RefundFlagDoc {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  customerName: string;
+  customerPhone: string;
+  items: PendingOrderItem[];
+  amountPaise: number;
+  shippingAddress: ShippingAddress;
+  reason: string;
+  status: "pending" | "resolved";
+  createdAt: TimestampLike;
+}
+
+export interface RefundFlag extends RefundFlagDoc {
+  id: string;
 }

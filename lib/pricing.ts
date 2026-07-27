@@ -1,4 +1,4 @@
-import type { VariantType } from "@/lib/firestore/types";
+import type { ProductVariant, VariantType } from "@/lib/firestore/types";
 
 export interface VariantDefinition {
   variantId: string;
@@ -51,3 +51,19 @@ export function computeVariantPrices(basePrice: number): ComputedVariantPrice[] 
     };
   });
 }
+
+export function formatVariantLabel(type: VariantType, sizeMl: number): string {
+  const label = type === "oil" ? "Oil" : "Spray";
+  return `${label} ${sizeMl}ml`;
+}
+
+export function getStartingPrice(variants: ProductVariant[]): number {
+  const active = variants.filter((v) => v.isActive);
+  const pool = active.length > 0 ? active : variants;
+  return Math.min(...pool.map((v) => v.priceInr));
+}
+
+export function formatInr(amount: number): string {
+  return `₹${amount.toLocaleString("en-IN")}`;
+}
+

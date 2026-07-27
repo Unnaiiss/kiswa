@@ -97,6 +97,7 @@ export function buildCatalogProducts(): BuiltProduct[] {
           mrpInr: c.mrpInr,
           stock: 0,
           lowStockThreshold: 3,
+          isActive,
         }),
       ),
     };

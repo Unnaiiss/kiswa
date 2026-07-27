@@ -32,6 +32,7 @@ async function main() {
         mrpInr: 190,
         stock: 1,
         lowStockThreshold: 3,
+        isActive: true,
       },
       {
         variantId: "spray-50ml",
@@ -41,6 +42,7 @@ async function main() {
         mrpInr: 530,
         stock: 5,
         lowStockThreshold: 3,
+        isActive: true,
       },
     ],
     createdAt: FieldValue.serverTimestamp(),
