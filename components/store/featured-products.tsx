@@ -1,7 +1,7 @@
-import Link from "next/link";
 import type { StoreProduct } from "@/lib/store/queries";
-import { Reveal, StaggerGrid, StaggerItem } from "./reveal";
-import { ProductCard } from "./product-card";
+import { Reveal } from "./reveal";
+import { FocusRail } from "./focus-rail";
+import { FlowButton } from "@/components/ui/flow-button";
 
 export function FeaturedProducts({ products }: { products: StoreProduct[] }) {
   return (
@@ -16,21 +16,10 @@ export function FeaturedProducts({ products }: { products: StoreProduct[] }) {
           </h2>
         </Reveal>
 
-        <StaggerGrid className="grid grid-cols-2 gap-x-6 gap-y-12 sm:grid-cols-3 lg:grid-cols-4">
-          {products.map((product) => (
-            <StaggerItem key={product.id}>
-              <ProductCard product={product} />
-            </StaggerItem>
-          ))}
-        </StaggerGrid>
+        <FocusRail products={products} />
 
-        <div className="mt-16 flex justify-center">
-          <Link
-            href="/shop"
-            className="cursor-pointer rounded-full border border-kiswa-gold/50 px-8 py-3 text-sm tracking-wide text-kiswa-gold transition-colors hover:bg-kiswa-gold hover:text-kiswa-void"
-          >
-            View Full Collection
-          </Link>
+        <div className="mt-4 flex justify-center">
+          <FlowButton href="/shop">View Full Collection</FlowButton>
         </div>
       </div>
     </section>
