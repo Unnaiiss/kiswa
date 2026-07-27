@@ -1,0 +1,140 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { productsCollection } from "@/lib/firestore/admin-collections";
+import { formatVariantLabel } from "@/lib/pricing";
+import { AuthError, requireRole } from "@/lib/server/authGuard";
+import type { ProductVariant } from "@/lib/firestore/types";
+
+const updateProductSchema = z.object({
+  name: z.string().trim().min(1, "Name is required"),
+  description: z.string().trim().default(""),
+  notes: z.array(z.string().trim().min(1)).default([]),
+  category: z.string().trim().min(1, "Category is required"),
+  imageUrls: z.array(z.string().trim().url()).default([]),
+  isActive: z.boolean(),
+  variants: z
+    .array(
+      z.object({
+        // The variantId this row started as, so stock/history can carry over
+        // when a variant is edited — null means this is a brand-new row.
+        originalVariantId: z.string().nullable(),
+        type: z.enum(["oil", "spray"]),
+        sizeMl: z.number().positive(),
+        priceInr: z.number().nonnegative(),
+        mrpInr: z.number().nonnegative(),
+        lowStockThreshold: z.number().int().nonnegative(),
+        isActive: z.boolean(),
+      }),
+    )
+    .min(1, "At least one variant is required"),
+});
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    await requireRole(request, ["admin"]);
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
+    throw err;
+  }
+
+  const { id } = await params;
+
+  const json = await request.json().catch(() => null);
+  const parsed = updateProductSchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid request" },
+      { status: 400 },
+    );
+  }
+  const input = parsed.data;
+
+  const ref = productsCollection().doc(id);
+  const snap = await ref.get();
+  const current = snap.data();
+  if (!snap.exists || !current) {
+    return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  }
+
+  const rowsWithDerivedId = input.variants.map((row) => ({
+    ...row,
+    variantId: `${row.type}-${row.sizeMl}ml`,
+  }));
+
+  const derivedIds = new Set<string>();
+  for (const row of rowsWithDerivedId) {
+    if (derivedIds.has(row.variantId)) {
+      return NextResponse.json(
+        {
+          error: `Two variants both resolve to ${formatVariantLabel(row.type, row.sizeMl)} — sizes must be unique per type.`,
+        },
+        { status: 400 },
+      );
+    }
+    derivedIds.add(row.variantId);
+  }
+
+  // Stock is never touched here — it's carried over from the current doc by
+  // matching originalVariantId, or starts at 0 for a brand-new variant. It
+  // may ONLY change via recordSale/stockIn/stockAdjust.
+  const currentByVariantId = new Map(
+    current.variants.map((v) => [v.variantId, v]),
+  );
+  const keptOriginalIds = new Set(
+    rowsWithDerivedId
+      .map((r) => r.originalVariantId)
+      .filter((v): v is string => v !== null),
+  );
+
+  const removed = current.variants.filter(
+    (v) => !keptOriginalIds.has(v.variantId),
+  );
+  const removedWithStock = removed.filter((v) => v.stock > 0);
+  if (removedWithStock.length > 0) {
+    const list = removedWithStock
+      .map(
+        (v) =>
+          `${formatVariantLabel(v.type, v.sizeMl)} (${v.stock} in stock)`,
+      )
+      .join(", ");
+    return NextResponse.json(
+      {
+        error: `Adjust stock to 0 before removing: ${list}.`,
+      },
+      { status: 409 },
+    );
+  }
+
+  const nextVariants: ProductVariant[] = rowsWithDerivedId.map((row) => {
+    const existing = row.originalVariantId
+      ? currentByVariantId.get(row.originalVariantId)
+      : undefined;
+    return {
+      variantId: row.variantId,
+      type: row.type,
+      sizeMl: row.sizeMl,
+      priceInr: row.priceInr,
+      mrpInr: row.mrpInr,
+      stock: existing?.stock ?? 0,
+      lowStockThreshold: row.lowStockThreshold,
+      isActive: row.isActive,
+    };
+  });
+
+  await ref.update({
+    name: input.name,
+    description: input.description,
+    notes: input.notes,
+    category: input.category,
+    imageUrls: input.imageUrls,
+    isActive: input.isActive,
+    variants: nextVariants,
+  });
+
+  return NextResponse.json({ ok: true });
+}
