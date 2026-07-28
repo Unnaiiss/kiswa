@@ -10,6 +10,7 @@ import {
   where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
+import { useAuthReady } from "@/lib/firebase/useAuthReady";
 import { saleConverter } from "@/lib/firestore/converters";
 import type { Sale } from "@/lib/firestore/types";
 
@@ -22,11 +23,13 @@ import type { Sale } from "@/lib/firestore/types";
 export function useSalesInRange(from: Date, to: Date, limit = 1000) {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
+  const authReady = useAuthReady();
 
   const fromTime = from.getTime();
   const toTime = to.getTime();
 
   useEffect(() => {
+    if (!authReady) return;
     setLoading(true);
     const q = query(
       collection(db, "sales").withConverter(saleConverter),
@@ -35,12 +38,16 @@ export function useSalesInRange(from: Date, to: Date, limit = 1000) {
       orderBy("createdAt", "desc"),
       fsLimit(limit),
     );
-    const unsubscribe = onSnapshot(q, (snap) => {
-      setSales(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        setSales(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
     return unsubscribe;
-  }, [fromTime, toTime, limit]);
+  }, [authReady, fromTime, toTime, limit]);
 
   return { sales, loading };
 }

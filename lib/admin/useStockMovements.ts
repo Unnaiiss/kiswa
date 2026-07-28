@@ -11,6 +11,7 @@ import {
   type QueryConstraint,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
+import { useAuthReady } from "@/lib/firebase/useAuthReady";
 import { stockMovementConverter } from "@/lib/firestore/converters";
 import type { StockMovement } from "@/lib/firestore/types";
 
@@ -29,8 +30,10 @@ export function useStockMovements({
 }: UseStockMovementsOptions) {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
+  const authReady = useAuthReady();
 
   useEffect(() => {
+    if (!authReady) return;
     setLoading(true);
     const constraints: QueryConstraint[] = [];
     if (productId) constraints.push(where("productId", "==", productId));
@@ -40,12 +43,16 @@ export function useStockMovements({
       collection(db, "stockMovements").withConverter(stockMovementConverter),
       ...constraints,
     );
-    const unsubscribe = onSnapshot(q, (snap) => {
-      setMovements(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        setMovements(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
     return unsubscribe;
-  }, [productId, limit]);
+  }, [authReady, productId, limit]);
 
   return { movements, loading };
 }

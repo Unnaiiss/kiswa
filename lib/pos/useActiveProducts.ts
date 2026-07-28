@@ -17,10 +17,14 @@ export function useActiveProducts() {
       collection(db, "products").withConverter(productConverter),
       where("isActive", "==", true),
     );
-    const unsubscribe = onSnapshot(q, (snap) => {
-      setProducts(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snap) => {
+        setProducts(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
     return unsubscribe;
   }, []);
 
