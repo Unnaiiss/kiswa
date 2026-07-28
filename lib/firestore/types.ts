@@ -92,7 +92,7 @@ export interface SaleItem {
    * per variant, so historical reports must not rely on its current value.
    * Optional because sales recorded before the bulk-oil model shipped have
    * no such field; treat those as unknown (not zero-consumption) ml. */
-  mlUsed?: number;
+  oilMlUsed?: number;
 }
 
 export interface ShippingAddress {
@@ -121,6 +121,10 @@ export interface SaleDoc {
   shippingAddress: ShippingAddress | null;
   createdByUid: string;
   createdAt: TimestampLike;
+  /** Sum of items[].oilMlUsed, snapshotted at sale time. Optional for the
+   * same reason as SaleItem.oilMlUsed — sales predating the bulk-oil model
+   * don't have it. */
+  totalOilMlUsed?: number;
 }
 
 export interface Sale extends SaleDoc {

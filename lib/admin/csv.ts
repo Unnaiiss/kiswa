@@ -45,7 +45,7 @@ export function salesToCsv(sales: Sale[]): string {
           csvCell(item.qty),
           csvCell(item.unitPrice),
           csvCell(item.lineTotal),
-          csvCell(item.mlUsed),
+          csvCell(item.oilMlUsed),
           csvCell(sale.paymentMethod),
           csvCell(sale.orderStatus),
         ].join(","),

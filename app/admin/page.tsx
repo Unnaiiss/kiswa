@@ -9,6 +9,10 @@ import {
   TopVariantsPanel,
 } from "@/components/admin/dashboard/side-panels";
 
+function formatMl(value: number): string {
+  return `${Number(value.toFixed(1))} ml`;
+}
+
 export default function AdminDashboardPage() {
   const { loading, today, month, chartData, top5, lowStockAlerts } =
     useDashboardData();
@@ -45,6 +49,25 @@ export default function AdminDashboardPage() {
               revenue={month.revenue}
               count={month.count}
             />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                Oil used — Today
+              </p>
+              <p className="mt-2 text-2xl font-bold text-zinc-50">
+                {formatMl(today.oilMl)}
+              </p>
+            </div>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                Oil used — This month
+              </p>
+              <p className="mt-2 text-2xl font-bold text-zinc-50">
+                {formatMl(month.oilMl)}
+              </p>
+            </div>
           </div>
 
           <SalesChart data={chartData} />

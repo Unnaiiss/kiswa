@@ -152,12 +152,16 @@ export async function recordSale(
           unitPrice: variant.priceInr,
           qty: item.qty,
           lineTotal: variant.priceInr * item.qty,
-          mlUsed: variant.oilMlPerUnit * item.qty,
+          oilMlUsed: variant.oilMlPerUnit * item.qty,
         };
       });
 
       const subtotal = saleItems.reduce((sum, i) => sum + i.lineTotal, 0);
       const total = subtotal - input.discount;
+      const totalOilMlUsed = saleItems.reduce(
+        (sum, i) => sum + (i.oilMlUsed ?? 0),
+        0,
+      );
 
       const year = new Date().getFullYear();
       const counterData = counterSnap.data();
@@ -185,9 +189,7 @@ export async function recordSale(
           productName: item.productName,
           variantId: item.variantId,
           variantLabel: formatVariantLabel(variant.type, variant.sizeMl),
-          // mlUsed is optional on the type only for legacy pre-bulk-oil sales
-          // read back from Firestore — saleItems above was just built fresh.
-          mlChange: -item.mlUsed!,
+          mlChange: -(item.oilMlUsed ?? 0),
           reason: saleReason,
           referenceId: saleRef.id,
           note: null,
@@ -214,6 +216,7 @@ export async function recordSale(
         shippingAddress: input.shippingAddress,
         createdByUid: input.createdByUid,
         createdAt: FieldValue.serverTimestamp(),
+        totalOilMlUsed,
       });
 
       return invoiceNo;

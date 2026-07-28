@@ -3,9 +3,10 @@ import { formatInr } from "@/lib/pricing";
 interface SplitBarProps {
   title: string;
   segments: { label: string; value: number; color: string }[];
+  formatValue?: (value: number) => string;
 }
 
-export function SplitBar({ title, segments }: SplitBarProps) {
+export function SplitBar({ title, segments, formatValue = formatInr }: SplitBarProps) {
   const total = segments.reduce((sum, s) => sum + s.value, 0);
 
   return (
@@ -28,7 +29,7 @@ export function SplitBar({ title, segments }: SplitBarProps) {
               {s.label}
             </span>
             <span className="font-medium text-zinc-50">
-              {formatInr(s.value)}
+              {formatValue(s.value)}
               {total > 0 && (
                 <span className="ml-1.5 text-xs text-zinc-500">
                   ({Math.round((s.value / total) * 100)}%)

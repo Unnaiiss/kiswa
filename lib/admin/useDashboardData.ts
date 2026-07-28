@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { useSalesInRange } from "./useSalesInRange";
+import { useSaleMovementsInRange } from "./useSaleMovementsInRange";
 import { useAllProducts } from "./useAllProducts";
 import {
   buildDailySeries,
@@ -11,6 +12,7 @@ import {
   daysAgo,
   topVariants,
   totalItemsSold,
+  totalMlConsumed,
   totalRevenue,
   type DailyChannelPoint,
   type TopVariantEntry,
@@ -26,8 +28,12 @@ export interface LowStockAlert {
 
 export interface DashboardData {
   loading: boolean;
-  today: { online: { revenue: number; count: number }; offline: { revenue: number; count: number } };
-  month: { revenue: number; count: number; itemsSold: number };
+  today: {
+    online: { revenue: number; count: number };
+    offline: { revenue: number; count: number };
+    oilMl: number;
+  };
+  month: { revenue: number; count: number; itemsSold: number; oilMl: number };
   chartData: DailyChannelPoint[];
   top5: TopVariantEntry[];
   lowStockAlerts: LowStockAlert[];
@@ -45,6 +51,8 @@ export function useDashboardData(): DashboardData {
 
   const { sales, loading: salesLoading } = useSalesInRange(queryStart, now);
   const { products, loading: productsLoading } = useAllProducts();
+  const { movementsBySaleId, loading: movementsLoading } =
+    useSaleMovementsInRange(queryStart, now);
 
   const today = useMemo(() => {
     const todayStart = startOfDay(now);
@@ -53,8 +61,9 @@ export function useDashboardData(): DashboardData {
     return {
       online: { revenue: split.online.revenue, count: split.online.count },
       offline: { revenue: split.offline.revenue, count: split.offline.count },
+      oilMl: totalMlConsumed(todaySales, movementsBySaleId),
     };
-  }, [sales, now]);
+  }, [sales, now, movementsBySaleId]);
 
   const month = useMemo(() => {
     const monthSales = sales.filter((s) => s.createdAt.toDate() >= monthStart);
@@ -62,8 +71,9 @@ export function useDashboardData(): DashboardData {
       revenue: totalRevenue(monthSales),
       count: monthSales.length,
       itemsSold: totalItemsSold(monthSales),
+      oilMl: totalMlConsumed(monthSales, movementsBySaleId),
     };
-  }, [sales, monthStart]);
+  }, [sales, monthStart, movementsBySaleId]);
 
   const chartData = useMemo(() => {
     const chartSales = sales.filter((s) => s.createdAt.toDate() >= chartStart);
@@ -81,7 +91,7 @@ export function useDashboardData(): DashboardData {
   );
 
   return {
-    loading: salesLoading || productsLoading,
+    loading: salesLoading || productsLoading || movementsLoading,
     today,
     month,
     chartData,
