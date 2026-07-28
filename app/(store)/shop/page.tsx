@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { getActiveProducts, getCategories } from "@/lib/store/queries";
+import { getActiveProducts } from "@/lib/store/queries";
+import { getCategories } from "@/lib/store/categories";
 import { ShopGrid } from "@/components/store/shop-grid";
 import { Reveal } from "@/components/store/reveal";
 
@@ -11,9 +12,17 @@ export const metadata: Metadata = {
     "Browse the full KISWA collection of attar oils and perfume sprays.",
 };
 
-export default async function ShopPage() {
-  const products = await getActiveProducts();
+export default async function ShopPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string; type?: string }>;
+}) {
+  const [products, params] = await Promise.all([
+    getActiveProducts(),
+    searchParams,
+  ]);
   const categories = getCategories(products);
+  const initialType = params.type === "oil" || params.type === "spray" ? params.type : undefined;
 
   return (
     <main className="flex-1 px-6 py-20 sm:py-28">
@@ -31,7 +40,12 @@ export default async function ShopPage() {
           </p>
         </Reveal>
 
-        <ShopGrid products={products} categories={categories} />
+        <ShopGrid
+          products={products}
+          categories={categories}
+          initialCategory={params.category}
+          initialType={initialType}
+        />
       </div>
     </main>
   );

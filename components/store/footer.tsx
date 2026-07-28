@@ -1,38 +1,13 @@
 import Link from "next/link";
 import { MapPin, MessageCircle } from "lucide-react";
-
-// lucide-react dropped brand/logo icons, so Instagram's glyph is inlined here
-// (same 18px stroke style as the surrounding lucide icons).
-function InstagramIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-    >
-      <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-      <path d="M16 11.37a4 4 0 1 1-7.914 1.174A4 4 0 0 1 16 11.37z" />
-      <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-    </svg>
-  );
-}
+import { WHATSAPP_URL, INSTAGRAM_URL, CONTACT_URL } from "@/lib/store/contact-links";
+import { InstagramIcon } from "./instagram-icon";
 
 const FOOTER_LINKS = [
   { href: "/shop", label: "Shop" },
   { href: "/#our-story", label: "Our Story" },
-  { href: "mailto:hello@kiswa.example", label: "Contact" },
+  { href: CONTACT_URL, label: "Contact" },
 ];
-
-// Placeholder social links — swap in the real KISWA WhatsApp number and
-// Instagram handle when available.
-const WHATSAPP_URL = "https://wa.me/910000000000";
-const INSTAGRAM_URL = "https://instagram.com/kiswa";
 
 export function StoreFooter() {
   return (

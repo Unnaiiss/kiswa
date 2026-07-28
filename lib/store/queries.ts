@@ -31,7 +31,3 @@ export async function getProductBySlug(
   if (!snap.exists || !data || !data.isActive) return null;
   return toStoreProduct(snap.id, data);
 }
-
-export function getCategories(products: StoreProduct[]): string[] {
-  return [...new Set(products.map((p) => p.category))].sort();
-}

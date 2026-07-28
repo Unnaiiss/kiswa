@@ -2,25 +2,35 @@
 
 import { useMemo, useState } from "react";
 import type { StoreProduct } from "@/lib/store/queries";
+import type { VariantType } from "@/lib/firestore/types";
 import { ProductCard } from "./product-card";
 import { StaggerGrid, StaggerItem } from "./reveal";
 
 export function ShopGrid({
   products,
   categories,
+  initialCategory,
+  initialType,
 }: {
   products: StoreProduct[];
   categories: string[];
+  initialCategory?: string;
+  initialType?: VariantType;
 }) {
-  const [active, setActive] = useState<string>("All");
-
-  const filtered = useMemo(
-    () =>
-      active === "All"
-        ? products
-        : products.filter((p) => p.category === active),
-    [products, active],
+  const [active, setActive] = useState<string>(
+    initialCategory && categories.includes(initialCategory)
+      ? initialCategory
+      : "All",
   );
+
+  const filtered = useMemo(() => {
+    const byCategory =
+      active === "All" ? products : products.filter((p) => p.category === active);
+    if (!initialType) return byCategory;
+    return byCategory.filter((p) =>
+      p.variants.some((v) => v.isActive && v.type === initialType),
+    );
+  }, [products, active, initialType]);
 
   const tabs = ["All", ...categories];
 
