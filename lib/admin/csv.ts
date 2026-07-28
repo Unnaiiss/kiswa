@@ -1,7 +1,8 @@
 import type { Sale } from "@/lib/firestore/types";
 import { itemVariantLabel } from "./salesAggregation";
 
-function csvCell(value: string | number): string {
+function csvCell(value: string | number | undefined): string {
+  if (value === undefined) return "";
   const str = String(value);
   if (/[",\n]/.test(str)) {
     return `"${str.replace(/"/g, '""')}"`;

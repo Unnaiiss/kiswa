@@ -89,8 +89,10 @@ export interface SaleItem {
   qty: number;
   lineTotal: number;
   /** oilMlPerUnit * qty, snapshotted at sale time — oilMlPerUnit is editable
-   * per variant, so historical reports must not rely on its current value. */
-  mlUsed: number;
+   * per variant, so historical reports must not rely on its current value.
+   * Optional because sales recorded before the bulk-oil model shipped have
+   * no such field; treat those as unknown (not zero-consumption) ml. */
+  mlUsed?: number;
 }
 
 export interface ShippingAddress {

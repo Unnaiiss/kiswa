@@ -185,7 +185,9 @@ export async function recordSale(
           productName: item.productName,
           variantId: item.variantId,
           variantLabel: formatVariantLabel(variant.type, variant.sizeMl),
-          mlChange: -item.mlUsed,
+          // mlUsed is optional on the type only for legacy pre-bulk-oil sales
+          // read back from Firestore — saleItems above was just built fresh.
+          mlChange: -item.mlUsed!,
           reason: saleReason,
           referenceId: saleRef.id,
           note: null,

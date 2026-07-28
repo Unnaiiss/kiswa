@@ -131,10 +131,13 @@ export function totalRevenue(sales: Sale[]): number {
 
 /** Total ml of attar oil consumed across all items in these sales. Uses
  * each item's snapshotted mlUsed, not the product's current oilMlPerUnit —
- * that value is editable and must not rewrite history. */
+ * that value is editable and must not rewrite history. Sales recorded
+ * before the bulk-oil model shipped have no mlUsed and count as 0 here
+ * (their oil consumption was never tracked, not that none was used). */
 export function totalMlConsumed(sales: Sale[]): number {
   return sales.reduce(
-    (sum, sale) => sum + sale.items.reduce((n, item) => n + item.mlUsed, 0),
+    (sum, sale) =>
+      sum + sale.items.reduce((n, item) => n + (item.mlUsed ?? 0), 0),
     0,
   );
 }
@@ -150,7 +153,7 @@ export function mlConsumedByProduct(sales: Sale[]): ProductMlConsumed[] {
     for (const item of sale.items) {
       byProduct.set(
         item.productName,
-        (byProduct.get(item.productName) ?? 0) + item.mlUsed,
+        (byProduct.get(item.productName) ?? 0) + (item.mlUsed ?? 0),
       );
     }
   }
