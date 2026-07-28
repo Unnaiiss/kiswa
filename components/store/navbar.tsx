@@ -129,7 +129,7 @@ export function StoreNavbar({ products }: { products: StoreProduct[] }) {
   return (
     <header
       className={cn(
-        "sticky top-0 z-40 border-b transition-colors duration-300",
+        "fixed inset-x-0 top-0 z-40 border-b transition-colors duration-300",
         scrolled
           ? "border-kiswa-border/80 bg-kiswa-void/85 backdrop-blur-md"
           : "border-transparent bg-transparent",

@@ -61,6 +61,10 @@
   --color-kiswa-gold-dim: #8a6d28;
   --font-display: var(--font-playfair);
   --font-body: var(--font-inter);
+  /* Fixed navbar height — used to offset page content and to cancel that
+     offset on the homepage hero so it can bleed full-height behind the
+     transparent navbar. */
+  --spacing-nav: 4.75rem;
 }
 
 :root {

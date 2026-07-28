@@ -26,7 +26,7 @@ export function Hero() {
   const router = useRouter();
 
   return (
-    <section className="relative flex min-h-screen items-center justify-center overflow-hidden bg-kiswa-void">
+    <section className="relative -mt-nav flex min-h-screen items-center justify-center overflow-hidden bg-kiswa-void">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={HERO_IMAGE}

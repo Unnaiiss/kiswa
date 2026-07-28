@@ -30,7 +30,7 @@ export default async function StoreLayout({
     >
       <CartProvider>
         <StoreNavbar products={products} />
-        {children}
+        <div className="flex flex-1 flex-col pt-nav">{children}</div>
         <StoreFooter />
         <CartDrawer />
       </CartProvider>
