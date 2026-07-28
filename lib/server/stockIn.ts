@@ -8,8 +8,7 @@ import {
 
 export const stockInInputSchema = z.object({
   productId: z.string().min(1),
-  variantId: z.string().min(1),
-  qty: z.number().int().positive(),
+  ml: z.number().positive(),
   reason: z.enum(["opening_stock", "purchase", "return"]),
   note: z.string().nullable().default(null),
 });
@@ -29,29 +28,16 @@ export async function stockIn(rawInput: StockInInput): Promise<void> {
     if (!snap.exists || !product) {
       throw new Error(`Product ${input.productId} not found`);
     }
-    const variant = product.variants.find(
-      (v) => v.variantId === input.variantId,
-    );
-    if (!variant) {
-      throw new Error(
-        `Variant ${input.variantId} not found on product ${input.productId}`,
-      );
-    }
 
     // ---- WRITE ----
-    const updatedVariants = product.variants.map((v) =>
-      v.variantId === input.variantId
-        ? { ...v, stock: v.stock + input.qty }
-        : v,
-    );
-    tx.update(productRef, { variants: updatedVariants });
+    tx.update(productRef, { oilStockMl: product.oilStockMl + input.ml });
 
     tx.set(movements.doc(), {
       productId: input.productId,
       productName: product.name,
-      variantId: variant.variantId,
-      sizeMl: variant.sizeMl,
-      qtyChange: input.qty,
+      variantId: null,
+      variantLabel: null,
+      mlChange: input.ml,
       reason: input.reason,
       referenceId: null,
       note: input.note,

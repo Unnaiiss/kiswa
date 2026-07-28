@@ -39,6 +39,8 @@ function check(condition: boolean, description: string) {
 async function main() {
   const products = productsCollection();
 
+  // Only 3ml in the shared pool — exactly enough for the pending order's
+  // oil-3ml unit, and nothing else.
   await products.doc(TEST_PRODUCT_ID).set({
     name: "Test Checkout Product",
     slug: TEST_PRODUCT_ID,
@@ -47,6 +49,8 @@ async function main() {
     category: "Fragrance",
     imageUrls: [],
     isActive: true,
+    oilStockMl: 3,
+    lowStockThresholdMl: 10,
     variants: [
       {
         variantId: "oil-3ml",
@@ -54,8 +58,7 @@ async function main() {
         sizeMl: 3,
         priceInr: 150,
         mrpInr: 190,
-        stock: 1,
-        lowStockThreshold: 3,
+        oilMlPerUnit: 3,
         isActive: true,
       },
       {
@@ -64,17 +67,16 @@ async function main() {
         sizeMl: 50,
         priceInr: 420,
         mrpInr: 530,
-        stock: 5,
-        lowStockThreshold: 3,
+        oilMlPerUnit: 6,
         isActive: true,
       },
     ],
     createdAt: FieldValue.serverTimestamp(),
   });
 
-  // ---- Scenario 1: a variant sells out between order creation and payment capture ----
+  // ---- Scenario 1: the shared oil pool sells out between order creation and payment capture ----
   console.log(
-    "\n1. Online order created for the last oil-3ml unit, then it sells out via POS before payment is captured",
+    "\n1. Online order created for the only oil-3ml unit the pool can make, then a POS sale takes that same oil before payment is captured",
   );
   const conflictOrderId = "test_rzp_order_conflict";
   await pendingOrdersCollection().doc(conflictOrderId).set({
@@ -89,7 +91,7 @@ async function main() {
     createdAt: FieldValue.serverTimestamp(),
   });
 
-  // A POS sale takes the last unit while the online payment is in flight.
+  // A POS sale drains the shared pool while the online payment is in flight.
   await recordSale({
     channel: "offline",
     customerName: "Walk-in Customer",
@@ -111,7 +113,7 @@ async function main() {
   );
   check(
     conflictResult.status === "refund_flagged",
-    `payment for the sold-out variant is flagged for refund, not recorded as a sale (got status: ${conflictResult.status})`,
+    `payment for the sold-out oil is flagged for refund, not recorded as a sale (got status: ${conflictResult.status})`,
   );
 
   const conflictPending = (
@@ -133,12 +135,9 @@ async function main() {
   const productAfterConflict = (
     await products.doc(TEST_PRODUCT_ID).get()
   ).data()!;
-  const oilAfterConflict = productAfterConflict.variants.find(
-    (v) => v.variantId === "oil-3ml",
-  )!;
   check(
-    oilAfterConflict.stock === 0,
-    `oil-3ml stock stayed at 0, not decremented a second time (was ${oilAfterConflict.stock})`,
+    productAfterConflict.oilStockMl === 0,
+    `oilStockMl stayed at 0, not decremented a second time (was ${productAfterConflict.oilStockMl})`,
   );
 
   const onlineSalesForConflict = await salesCollection()
@@ -149,8 +148,12 @@ async function main() {
     "no sale document was created for the conflicted online payment",
   );
 
-  // ---- Scenario 2: happy path — stock is available, payment finalizes normally ----
-  console.log("\n2. Online order for spray-50ml with stock available succeeds");
+  // ---- Scenario 2: happy path — a new delivery tops up the pool, payment finalizes normally ----
+  console.log(
+    "\n2. New stock arrives (12ml); an online order for 2x spray-50ml (12ml) with stock available succeeds",
+  );
+  await products.doc(TEST_PRODUCT_ID).update({ oilStockMl: 12 });
+
   const okOrderId = "test_rzp_order_ok";
   await pendingOrdersCollection().doc(okOrderId).set({
     items: [{ productId: TEST_PRODUCT_ID, variantId: "spray-50ml", qty: 2 }],
@@ -184,12 +187,9 @@ async function main() {
   );
 
   const productAfterOk = (await products.doc(TEST_PRODUCT_ID).get()).data()!;
-  const sprayAfterOk = productAfterOk.variants.find(
-    (v) => v.variantId === "spray-50ml",
-  )!;
   check(
-    sprayAfterOk.stock === 3,
-    `spray-50ml stock decremented exactly once (5 - 2 = 3, was ${sprayAfterOk.stock})`,
+    productAfterOk.oilStockMl === 0,
+    `oilStockMl decremented exactly once (12 - 12 = 0, was ${productAfterOk.oilStockMl})`,
   );
 
   const onlineSalesForOk = await salesCollection()
@@ -205,7 +205,7 @@ async function main() {
 
   console.log(
     failures === 0
-      ? "\nAll checks passed: a payment for a variant that just sold out is rejected by recordSale's stock re-check and flagged for refund instead of overselling.\n"
+      ? "\nAll checks passed: a payment for oil that just sold out is rejected by recordSale's stock re-check and flagged for refund instead of overselling.\n"
       : `\n${failures} check(s) FAILED.\n`,
   );
   process.exit(failures === 0 ? 0 : 1);

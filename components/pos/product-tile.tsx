@@ -10,7 +10,9 @@ interface ProductTileProps {
 }
 
 export function ProductTile({ product, onTap }: ProductTileProps) {
-  const sellable = product.variants.some((v) => v.isActive && v.stock > 0);
+  const sellable = product.variants.some(
+    (v) => v.isActive && v.oilMlPerUnit <= product.oilStockMl,
+  );
   const startingPrice = getStartingPrice(product.variants);
 
   return (

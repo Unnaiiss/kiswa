@@ -7,6 +7,7 @@ import {
   salesCollection,
   stockMovementsCollection,
 } from "@/lib/firestore/admin-collections";
+import { formatVariantLabel } from "@/lib/pricing";
 import type { ProductDoc, SaleItem } from "@/lib/firestore/types";
 
 const saleItemInputSchema = z.object({
@@ -111,8 +112,14 @@ export async function recordSale(
         qtyByProductVariant.set(item.productId, perVariant);
       }
 
+      // Validate: every variant sold must be active, and each product's
+      // total ml need — summed across every item of that product in this
+      // sale, since all its variants are bottled from one oil pool — must
+      // not exceed what's left in stock.
+      const mlNeededByProduct = new Map<string, number>();
       for (const [productId, perVariant] of qtyByProductVariant) {
         const product = productMap.get(productId)!;
+        let mlNeeded = 0;
         for (const [variantId, qty] of perVariant) {
           const variant = product.variants.find(
             (v) => v.variantId === variantId,
@@ -122,12 +129,14 @@ export async function recordSale(
               `${product.name} (${variant.type} ${variant.sizeMl}ml) is not available for sale`,
             );
           }
-          if (variant.stock < qty) {
-            throw new Error(
-              `Insufficient stock for ${product.name} (${variant.type} ${variant.sizeMl}ml): have ${variant.stock}, need ${qty}`,
-            );
-          }
+          mlNeeded += qty * variant.oilMlPerUnit;
         }
+        if (product.oilStockMl < mlNeeded) {
+          throw new Error(
+            `Insufficient oil stock for ${product.name}: have ${product.oilStockMl}ml, need ${mlNeeded}ml`,
+          );
+        }
+        mlNeededByProduct.set(productId, mlNeeded);
       }
 
       const saleItems: SaleItem[] = input.items.map((item) => {
@@ -143,6 +152,7 @@ export async function recordSale(
           unitPrice: variant.priceInr,
           qty: item.qty,
           lineTotal: variant.priceInr * item.qty,
+          mlUsed: variant.oilMlPerUnit * item.qty,
         };
       });
 
@@ -156,24 +166,26 @@ export async function recordSale(
       const invoiceNo = formatInvoiceNo(year, seq);
 
       // ---- ALL WRITES FROM HERE ----
-      for (const [productId, perVariant] of qtyByProductVariant) {
+      for (const [productId, mlNeeded] of mlNeededByProduct) {
         const product = productMap.get(productId)!;
-        const updatedVariants = product.variants.map((variant) => {
-          const qty = perVariant.get(variant.variantId);
-          return qty ? { ...variant, stock: variant.stock - qty } : variant;
+        tx.update(products.doc(productId), {
+          oilStockMl: product.oilStockMl - mlNeeded,
         });
-        tx.update(products.doc(productId), { variants: updatedVariants });
       }
 
       const saleReason =
         input.channel === "online" ? "online_sale" : "offline_sale";
       for (const item of saleItems) {
+        const product = productMap.get(item.productId)!;
+        const variant = product.variants.find(
+          (v) => v.variantId === item.variantId,
+        )!;
         tx.set(movements.doc(), {
           productId: item.productId,
           productName: item.productName,
           variantId: item.variantId,
-          sizeMl: item.sizeMl,
-          qtyChange: -item.qty,
+          variantLabel: formatVariantLabel(variant.type, variant.sizeMl),
+          mlChange: -item.mlUsed,
           reason: saleReason,
           referenceId: saleRef.id,
           note: null,

@@ -16,18 +16,15 @@ import type { StockMovement } from "@/lib/firestore/types";
 
 interface UseStockMovementsOptions {
   productId?: string;
-  variantId?: string;
   limit?: number;
 }
 
 /**
- * Live movement history, optionally narrowed to a product (and further to
- * one of its variants). Backed by the (productId, createdAt) and
- * (productId, variantId, createdAt) composite indexes in firestore.indexes.json.
+ * Live movement history, optionally narrowed to a product. Backed by the
+ * (productId, createdAt) composite index in firestore.indexes.json.
  */
 export function useStockMovements({
   productId,
-  variantId,
   limit = 200,
 }: UseStockMovementsOptions) {
   const [movements, setMovements] = useState<StockMovement[]>([]);
@@ -37,9 +34,6 @@ export function useStockMovements({
     setLoading(true);
     const constraints: QueryConstraint[] = [];
     if (productId) constraints.push(where("productId", "==", productId));
-    if (productId && variantId) {
-      constraints.push(where("variantId", "==", variantId));
-    }
     constraints.push(orderBy("createdAt", "desc"), fsLimit(limit));
 
     const q = query(
@@ -51,7 +45,7 @@ export function useStockMovements({
       setLoading(false);
     });
     return unsubscribe;
-  }, [productId, variantId, limit]);
+  }, [productId, limit]);
 
   return { movements, loading };
 }

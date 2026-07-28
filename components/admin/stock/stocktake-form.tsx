@@ -14,26 +14,37 @@ interface StocktakeFormProps {
   onSaved: () => void;
 }
 
+function sanitizeDecimal(value: string): string {
+  const cleaned = value.replace(/[^0-9.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  if (firstDot === -1) return cleaned;
+  return (
+    cleaned.slice(0, firstDot + 1) +
+    cleaned.slice(firstDot + 1).replace(/\./g, "")
+  );
+}
+
 export function StocktakeForm({ row, onClose, onSaved }: StocktakeFormProps) {
-  const [counted, setCounted] = useState(String(row.stock));
+  const [counted, setCounted] = useState(String(row.oilStockMl));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const countedNum = counted === "" ? null : Math.round(Number(counted));
-  const diff = countedNum === null ? 0 : countedNum - row.stock;
+  const countedNum = counted === "" ? null : Number(counted);
+  const diff =
+    countedNum === null ? 0 : Math.round((countedNum - row.oilStockMl) * 100) / 100;
 
   const diffLabel = useMemo(() => {
     if (countedNum === null) return null;
     if (diff === 0) return "No change — stock already matches the count.";
-    return diff > 0 ? `Adjustment: +${diff}` : `Adjustment: ${diff}`;
+    return diff > 0 ? `Adjustment: +${diff} ml` : `Adjustment: ${diff} ml`;
   }, [countedNum, diff]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
-    if (countedNum === null || countedNum < 0) {
-      setError("Enter the counted quantity (0 or more).");
+    if (countedNum === null || countedNum < 0 || Number.isNaN(countedNum)) {
+      setError("Enter the counted quantity in ml (0 or more).");
       return;
     }
     if (diff === 0) {
@@ -47,8 +58,7 @@ export function StocktakeForm({ row, onClose, onSaved }: StocktakeFormProps) {
         method: "POST",
         body: JSON.stringify({
           productId: row.productId,
-          variantId: row.variantId,
-          qtyChange: diff,
+          mlChange: diff,
           note: "stocktake",
         }),
       });
@@ -64,23 +74,23 @@ export function StocktakeForm({ row, onClose, onSaved }: StocktakeFormProps) {
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
         <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3 text-sm">
           <p className="text-zinc-50">{row.productName}</p>
-          <p className="text-zinc-400">{row.variantLabel}</p>
           <p className="mt-2 text-zinc-500">
-            Current system stock: <span className="text-zinc-300">{row.stock}</span>
+            Current system stock:{" "}
+            <span className="text-zinc-300">{row.oilStockMl} ml</span>
           </p>
         </div>
 
         <div>
           <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
-            Counted quantity
+            Counted quantity (ml)
           </label>
           <input
             value={counted}
-            onChange={(e) => setCounted(e.target.value.replace(/\D/g, ""))}
-            inputMode="numeric"
+            onChange={(e) => setCounted(sanitizeDecimal(e.target.value))}
+            inputMode="decimal"
             autoFocus
             className={inputClass}
-            placeholder="e.g. 8"
+            placeholder="e.g. 25"
           />
         </div>
 

@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useStockMovements } from "@/lib/admin/useStockMovements";
-import { formatVariantLabel } from "@/lib/pricing";
 import type { Product, StockMovementReason } from "@/lib/firestore/types";
 
 const REASON_LABEL: Record<StockMovementReason, string> = {
@@ -23,45 +22,23 @@ export function MovementHistory({ products }: { products: Product[] }) {
     [products],
   );
   const [productId, setProductId] = useState<string>("");
-  const [variantId, setVariantId] = useState<string>("");
-
-  const product = sortedProducts.find((p) => p.id === productId);
 
   const { movements, loading } = useStockMovements({
     productId: productId || undefined,
-    variantId: variantId || undefined,
   });
-
-  function handleProductChange(id: string) {
-    setProductId(id);
-    setVariantId("");
-  }
 
   return (
     <div>
       <div className="mb-4 flex flex-wrap gap-3">
         <select
           value={productId}
-          onChange={(e) => handleProductChange(e.target.value)}
+          onChange={(e) => setProductId(e.target.value)}
           className={inputClass}
         >
           <option value="">All products</option>
           {sortedProducts.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={variantId}
-          onChange={(e) => setVariantId(e.target.value)}
-          disabled={!product}
-          className={`${inputClass} disabled:opacity-40`}
-        >
-          <option value="">All variants</option>
-          {product?.variants.map((v) => (
-            <option key={v.variantId} value={v.variantId}>
-              {formatVariantLabel(v.type, v.sizeMl)}
             </option>
           ))}
         </select>
@@ -79,7 +56,7 @@ export function MovementHistory({ products }: { products: Product[] }) {
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Product</th>
                 <th className="px-4 py-3">Variant</th>
-                <th className="px-4 py-3">Qty</th>
+                <th className="px-4 py-3">Ml</th>
                 <th className="px-4 py-3">Reason</th>
                 <th className="px-4 py-3">Note</th>
               </tr>
@@ -101,13 +78,15 @@ export function MovementHistory({ products }: { products: Product[] }) {
                   <td className="px-4 py-2.5 font-medium text-zinc-50">
                     {m.productName}
                   </td>
-                  <td className="px-4 py-2.5 text-zinc-400">{m.sizeMl}ml</td>
+                  <td className="px-4 py-2.5 text-zinc-400">
+                    {m.variantLabel ?? "—"}
+                  </td>
                   <td
                     className={`px-4 py-2.5 font-semibold ${
-                      m.qtyChange >= 0 ? "text-green-400" : "text-red-400"
+                      m.mlChange >= 0 ? "text-green-400" : "text-red-400"
                     }`}
                   >
-                    {m.qtyChange >= 0 ? `+${m.qtyChange}` : m.qtyChange}
+                    {m.mlChange >= 0 ? `+${m.mlChange}` : m.mlChange} ml
                   </td>
                   <td className="px-4 py-2.5 text-zinc-400">
                     {REASON_LABEL[m.reason]}

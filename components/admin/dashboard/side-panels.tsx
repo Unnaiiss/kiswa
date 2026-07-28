@@ -59,14 +59,12 @@ export function LowStockPanel({ alerts }: { alerts: LowStockAlert[] }) {
         <ul className="flex max-h-64 flex-col gap-2 overflow-y-auto">
           {alerts.map((alert) => (
             <li
-              key={`${alert.productId}-${alert.variantLabel}`}
+              key={alert.productId}
               className="flex items-center justify-between gap-3 rounded-lg border border-red-400/20 bg-red-400/5 px-3 py-2 text-sm"
             >
-              <span className="text-zinc-300">
-                {alert.productName} — {alert.variantLabel}
-              </span>
+              <span className="text-zinc-300">{alert.productName}</span>
               <span className="shrink-0 font-semibold text-red-400">
-                {alert.stock} left
+                {alert.stockMl} ml left
               </span>
             </li>
           ))}

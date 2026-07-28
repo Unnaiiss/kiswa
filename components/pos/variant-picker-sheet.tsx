@@ -3,10 +3,13 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { X } from "lucide-react";
 import type { Product, ProductVariant } from "@/lib/firestore/types";
-import { formatInr, formatVariantLabel } from "@/lib/pricing";
+import { formatInr, formatVariantLabel, maxAdditionalUnits } from "@/lib/pricing";
 
 interface VariantPickerSheetProps {
   product: Product | null;
+  /** Oil (ml) left in this product's pool right now, after netting out
+   * everything already on the current bill. */
+  remainingMl: number;
   onSelect: (product: Product, variant: ProductVariant) => void;
   onClose: () => void;
 }
@@ -18,6 +21,7 @@ const TYPE_LABEL: Record<string, string> = {
 
 export function VariantPickerSheet({
   product,
+  remainingMl,
   onSelect,
   onClose,
 }: VariantPickerSheetProps) {
@@ -71,10 +75,12 @@ export function VariantPickerSheet({
                   </p>
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
                     {variants.map((variant) => {
-                      const outOfStock = variant.stock <= 0;
+                      const availableUnits = maxAdditionalUnits(
+                        remainingMl,
+                        variant.oilMlPerUnit,
+                      );
+                      const outOfStock = availableUnits <= 0;
                       const unavailable = !variant.isActive || outOfStock;
-                      const lowStock =
-                        !unavailable && variant.stock <= variant.lowStockThreshold;
                       return (
                         <button
                           key={variant.variantId}
@@ -93,18 +99,14 @@ export function VariantPickerSheet({
                           </span>
                           <span
                             className={`text-xs ${
-                              unavailable
-                                ? "text-red-400"
-                                : lowStock
-                                  ? "text-amber-400"
-                                  : "text-zinc-500"
+                              unavailable ? "text-red-400" : "text-zinc-500"
                             }`}
                           >
                             {!variant.isActive
                               ? "Not available"
                               : outOfStock
                                 ? "Out of stock"
-                                : `${variant.stock} left`}
+                                : `${availableUnits} possible`}
                           </span>
                         </button>
                       );

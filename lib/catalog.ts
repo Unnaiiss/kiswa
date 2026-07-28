@@ -74,6 +74,8 @@ export interface BuiltProduct {
   isActive: boolean;
   basePrice: number | null;
   variants: ProductVariant[];
+  oilStockMl: number;
+  lowStockThresholdMl: number;
 }
 
 export function buildCatalogProducts(): BuiltProduct[] {
@@ -88,6 +90,8 @@ export function buildCatalogProducts(): BuiltProduct[] {
       category: "Fragrance",
       isActive,
       basePrice: entry.basePrice,
+      oilStockMl: 0,
+      lowStockThresholdMl: 10,
       variants: computed.map(
         (c): ProductVariant => ({
           variantId: c.variantId,
@@ -95,8 +99,7 @@ export function buildCatalogProducts(): BuiltProduct[] {
           sizeMl: c.sizeMl,
           priceInr: c.priceInr,
           mrpInr: c.mrpInr,
-          stock: 0,
-          lowStockThreshold: 3,
+          oilMlPerUnit: c.oilMlPerUnit,
           isActive,
         }),
       ),

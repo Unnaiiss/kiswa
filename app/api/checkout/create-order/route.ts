@@ -77,6 +77,7 @@ export async function POST(request: Request) {
       );
     }
     const perVariant = qtyByProductVariant.get(productId)!;
+    let mlNeeded = 0;
     for (const [variantId, qty] of perVariant) {
       const variant = product.variants.find((v) => v.variantId === variantId);
       if (!variant || !variant.isActive) {
@@ -85,16 +86,17 @@ export async function POST(request: Request) {
           { status: 409 },
         );
       }
-      if (variant.stock < qty) {
-        return NextResponse.json(
-          {
-            error: `Only ${variant.stock} left of ${product.name} (${variant.type} ${variant.sizeMl}ml). Please update your bag.`,
-          },
-          { status: 409 },
-        );
-      }
+      mlNeeded += qty * variant.oilMlPerUnit;
       subtotal += variant.priceInr * qty;
       pendingItems.push({ productId, variantId, qty });
+    }
+    if (product.oilStockMl < mlNeeded) {
+      return NextResponse.json(
+        {
+          error: `Not enough ${product.name} in stock to make everything in your bag. Please update the quantity.`,
+        },
+        { status: 409 },
+      );
     }
   }
 

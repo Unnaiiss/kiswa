@@ -7,6 +7,9 @@ export interface BillLine {
   type: VariantType;
   sizeMl: number;
   unitPrice: number;
+  /** ml of attar oil one unit of this variant consumes — lets the bill
+   * compute remaining availability without re-reading product data. */
+  oilMlPerUnit: number;
   qty: number;
 }
 

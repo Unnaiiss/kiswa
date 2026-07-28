@@ -128,3 +128,33 @@ export function totalItemsSold(sales: Sale[]): number {
 export function totalRevenue(sales: Sale[]): number {
   return sales.reduce((sum, sale) => sum + sale.total, 0);
 }
+
+/** Total ml of attar oil consumed across all items in these sales. Uses
+ * each item's snapshotted mlUsed, not the product's current oilMlPerUnit —
+ * that value is editable and must not rewrite history. */
+export function totalMlConsumed(sales: Sale[]): number {
+  return sales.reduce(
+    (sum, sale) => sum + sale.items.reduce((n, item) => n + item.mlUsed, 0),
+    0,
+  );
+}
+
+export interface ProductMlConsumed {
+  productName: string;
+  ml: number;
+}
+
+export function mlConsumedByProduct(sales: Sale[]): ProductMlConsumed[] {
+  const byProduct = new Map<string, number>();
+  for (const sale of sales) {
+    for (const item of sale.items) {
+      byProduct.set(
+        item.productName,
+        (byProduct.get(item.productName) ?? 0) + item.mlUsed,
+      );
+    }
+  }
+  return [...byProduct.entries()]
+    .map(([productName, ml]) => ({ productName, ml }))
+    .sort((a, b) => b.ml - a.ml);
+}

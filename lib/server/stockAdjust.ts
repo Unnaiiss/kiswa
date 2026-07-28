@@ -8,8 +8,7 @@ import {
 
 export const stockAdjustInputSchema = z.object({
   productId: z.string().min(1),
-  variantId: z.string().min(1),
-  qtyChange: z.number().int().refine((n) => n !== 0, "qtyChange must be nonzero"),
+  mlChange: z.number().refine((n) => n !== 0, "mlChange must be nonzero"),
   note: z.string().min(1),
 });
 
@@ -28,34 +27,23 @@ export async function stockAdjust(rawInput: StockAdjustInput): Promise<void> {
     if (!snap.exists || !product) {
       throw new Error(`Product ${input.productId} not found`);
     }
-    const variant = product.variants.find(
-      (v) => v.variantId === input.variantId,
-    );
-    if (!variant) {
-      throw new Error(
-        `Variant ${input.variantId} not found on product ${input.productId}`,
-      );
-    }
 
-    const newStock = variant.stock + input.qtyChange;
+    const newStock = product.oilStockMl + input.mlChange;
     if (newStock < 0) {
       throw new Error(
-        `Adjustment would result in negative stock for ${product.name} (${variant.type} ${variant.sizeMl}ml): have ${variant.stock}, change ${input.qtyChange}`,
+        `Adjustment would result in negative oil stock for ${product.name}: have ${product.oilStockMl}ml, change ${input.mlChange}ml`,
       );
     }
 
     // ---- WRITE ----
-    const updatedVariants = product.variants.map((v) =>
-      v.variantId === input.variantId ? { ...v, stock: newStock } : v,
-    );
-    tx.update(productRef, { variants: updatedVariants });
+    tx.update(productRef, { oilStockMl: newStock });
 
     tx.set(movements.doc(), {
       productId: input.productId,
       productName: product.name,
-      variantId: variant.variantId,
-      sizeMl: variant.sizeMl,
-      qtyChange: input.qtyChange,
+      variantId: null,
+      variantLabel: null,
+      mlChange: input.mlChange,
       reason: "adjustment",
       referenceId: null,
       note: input.note,

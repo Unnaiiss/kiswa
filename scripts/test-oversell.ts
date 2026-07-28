@@ -14,7 +14,7 @@ const TEST_PRODUCT_ID = "test-oversell-product";
 async function main() {
   const products = productsCollection();
 
-  // ---- Arrange: a product with two variants, each with its own stock ----
+  // ---- Arrange: a product with 5ml of oil left, shared by two variants ----
   await products.doc(TEST_PRODUCT_ID).set({
     name: "Test Oversell Product",
     slug: TEST_PRODUCT_ID,
@@ -23,6 +23,8 @@ async function main() {
     category: "Fragrance",
     imageUrls: [],
     isActive: true,
+    oilStockMl: 5,
+    lowStockThresholdMl: 10,
     variants: [
       {
         variantId: "oil-3ml",
@@ -30,18 +32,16 @@ async function main() {
         sizeMl: 3,
         priceInr: 150,
         mrpInr: 190,
-        stock: 1,
-        lowStockThreshold: 3,
+        oilMlPerUnit: 3,
         isActive: true,
       },
       {
-        variantId: "spray-50ml",
-        type: "spray",
-        sizeMl: 50,
-        priceInr: 420,
-        mrpInr: 530,
-        stock: 5,
-        lowStockThreshold: 3,
+        variantId: "oil-12ml",
+        type: "oil",
+        sizeMl: 12,
+        priceInr: 400,
+        mrpInr: 500,
+        oilMlPerUnit: 12,
         isActive: true,
       },
     ],
@@ -59,8 +59,8 @@ async function main() {
     }
   }
 
-  // ---- 1. Selling the last unit of oil-3ml succeeds ----
-  console.log("\n1. Sell the only oil-3ml unit in stock");
+  // ---- 1. Selling one Oil 3ml (3ml of the 5ml pool) succeeds ----
+  console.log("\n1. Sell one Oil 3ml unit (uses 3ml of the 5ml pool)");
   const firstSale = await recordSale({
     channel: "offline",
     customerName: "Test Customer",
@@ -77,9 +77,35 @@ async function main() {
   });
   check(!!firstSale.invoiceNo.startsWith("KSW-"), "first sale recorded with a KSW invoice number");
 
-  // ---- 2. Selling oil-3ml again must be rejected (now out of stock) ----
-  console.log("\n2. Attempt to oversell oil-3ml (now out of stock)");
-  let oversoldRejected = false;
+  // ---- 2. Only 2ml left — Oil 12ml (needs 12ml) must be rejected ----
+  console.log("\n2. Attempt to sell Oil 12ml with only 2ml left in the pool");
+  let oil12Rejected = false;
+  try {
+    await recordSale({
+      channel: "offline",
+      customerName: "Test Customer",
+      customerPhone: "9999999999",
+      items: [{ productId: TEST_PRODUCT_ID, variantId: "oil-12ml", qty: 1 }],
+      discount: 0,
+      paymentMethod: "cash",
+      paymentStatus: "paid",
+      razorpayOrderId: null,
+      razorpayPaymentId: null,
+      orderStatus: "paid",
+      shippingAddress: null,
+      createdByUid: "test-script",
+    });
+  } catch (err) {
+    oil12Rejected = true;
+    console.log(`    -> rejected as expected: ${(err as Error).message}`);
+  }
+  check(oil12Rejected, "Oil 12ml sale was rejected (needs 12ml, only 2ml left)");
+
+  // ---- 3. Only 2ml left — a second Oil 3ml (needs 3ml) must ALSO be
+  // rejected, proving both variants share one oil pool (unlike the old
+  // per-variant model, where a sibling variant would have its own stock). ----
+  console.log("\n3. Attempt to sell a second Oil 3ml with only 2ml left in the pool");
+  let secondOil3Rejected = false;
   try {
     await recordSale({
       channel: "offline",
@@ -96,45 +122,28 @@ async function main() {
       createdByUid: "test-script",
     });
   } catch (err) {
-    oversoldRejected = true;
+    secondOil3Rejected = true;
     console.log(`    -> rejected as expected: ${(err as Error).message}`);
   }
-  check(oversoldRejected, "second sale of oil-3ml was rejected (oversell prevented)");
+  check(
+    secondOil3Rejected,
+    "second Oil 3ml sale was rejected (needs 3ml, only 2ml left — shared pool, not per-variant)",
+  );
 
-  // ---- 3. The sibling variant (spray-50ml) must still be sellable ----
-  console.log("\n3. Sell spray-50ml on the same product (independent stock)");
-  const secondSale = await recordSale({
-    channel: "offline",
-    customerName: "Test Customer",
-    customerPhone: "9999999999",
-    items: [{ productId: TEST_PRODUCT_ID, variantId: "spray-50ml", qty: 2 }],
-    discount: 0,
-    paymentMethod: "cash",
-    paymentStatus: "paid",
-    razorpayOrderId: null,
-    razorpayPaymentId: null,
-    orderStatus: "paid",
-    shippingAddress: null,
-    createdByUid: "test-script",
-  });
-  check(!!secondSale.invoiceNo.startsWith("KSW-"), "spray-50ml sale succeeded while oil-3ml stays sold out");
-
-  // ---- 4. Final stock must reflect exactly these movements ----
+  // ---- 4. Final oil stock must reflect exactly the one successful sale ----
   const finalSnap = await products.doc(TEST_PRODUCT_ID).get();
   const finalProduct = finalSnap.data()!;
-  const oil = finalProduct.variants.find((v) => v.variantId === "oil-3ml")!;
-  const spray = finalProduct.variants.find(
-    (v) => v.variantId === "spray-50ml",
-  )!;
-  check(oil.stock === 0, `oil-3ml stock is 0 (was ${oil.stock})`);
-  check(spray.stock === 3, `spray-50ml stock is 3 (was ${spray.stock})`);
+  check(
+    finalProduct.oilStockMl === 2,
+    `oilStockMl is 2 (5 - 3 from the one successful sale, was ${finalProduct.oilStockMl})`,
+  );
 
   // ---- cleanup ----
   await products.doc(TEST_PRODUCT_ID).delete();
 
   console.log(
     failures === 0
-      ? "\nAll checks passed: overselling is rejected per-variant, sibling variants stay sellable.\n"
+      ? "\nAll checks passed: overselling the shared oil pool is rejected regardless of which variant is requested.\n"
       : `\n${failures} check(s) FAILED.\n`,
   );
   process.exit(failures === 0 ? 0 : 1);

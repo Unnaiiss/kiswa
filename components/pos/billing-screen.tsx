@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { LogOut, ShoppingBag, X } from "lucide-react";
@@ -14,7 +14,7 @@ import type {
   PosPaymentMethod,
   ReceiptData,
 } from "@/lib/pos/types";
-import { formatInr } from "@/lib/pricing";
+import { formatInr, maxAdditionalUnits } from "@/lib/pricing";
 import { ProductGrid } from "./product-grid";
 import { VariantPickerSheet } from "./variant-picker-sheet";
 import { BillPanel } from "./bill-panel";
@@ -42,15 +42,23 @@ export function BillingScreen({ staffName }: { staffName: string }) {
   const [error, setError] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
 
-  const stockMap = useMemo(() => {
+  const productOilStockMap = useMemo(() => {
     const map = new Map<string, number>();
-    for (const product of products) {
-      for (const variant of product.variants) {
-        map.set(lineKey(product.id, variant.variantId), variant.stock);
-      }
-    }
+    for (const product of products) map.set(product.id, product.oilStockMl);
     return map;
   }, [products]);
+
+  // Oil left in a product's shared pool right now, after netting out every
+  // line already on this bill (any variant of that product).
+  const remainingMlForProduct = useCallback(
+    (currentLines: BillLine[], productId: string) => {
+      const committed = currentLines
+        .filter((l) => l.productId === productId)
+        .reduce((sum, l) => sum + l.qty * l.oilMlPerUnit, 0);
+      return (productOilStockMap.get(productId) ?? 0) - committed;
+    },
+    [productOilStockMap],
+  );
 
   const subtotal = useMemo(
     () => lines.reduce((sum, l) => sum + l.unitPrice * l.qty, 0),
@@ -67,13 +75,14 @@ export function BillingScreen({ staffName }: { staffName: string }) {
 
   function addLine(product: Product, variant: ProductVariant) {
     setLines((prev) => {
+      const remaining = remainingMlForProduct(prev, product.id);
+      if (remaining < variant.oilMlPerUnit) return prev;
+
       const key = lineKey(product.id, variant.variantId);
-      const liveStock = stockMap.get(key) ?? variant.stock;
       const idx = prev.findIndex(
         (l) => lineKey(l.productId, l.variantId) === key,
       );
       if (idx === -1) {
-        if (liveStock <= 0) return prev;
         return [
           ...prev,
           {
@@ -83,11 +92,11 @@ export function BillingScreen({ staffName }: { staffName: string }) {
             type: variant.type,
             sizeMl: variant.sizeMl,
             unitPrice: variant.priceInr,
+            oilMlPerUnit: variant.oilMlPerUnit,
             qty: 1,
           },
         ];
       }
-      if (prev[idx].qty >= liveStock) return prev;
       const next = [...prev];
       next[idx] = { ...next[idx], qty: next[idx].qty + 1 };
       return next;
@@ -96,7 +105,10 @@ export function BillingScreen({ staffName }: { staffName: string }) {
   }
 
   function handleSelectProduct(product: Product) {
-    const sellable = product.variants.filter((v) => v.isActive && v.stock > 0);
+    const remaining = remainingMlForProduct(lines, product.id);
+    const sellable = product.variants.filter(
+      (v) => v.isActive && maxAdditionalUnits(remaining, v.oilMlPerUnit) > 0,
+    );
     if (sellable.length === 0) return;
     if (sellable.length === 1) {
       addLine(product, sellable[0]);
@@ -109,8 +121,8 @@ export function BillingScreen({ staffName }: { staffName: string }) {
     setLines((prev) =>
       prev.map((l) => {
         if (l.productId !== productId || l.variantId !== variantId) return l;
-        const liveStock = stockMap.get(lineKey(productId, variantId)) ?? Infinity;
-        if (l.qty >= liveStock) return l;
+        const remaining = remainingMlForProduct(prev, productId);
+        if (remaining < l.oilMlPerUnit) return l;
         return { ...l, qty: l.qty + 1 };
       }),
     );
@@ -319,6 +331,9 @@ export function BillingScreen({ staffName }: { staffName: string }) {
 
       <VariantPickerSheet
         product={pickerProduct}
+        remainingMl={
+          pickerProduct ? remainingMlForProduct(lines, pickerProduct.id) : 0
+        }
         onSelect={addLine}
         onClose={() => setPickerProduct(null)}
       />

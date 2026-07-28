@@ -20,9 +20,8 @@ import type { Product } from "@/lib/firestore/types";
 export interface LowStockAlert {
   productId: string;
   productName: string;
-  variantLabel: string;
-  stock: number;
-  threshold: number;
+  stockMl: number;
+  thresholdMl: number;
 }
 
 export interface DashboardData {
@@ -95,18 +94,14 @@ function buildLowStockAlerts(products: Product[]): LowStockAlert[] {
   const alerts: LowStockAlert[] = [];
   for (const product of products) {
     if (!product.isActive) continue;
-    for (const variant of product.variants) {
-      if (!variant.isActive) continue;
-      if (variant.stock <= variant.lowStockThreshold) {
-        alerts.push({
-          productId: product.id,
-          productName: product.name,
-          variantLabel: `${variant.type === "oil" ? "Oil" : "Spray"} ${variant.sizeMl}ml`,
-          stock: variant.stock,
-          threshold: variant.lowStockThreshold,
-        });
-      }
+    if (product.oilStockMl <= product.lowStockThresholdMl) {
+      alerts.push({
+        productId: product.id,
+        productName: product.name,
+        stockMl: product.oilStockMl,
+        thresholdMl: product.lowStockThresholdMl,
+      });
     }
   }
-  return alerts.sort((a, b) => a.stock - b.stock);
+  return alerts.sort((a, b) => a.stockMl - b.stockMl);
 }

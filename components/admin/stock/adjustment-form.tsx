@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { Modal } from "@/components/admin/modal";
 import { adminFetch } from "@/lib/admin/apiClient";
-import { formatVariantLabel } from "@/lib/pricing";
 import type { Product } from "@/lib/firestore/types";
 
 interface AdjustmentFormProps {
@@ -15,6 +14,16 @@ interface AdjustmentFormProps {
 const inputClass =
   "w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-zinc-50 placeholder:text-zinc-600 outline-none focus:border-amber-400";
 
+function sanitizeDecimal(value: string): string {
+  const cleaned = value.replace(/[^0-9.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  if (firstDot === -1) return cleaned;
+  return (
+    cleaned.slice(0, firstDot + 1) +
+    cleaned.slice(firstDot + 1).replace(/\./g, "")
+  );
+}
+
 export function AdjustmentForm({ products, onClose, onSaved }: AdjustmentFormProps) {
   const sortedProducts = useMemo(
     () => [...products].sort((a, b) => a.name.localeCompare(b.name)),
@@ -22,25 +31,18 @@ export function AdjustmentForm({ products, onClose, onSaved }: AdjustmentFormPro
   );
   const [productId, setProductId] = useState(sortedProducts[0]?.id ?? "");
   const product = sortedProducts.find((p) => p.id === productId);
-  const [variantId, setVariantId] = useState(product?.variants[0]?.variantId ?? "");
   const [sign, setSign] = useState<1 | -1>(-1);
   const [magnitude, setMagnitude] = useState("");
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function handleProductChange(id: string) {
-    setProductId(id);
-    const next = sortedProducts.find((p) => p.id === id);
-    setVariantId(next?.variants[0]?.variantId ?? "");
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const magNum = Math.round(Number(magnitude));
-    if (!productId || !variantId || !magNum || magNum <= 0) {
-      setError("Choose a product, variant, and a non-zero quantity.");
+    const magNum = Number(magnitude);
+    if (!productId || !magnitude || !(magNum > 0)) {
+      setError("Choose a product and a non-zero ml quantity.");
       return;
     }
     if (!note.trim()) {
@@ -54,8 +56,7 @@ export function AdjustmentForm({ products, onClose, onSaved }: AdjustmentFormPro
         method: "POST",
         body: JSON.stringify({
           productId,
-          variantId,
-          qtyChange: sign * magNum,
+          mlChange: sign * magNum,
           note: note.trim(),
         }),
       });
@@ -75,12 +76,12 @@ export function AdjustmentForm({ products, onClose, onSaved }: AdjustmentFormPro
           </label>
           <select
             value={productId}
-            onChange={(e) => handleProductChange(e.target.value)}
+            onChange={(e) => setProductId(e.target.value)}
             className={inputClass}
           >
             {sortedProducts.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name}
+                {p.name} — {p.oilStockMl} ml in stock
               </option>
             ))}
           </select>
@@ -88,24 +89,7 @@ export function AdjustmentForm({ products, onClose, onSaved }: AdjustmentFormPro
 
         <div>
           <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
-            Variant
-          </label>
-          <select
-            value={variantId}
-            onChange={(e) => setVariantId(e.target.value)}
-            className={inputClass}
-          >
-            {product?.variants.map((v) => (
-              <option key={v.variantId} value={v.variantId}>
-                {formatVariantLabel(v.type, v.sizeMl)} — {v.stock} in stock
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
-            Adjustment
+            Adjustment (ml)
           </label>
           <div className="flex gap-2">
             <div className="flex overflow-hidden rounded-lg border border-zinc-800">
@@ -132,13 +116,23 @@ export function AdjustmentForm({ products, onClose, onSaved }: AdjustmentFormPro
             </div>
             <input
               value={magnitude}
-              onChange={(e) => setMagnitude(e.target.value.replace(/\D/g, ""))}
-              inputMode="numeric"
+              onChange={(e) => setMagnitude(sanitizeDecimal(e.target.value))}
+              inputMode="decimal"
               className={`${inputClass} flex-1`}
-              placeholder="Quantity"
+              placeholder="Quantity (ml)"
             />
           </div>
         </div>
+
+        {product && magnitude && (
+          <p className="text-xs text-zinc-500">
+            {product.name} will go from {product.oilStockMl} ml to{" "}
+            {Math.round(
+              (product.oilStockMl + sign * (Number(magnitude) || 0)) * 100,
+            ) / 100}{" "}
+            ml.
+          </p>
+        )}
 
         <div>
           <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">

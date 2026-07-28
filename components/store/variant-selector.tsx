@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Droplet, Minus, Plus, SprayCan } from "lucide-react";
 import type { VariantType } from "@/lib/firestore/types";
 import type { StoreProduct } from "@/lib/store/queries";
-import { formatInr, formatVariantLabel } from "@/lib/pricing";
+import { formatInr, formatVariantLabel, maxAdditionalUnits } from "@/lib/pricing";
 import { useCart } from "./cart-provider";
 
 const TYPE_META: Record<
@@ -25,7 +25,20 @@ const TYPE_META: Record<
 };
 
 export function VariantSelector({ product }: { product: StoreProduct }) {
-  const { addItem, open } = useCart();
+  const { items, addItem, open } = useCart();
+
+  // Every variant of this product is bottled from the same oil pool, so oil
+  // already committed to OTHER lines of this product in the cart (any
+  // variant, including this one) reduces what's left to add right now.
+  const mlCommittedInCart = useMemo(
+    () =>
+      items
+        .filter((line) => line.productId === product.id)
+        .reduce((sum, line) => sum + line.qty * line.oilMlPerUnit, 0),
+    [items, product.id],
+  );
+  const remainingMl = product.oilStockMl - mlCommittedInCart;
+  const lowStock = product.oilStockMl <= product.lowStockThresholdMl;
 
   const activeVariants = useMemo(
     () => product.variants.filter((v) => v.isActive),
@@ -59,9 +72,18 @@ export function VariantSelector({ product }: { product: StoreProduct }) {
   const [qty, setQty] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
 
+  const maxQty = maxAdditionalUnits(
+    remainingMl,
+    selectedVariant?.oilMlPerUnit ?? 0,
+  );
+
   useEffect(() => {
     setQty(1);
   }, [selectedVariant?.variantId]);
+
+  useEffect(() => {
+    setQty((q) => Math.min(q, Math.max(1, maxQty)));
+  }, [maxQty]);
 
   function handleTypeChange(type: VariantType) {
     setSelectedType(type);
@@ -73,9 +95,7 @@ export function VariantSelector({ product }: { product: StoreProduct }) {
 
   if (!selectedVariant) return null;
 
-  const outOfStock = selectedVariant.stock <= 0;
-  const lowStock = !outOfStock && selectedVariant.stock <= 5;
-  const maxQty = Math.max(1, selectedVariant.stock);
+  const outOfStock = maxQty <= 0;
 
   function handleAddToCart() {
     if (!selectedVariant || outOfStock) return;
@@ -92,6 +112,7 @@ export function VariantSelector({ product }: { product: StoreProduct }) {
         type: selectedVariant.type,
         sizeMl: selectedVariant.sizeMl,
         unitPrice: selectedVariant.priceInr,
+        oilMlPerUnit: selectedVariant.oilMlPerUnit,
       },
       qty,
     );
@@ -199,9 +220,7 @@ export function VariantSelector({ product }: { product: StoreProduct }) {
           {outOfStock ? (
             <span className="text-sm text-red-400">Out of stock</span>
           ) : lowStock ? (
-            <span className="text-sm text-kiswa-gold-soft">
-              Only {selectedVariant.stock} left
-            </span>
+            <span className="text-sm text-kiswa-gold-soft">Low stock</span>
           ) : (
             <span className="text-sm text-kiswa-ink-muted">In stock</span>
           )}

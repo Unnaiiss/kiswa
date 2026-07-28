@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { Modal } from "@/components/admin/modal";
 import { adminFetch } from "@/lib/admin/apiClient";
-import { formatVariantLabel } from "@/lib/pricing";
 import type { Product } from "@/lib/firestore/types";
 
 interface StockInFormProps {
@@ -15,6 +14,16 @@ interface StockInFormProps {
 const inputClass =
   "w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-zinc-50 placeholder:text-zinc-600 outline-none focus:border-amber-400";
 
+function sanitizeDecimal(value: string): string {
+  const cleaned = value.replace(/[^0-9.]/g, "");
+  const firstDot = cleaned.indexOf(".");
+  if (firstDot === -1) return cleaned;
+  return (
+    cleaned.slice(0, firstDot + 1) +
+    cleaned.slice(firstDot + 1).replace(/\./g, "")
+  );
+}
+
 export function StockInForm({ products, onClose, onSaved }: StockInFormProps) {
   const sortedProducts = useMemo(
     () => [...products].sort((a, b) => a.name.localeCompare(b.name)),
@@ -22,8 +31,7 @@ export function StockInForm({ products, onClose, onSaved }: StockInFormProps) {
   );
   const [productId, setProductId] = useState(sortedProducts[0]?.id ?? "");
   const product = sortedProducts.find((p) => p.id === productId);
-  const [variantId, setVariantId] = useState(product?.variants[0]?.variantId ?? "");
-  const [qty, setQty] = useState("");
+  const [ml, setMl] = useState("");
   const [reason, setReason] = useState<"opening_stock" | "purchase" | "return">(
     "purchase",
   );
@@ -31,18 +39,12 @@ export function StockInForm({ products, onClose, onSaved }: StockInFormProps) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  function handleProductChange(id: string) {
-    setProductId(id);
-    const next = sortedProducts.find((p) => p.id === id);
-    setVariantId(next?.variants[0]?.variantId ?? "");
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const qtyNum = Math.round(Number(qty));
-    if (!productId || !variantId || !qtyNum || qtyNum <= 0) {
-      setError("Choose a product, variant, and a positive quantity.");
+    const mlNum = Number(ml);
+    if (!productId || !ml || !(mlNum > 0)) {
+      setError("Choose a product and a positive ml quantity.");
       return;
     }
 
@@ -52,8 +54,7 @@ export function StockInForm({ products, onClose, onSaved }: StockInFormProps) {
         method: "POST",
         body: JSON.stringify({
           productId,
-          variantId,
-          qty: qtyNum,
+          ml: mlNum,
           reason,
           note: note.trim() || null,
         }),
@@ -74,29 +75,12 @@ export function StockInForm({ products, onClose, onSaved }: StockInFormProps) {
           </label>
           <select
             value={productId}
-            onChange={(e) => handleProductChange(e.target.value)}
+            onChange={(e) => setProductId(e.target.value)}
             className={inputClass}
           >
             {sortedProducts.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
-            Variant
-          </label>
-          <select
-            value={variantId}
-            onChange={(e) => setVariantId(e.target.value)}
-            className={inputClass}
-          >
-            {product?.variants.map((v) => (
-              <option key={v.variantId} value={v.variantId}>
-                {formatVariantLabel(v.type, v.sizeMl)} — {v.stock} in stock
+                {p.name} — {p.oilStockMl} ml in stock
               </option>
             ))}
           </select>
@@ -105,14 +89,14 @@ export function StockInForm({ products, onClose, onSaved }: StockInFormProps) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
-              Quantity
+              Oil quantity (ml)
             </label>
             <input
-              value={qty}
-              onChange={(e) => setQty(e.target.value.replace(/\D/g, ""))}
-              inputMode="numeric"
+              value={ml}
+              onChange={(e) => setMl(sanitizeDecimal(e.target.value))}
+              inputMode="decimal"
               className={inputClass}
-              placeholder="e.g. 20"
+              placeholder="e.g. 250"
             />
           </div>
           <div>
@@ -130,6 +114,14 @@ export function StockInForm({ products, onClose, onSaved }: StockInFormProps) {
             </select>
           </div>
         </div>
+
+        {product && (
+          <p className="text-xs text-zinc-500">
+            {product.name} will go from {product.oilStockMl} ml to{" "}
+            {Math.round((product.oilStockMl + (Number(ml) || 0)) * 100) / 100}{" "}
+            ml.
+          </p>
+        )}
 
         <div>
           <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">

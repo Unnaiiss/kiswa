@@ -7,8 +7,10 @@ import {
   channelSplit,
   daysAgo,
   dayKey,
+  mlConsumedByProduct,
   oilSprayRevenueSplit,
   totalItemsSold,
+  totalMlConsumed,
   totalRevenue,
 } from "@/lib/admin/salesAggregation";
 import { downloadCsv, salesToCsv } from "@/lib/admin/csv";
@@ -31,6 +33,8 @@ export default function AdminReportsPage() {
   const itemsSold = useMemo(() => totalItemsSold(sales), [sales]);
   const channels = useMemo(() => channelSplit(sales), [sales]);
   const oilSpray = useMemo(() => oilSprayRevenueSplit(sales), [sales]);
+  const mlConsumed = useMemo(() => totalMlConsumed(sales), [sales]);
+  const mlByProduct = useMemo(() => mlConsumedByProduct(sales), [sales]);
 
   function handleExport() {
     const csv = salesToCsv(sales);
@@ -79,7 +83,7 @@ export default function AdminReportsPage() {
         <p className="text-sm text-zinc-500">Loading report…</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard label="Revenue" revenue={revenue} accent="amber" />
             <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
@@ -92,6 +96,14 @@ export default function AdminReportsPage() {
                 Items sold
               </p>
               <p className="mt-2 text-2xl font-bold text-zinc-50">{itemsSold}</p>
+            </div>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                Oil consumed
+              </p>
+              <p className="mt-2 text-2xl font-bold text-zinc-50">
+                {Number(mlConsumed.toFixed(1))} ml
+              </p>
             </div>
           </div>
 
@@ -110,6 +122,29 @@ export default function AdminReportsPage() {
                 { label: "Spray", value: oilSpray.spray, color: "bg-purple-400" },
               ]}
             />
+          </div>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+            <h2 className="mb-4 text-sm font-semibold text-zinc-50">
+              Oil consumed by product
+            </h2>
+            {mlByProduct.length === 0 ? (
+              <p className="text-sm text-zinc-500">No sales in this range.</p>
+            ) : (
+              <ul className="flex max-h-80 flex-col gap-2 overflow-y-auto">
+                {mlByProduct.map((row) => (
+                  <li
+                    key={row.productName}
+                    className="flex items-center justify-between text-sm"
+                  >
+                    <span className="text-zinc-300">{row.productName}</span>
+                    <span className="font-medium text-zinc-50">
+                      {Number(row.ml.toFixed(1))} ml
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </>
       )}

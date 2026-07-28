@@ -9,6 +9,8 @@ async function main() {
 
   console.log(`Seeding ${products.length} products...\n`);
 
+  const SEED_OIL_ML = 500;
+
   for (const product of products) {
     await productsRef.doc(product.slug).set({
       name: product.name,
@@ -19,6 +21,8 @@ async function main() {
       imageUrls: [],
       isActive: product.isActive,
       variants: product.variants,
+      oilStockMl: product.oilStockMl,
+      lowStockThresholdMl: product.lowStockThresholdMl,
       createdAt: FieldValue.serverTimestamp(),
     });
     console.log(
@@ -26,16 +30,13 @@ async function main() {
     );
 
     if (product.isActive) {
-      for (const variant of product.variants) {
-        await stockIn({
-          productId: product.slug,
-          variantId: variant.variantId,
-          qty: 10,
-          reason: "opening_stock",
-          note: "initial seed",
-        });
-      }
-      console.log(`    -> opening stock (10 x 6 variants) recorded`);
+      await stockIn({
+        productId: product.slug,
+        ml: SEED_OIL_ML,
+        reason: "opening_stock",
+        note: "initial seed",
+      });
+      console.log(`    -> opening stock (${SEED_OIL_ML}ml oil) recorded`);
     }
   }
 

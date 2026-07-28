@@ -3,34 +3,27 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import type { Product } from "@/lib/firestore/types";
-import { formatVariantLabel } from "@/lib/pricing";
 
 export interface StockRow {
   productId: string;
   productName: string;
-  variantId: string;
-  variantLabel: string;
-  stock: number;
-  lowStockThreshold: number;
+  oilStockMl: number;
+  lowStockThresholdMl: number;
   isActive: boolean;
 }
 
 function buildRows(products: Product[]): StockRow[] {
-  const rows: StockRow[] = [];
-  for (const product of products) {
-    for (const variant of product.variants) {
-      rows.push({
-        productId: product.id,
-        productName: product.name,
-        variantId: variant.variantId,
-        variantLabel: formatVariantLabel(variant.type, variant.sizeMl),
-        stock: variant.stock,
-        lowStockThreshold: variant.lowStockThreshold,
-        isActive: variant.isActive,
-      });
-    }
-  }
-  return rows;
+  return products.map((product) => ({
+    productId: product.id,
+    productName: product.name,
+    oilStockMl: product.oilStockMl,
+    lowStockThresholdMl: product.lowStockThresholdMl,
+    isActive: product.isActive,
+  }));
+}
+
+function formatMl(ml: number): string {
+  return `${Number(ml.toFixed(1)).toString()} ml`;
 }
 
 interface StockTableProps {
@@ -49,7 +42,7 @@ export function StockTable({ products, loading, onStocktake }: StockTableProps) 
     const q = search.trim().toLowerCase();
     return rows.filter((row) => {
       if (q && !row.productName.toLowerCase().includes(q)) return false;
-      if (lowStockOnly && row.stock > row.lowStockThreshold) return false;
+      if (lowStockOnly && row.oilStockMl > row.lowStockThresholdMl) return false;
       return true;
     });
   }, [rows, search, lowStockOnly]);
@@ -83,15 +76,14 @@ export function StockTable({ products, loading, onStocktake }: StockTableProps) 
       {loading ? (
         <p className="text-sm text-zinc-500">Loading stock…</p>
       ) : filtered.length === 0 ? (
-        <p className="text-sm text-zinc-500">No variants match.</p>
+        <p className="text-sm text-zinc-500">No products match.</p>
       ) : (
         <div className="max-h-[32rem] overflow-auto rounded-xl border border-zinc-800">
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 border-b border-zinc-800 bg-zinc-900 text-xs tracking-wide text-zinc-500 uppercase">
               <tr>
                 <th className="px-4 py-3">Product</th>
-                <th className="px-4 py-3">Variant</th>
-                <th className="px-4 py-3">Stock</th>
+                <th className="px-4 py-3">Oil stock</th>
                 <th className="px-4 py-3">Threshold</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3" />
@@ -99,22 +91,23 @@ export function StockTable({ products, loading, onStocktake }: StockTableProps) 
             </thead>
             <tbody>
               {filtered.map((row) => {
-                const low = row.stock <= row.lowStockThreshold;
+                const low = row.oilStockMl <= row.lowStockThresholdMl;
                 return (
                   <tr
-                    key={`${row.productId}-${row.variantId}`}
+                    key={row.productId}
                     className="border-b border-zinc-900 last:border-none hover:bg-zinc-900/50"
                   >
                     <td className="px-4 py-2.5 font-medium text-zinc-50">
                       {row.productName}
                     </td>
-                    <td className="px-4 py-2.5 text-zinc-400">{row.variantLabel}</td>
                     <td
                       className={`px-4 py-2.5 font-semibold ${low ? "text-red-400" : "text-zinc-300"}`}
                     >
-                      {row.stock}
+                      {formatMl(row.oilStockMl)}
                     </td>
-                    <td className="px-4 py-2.5 text-zinc-500">{row.lowStockThreshold}</td>
+                    <td className="px-4 py-2.5 text-zinc-500">
+                      {formatMl(row.lowStockThresholdMl)}
+                    </td>
                     <td className="px-4 py-2.5">
                       {!row.isActive ? (
                         <span className="rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-500">

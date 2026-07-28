@@ -9,6 +9,7 @@
     "lint": "eslint",
     "print:pricing": "tsx scripts/print-pricing-table.ts",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
+    "migrate:bulk-oil": "tsx --env-file=.env.local scripts/migrate-to-bulk-oil.ts",
     "set-role": "tsx --env-file=.env.local scripts/set-role.ts",
     "test:oversell": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-oversell.ts\"",
     "test:checkout": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-checkout-stock-conflict.ts\""

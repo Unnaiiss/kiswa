@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Modal } from "@/components/admin/modal";
 import { adminFetch } from "@/lib/admin/apiClient";
+import { defaultOilMlPerUnit } from "@/lib/pricing";
 import type { Product, VariantType } from "@/lib/firestore/types";
 
 interface ProductFormProps {
@@ -20,9 +21,8 @@ interface VariantEditState {
   sizeMl: string;
   priceInr: string;
   mrpInr: string;
-  lowStockThreshold: string;
+  oilMlPerUnit: string;
   isActive: boolean;
-  stock: number;
 }
 
 function buildInitialVariantState(product?: Product): VariantEditState[] {
@@ -33,9 +33,8 @@ function buildInitialVariantState(product?: Product): VariantEditState[] {
     sizeMl: String(v.sizeMl),
     priceInr: String(v.priceInr),
     mrpInr: String(v.mrpInr),
-    lowStockThreshold: String(v.lowStockThreshold),
+    oilMlPerUnit: String(v.oilMlPerUnit),
     isActive: v.isActive,
-    stock: v.stock,
   }));
 }
 
@@ -47,9 +46,8 @@ function blankVariantRow(): VariantEditState {
     sizeMl: "",
     priceInr: "",
     mrpInr: "",
-    lowStockThreshold: "3",
+    oilMlPerUnit: String(defaultOilMlPerUnit("oil", 3)),
     isActive: true,
-    stock: 0,
   };
 }
 
@@ -67,6 +65,9 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
     product?.imageUrls && product.imageUrls.length > 0 ? product.imageUrls : [""],
   );
   const [isActive, setIsActive] = useState(product?.isActive ?? true);
+  const [lowStockThresholdMl, setLowStockThresholdMl] = useState(
+    String(product?.lowStockThresholdMl ?? 10),
+  );
   const [basePrice, setBasePrice] = useState("0");
   const [variants, setVariants] = useState<VariantEditState[]>(
     buildInitialVariantState(product),
@@ -112,6 +113,10 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
         setError("Enter a size (ml) greater than 0 for every variant.");
         return;
       }
+      if (variants.some((v) => !v.oilMlPerUnit || Number(v.oilMlPerUnit) <= 0)) {
+        setError("Enter oil ml/unit greater than 0 for every variant.");
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -142,14 +147,14 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
             category: category.trim(),
             imageUrls: cleanedImageUrls,
             isActive,
+            lowStockThresholdMl: Number(lowStockThresholdMl) || 0,
             variants: variants.map((v) => ({
               originalVariantId: v.originalVariantId,
               type: v.type,
               sizeMl: Number(v.sizeMl) || 0,
               priceInr: Number(v.priceInr) || 0,
               mrpInr: Number(v.mrpInr) || 0,
-              lowStockThreshold:
-                Math.max(0, Math.round(Number(v.lowStockThreshold))) || 0,
+              oilMlPerUnit: Number(v.oilMlPerUnit) || 0,
               isActive: v.isActive,
             })),
           }),
@@ -244,15 +249,33 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
           </div>
         </div>
 
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
-          <input
-            type="checkbox"
-            checked={isActive}
-            onChange={(e) => setIsActive(e.target.checked)}
-            className="size-4 rounded border-zinc-700 bg-zinc-900"
-          />
-          Active (visible in shop &amp; POS)
-        </label>
+        <div className="grid grid-cols-2 gap-4">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+              className="size-4 rounded border-zinc-700 bg-zinc-900"
+            />
+            Active (visible in shop &amp; POS)
+          </label>
+
+          {mode === "edit" && (
+            <div>
+              <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
+                Low stock threshold (ml)
+              </label>
+              <input
+                value={lowStockThresholdMl}
+                onChange={(e) =>
+                  setLowStockThresholdMl(e.target.value.replace(/[^0-9.]/g, ""))
+                }
+                inputMode="decimal"
+                className={inputClass}
+              />
+            </div>
+          )}
+        </div>
 
         {mode === "create" ? (
           <div>
@@ -279,8 +302,7 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
                   <span className="col-span-1">Size (ml)</span>
                   <span className="col-span-2">Price</span>
                   <span className="col-span-2">MRP</span>
-                  <span className="col-span-2">Threshold</span>
-                  <span className="col-span-1">Stock</span>
+                  <span className="col-span-3">Oil ml / unit</span>
                   <span className="col-span-1">Active</span>
                   <span className="col-span-1" />
                 </div>
@@ -326,17 +348,16 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
                         inputMode="decimal"
                       />
                       <input
-                        value={v.lowStockThreshold}
+                        value={v.oilMlPerUnit}
                         onChange={(e) =>
-                          updateVariant(v.key, { lowStockThreshold: e.target.value })
+                          updateVariant(v.key, {
+                            oilMlPerUnit: e.target.value.replace(/[^0-9.]/g, ""),
+                          })
                         }
-                        className={`col-span-2 ${cellInputClass}`}
-                        placeholder="Threshold"
-                        inputMode="numeric"
+                        className={`col-span-3 ${cellInputClass}`}
+                        placeholder="ml oil"
+                        inputMode="decimal"
                       />
-                      <span className="col-span-1 text-center text-xs text-zinc-500">
-                        {v.stock}
-                      </span>
                       <label className="col-span-1 flex cursor-pointer justify-center">
                         <input
                           type="checkbox"
@@ -368,9 +389,9 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
               <Plus size={14} /> Add variant
             </button>
             <p className="mt-2 text-xs text-zinc-500">
-              Stock can only change via Stock In / Adjustment / a sale — it
-              can&apos;t be edited here. Removing a variant that still has
-              stock is blocked; adjust it to 0 first.
+              All variants share this product&apos;s one oil pool (see the
+              Stock page) — &quot;Oil ml / unit&quot; is how much of that pool
+              one bottle of this size consumes.
             </p>
           </div>
         )}

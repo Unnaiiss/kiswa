@@ -50,14 +50,13 @@ export function ProductTable({ products, loading, onEdit }: ProductTableProps) {
                 <th className="px-4 py-3">Product</th>
                 <th className="px-4 py-3">Category</th>
                 <th className="px-4 py-3">From</th>
-                <th className="px-4 py-3">Total stock</th>
+                <th className="px-4 py-3">Oil stock</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3" />
               </tr>
             </thead>
             <tbody>
               {filtered.map((product) => {
-                const totalStock = product.variants.reduce((n, v) => n + v.stock, 0);
                 return (
                   <tr
                     key={product.id}
@@ -79,7 +78,9 @@ export function ProductTable({ products, loading, onEdit }: ProductTableProps) {
                     <td className="px-4 py-3 text-zinc-300">
                       {formatInr(getStartingPrice(product.variants))}
                     </td>
-                    <td className="px-4 py-3 text-zinc-300">{totalStock}</td>
+                    <td className="px-4 py-3 text-zinc-300">
+                      {Number(product.oilStockMl.toFixed(1))} ml
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className={`rounded-full px-2 py-0.5 text-xs ${

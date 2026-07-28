@@ -12,8 +12,9 @@ export interface ProductVariant {
   sizeMl: number;
   priceInr: number;
   mrpInr: number;
-  stock: number;
-  lowStockThreshold: number;
+  /** ml of attar oil consumed to make one unit of this variant. All variants
+   * of a product draw from that one product's oilStockMl pool. */
+  oilMlPerUnit: number;
   /** Discontinued variants stay in the array (stock history refers to them by
    * variantId) but are hidden from sale everywhere until reactivated. */
   isActive: boolean;
@@ -29,6 +30,10 @@ export interface ProductDoc {
   imageUrls: string[];
   isActive: boolean;
   variants: ProductVariant[];
+  /** Bulk attar oil on hand for this fragrance, in ml (decimals allowed).
+   * Every variant (oil or spray) is bottled from this single pool. */
+  oilStockMl: number;
+  lowStockThresholdMl: number;
   createdAt: TimestampLike;
 }
 
@@ -48,9 +53,12 @@ export type StockMovementReason =
 export interface StockMovementDoc {
   productId: string;
   productName: string;
-  variantId: string;
-  sizeMl: number;
-  qtyChange: number;
+  /** Set only for sale-driven line items (which variant consumed the oil);
+   * null for product-level Stock In / Adjustment / Set exact stock. */
+  variantId: string | null;
+  variantLabel: string | null;
+  /** ml of attar oil, +/- (e.g. -9 for a sale, +250 for a delivery). */
+  mlChange: number;
   reason: StockMovementReason;
   referenceId: string | null;
   note: string | null;
@@ -80,6 +88,9 @@ export interface SaleItem {
   unitPrice: number;
   qty: number;
   lineTotal: number;
+  /** oilMlPerUnit * qty, snapshotted at sale time — oilMlPerUnit is editable
+   * per variant, so historical reports must not rely on its current value. */
+  mlUsed: number;
 }
 
 export interface ShippingAddress {

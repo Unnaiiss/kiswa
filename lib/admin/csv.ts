@@ -20,6 +20,7 @@ const HEADERS = [
   "Qty",
   "Unit Price (INR)",
   "Line Total (INR)",
+  "Oil Used (ml)",
   "Payment Method",
   "Order Status",
 ];
@@ -43,6 +44,7 @@ export function salesToCsv(sales: Sale[]): string {
           csvCell(item.qty),
           csvCell(item.unitPrice),
           csvCell(item.lineTotal),
+          csvCell(item.mlUsed),
           csvCell(sale.paymentMethod),
           csvCell(sale.orderStatus),
         ].join(","),

@@ -53,8 +53,7 @@ export async function POST(request: Request) {
     sizeMl: c.sizeMl,
     priceInr: c.priceInr,
     mrpInr: c.mrpInr,
-    stock: 0,
-    lowStockThreshold: 3,
+    oilMlPerUnit: c.oilMlPerUnit,
     isActive: input.isActive,
   }));
 
@@ -75,6 +74,8 @@ export async function POST(request: Request) {
         imageUrls: input.imageUrls,
         isActive: input.isActive,
         variants,
+        oilStockMl: 0,
+        lowStockThresholdMl: 10,
         createdAt: FieldValue.serverTimestamp(),
       });
     });
