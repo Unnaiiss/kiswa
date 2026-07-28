@@ -6,7 +6,10 @@ import type { SaleDoc } from "@/lib/firestore/types";
 import { formatInr, formatVariantLabel } from "@/lib/pricing";
 
 interface OrderInvoiceProps {
-  sale: SaleDoc;
+  // createdAt is a Firestore Timestamp instance on SaleDoc — not a plain
+  // object, so it can't cross the server/client boundary. It's passed
+  // separately below, already converted to a plain Date.
+  sale: Omit<SaleDoc, "createdAt">;
   createdAt: Date;
 }
 

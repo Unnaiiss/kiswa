@@ -68,6 +68,10 @@ export default async function CheckoutSuccessPage({
   const sale = saleSnap.data();
   if (!saleSnap.exists || !sale) notFound();
 
+  // sale.createdAt is a Firestore Timestamp instance — not a plain object,
+  // so it can't be passed to the OrderInvoice client component as-is.
+  const { createdAt, ...saleForInvoice } = sale;
+
   return (
     <main className="mx-auto flex max-w-2xl flex-1 flex-col items-center px-6 py-24 text-center">
       <p className="text-xs uppercase tracking-[0.4em] text-kiswa-gold-soft">
@@ -81,7 +85,7 @@ export default async function CheckoutSuccessPage({
         {sale.invoiceNo}
       </p>
 
-      <OrderInvoice sale={sale} createdAt={sale.createdAt.toDate()} />
+      <OrderInvoice sale={saleForInvoice} createdAt={createdAt.toDate()} />
     </main>
   );
 }
