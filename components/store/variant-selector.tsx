@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Droplet, Minus, Plus, SprayCan } from "lucide-react";
+import { Droplet, Gift, Minus, Plus, SprayCan } from "lucide-react";
 import type { VariantType } from "@/lib/firestore/types";
+import type { GiftDetails } from "@/lib/cart/types";
 import type { StoreProduct } from "@/lib/store/queries";
 import { formatInr, formatVariantLabel, maxAdditionalUnits } from "@/lib/pricing";
 import { useCart } from "./cart-provider";
+import { GiftDialog } from "./gift-dialog";
 
 const TYPE_META: Record<
   VariantType,
@@ -24,7 +26,15 @@ const TYPE_META: Record<
   },
 };
 
-export function VariantSelector({ product }: { product: StoreProduct }) {
+export function VariantSelector({
+  product,
+  giftMode = false,
+}: {
+  product: StoreProduct;
+  /** True when navigated here from /gift — makes "Send as Gift" the primary
+   * CTA instead of "Add to Bag" (both stay available either way). */
+  giftMode?: boolean;
+}) {
   const { items, addItem, open } = useCart();
 
   // Every variant of this product is bottled from the same oil pool, so oil
@@ -71,6 +81,7 @@ export function VariantSelector({ product }: { product: StoreProduct }) {
 
   const [qty, setQty] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
+  const [giftDialogOpen, setGiftDialogOpen] = useState(false);
 
   const maxQty = maxAdditionalUnits(
     remainingMl,
@@ -97,28 +108,36 @@ export function VariantSelector({ product }: { product: StoreProduct }) {
 
   const outOfStock = maxQty <= 0;
 
+  function cartItemBase() {
+    return {
+      productId: product.id,
+      variantId: selectedVariant.variantId,
+      productName: product.name,
+      slug: product.slug,
+      variantLabel: formatVariantLabel(
+        selectedVariant.type,
+        selectedVariant.sizeMl,
+      ),
+      type: selectedVariant.type,
+      sizeMl: selectedVariant.sizeMl,
+      unitPrice: selectedVariant.priceInr,
+      oilMlPerUnit: selectedVariant.oilMlPerUnit,
+    };
+  }
+
   function handleAddToCart() {
     if (!selectedVariant || outOfStock) return;
-    addItem(
-      {
-        productId: product.id,
-        variantId: selectedVariant.variantId,
-        productName: product.name,
-        slug: product.slug,
-        variantLabel: formatVariantLabel(
-          selectedVariant.type,
-          selectedVariant.sizeMl,
-        ),
-        type: selectedVariant.type,
-        sizeMl: selectedVariant.sizeMl,
-        unitPrice: selectedVariant.priceInr,
-        oilMlPerUnit: selectedVariant.oilMlPerUnit,
-      },
-      qty,
-    );
+    addItem(cartItemBase(), qty);
     setJustAdded(true);
     open();
     setTimeout(() => setJustAdded(false), 1500);
+  }
+
+  function handleGiftConfirm(details: GiftDetails) {
+    if (!selectedVariant || outOfStock) return;
+    addItem(cartItemBase(), qty, details);
+    setGiftDialogOpen(false);
+    open();
   }
 
   return (
@@ -227,6 +246,13 @@ export function VariantSelector({ product }: { product: StoreProduct }) {
         </motion.div>
       </AnimatePresence>
 
+      {giftMode && (
+        <p className="-mb-4 flex items-center gap-1.5 text-sm text-kiswa-gold-soft">
+          <Gift size={15} />
+          Shopping for a gift
+        </p>
+      )}
+
       {/* Quantity + add to cart */}
       <div className="flex items-center gap-4">
         <div className="flex items-center rounded-full border border-kiswa-border">
@@ -253,16 +279,58 @@ export function VariantSelector({ product }: { product: StoreProduct }) {
           </button>
         </div>
 
-        <motion.button
-          type="button"
-          disabled={outOfStock}
-          onClick={handleAddToCart}
-          whileTap={{ scale: 0.97 }}
-          className="flex-1 cursor-pointer rounded-full bg-kiswa-gold py-3 text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft disabled:cursor-not-allowed disabled:bg-kiswa-border disabled:text-kiswa-ink-muted"
-        >
-          {outOfStock ? "Out of Stock" : justAdded ? "Added ✓" : "Add to Bag"}
-        </motion.button>
+        {giftMode ? (
+          <>
+            <motion.button
+              type="button"
+              disabled={outOfStock}
+              onClick={() => setGiftDialogOpen(true)}
+              whileTap={{ scale: 0.97 }}
+              className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-kiswa-gold py-3 text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft disabled:cursor-not-allowed disabled:bg-kiswa-border disabled:text-kiswa-ink-muted"
+            >
+              <Gift size={16} />
+              {outOfStock ? "Out of Stock" : "Add as Gift"}
+            </motion.button>
+            <button
+              type="button"
+              disabled={outOfStock}
+              onClick={handleAddToCart}
+              className="cursor-pointer text-xs text-kiswa-ink-muted underline underline-offset-2 hover:text-kiswa-ink disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {justAdded ? "Added ✓" : "or add without gift wrapping"}
+            </button>
+          </>
+        ) : (
+          <>
+            <motion.button
+              type="button"
+              disabled={outOfStock}
+              onClick={handleAddToCart}
+              whileTap={{ scale: 0.97 }}
+              className="flex-1 cursor-pointer rounded-full bg-kiswa-gold py-3 text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft disabled:cursor-not-allowed disabled:bg-kiswa-border disabled:text-kiswa-ink-muted"
+            >
+              {outOfStock ? "Out of Stock" : justAdded ? "Added ✓" : "Add to Bag"}
+            </motion.button>
+            <button
+              type="button"
+              disabled={outOfStock}
+              aria-label="Send as a gift"
+              onClick={() => setGiftDialogOpen(true)}
+              className="flex cursor-pointer items-center gap-1.5 rounded-full border border-kiswa-border px-4 py-3 text-sm text-kiswa-ink-muted transition-colors hover:border-kiswa-gold/50 hover:text-kiswa-gold disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Gift size={16} />
+              <span className="hidden sm:inline">Send as Gift</span>
+            </button>
+          </>
+        )}
       </div>
+
+      <GiftDialog
+        open={giftDialogOpen}
+        onClose={() => setGiftDialogOpen(false)}
+        onConfirm={handleGiftConfirm}
+        itemLabel={`${product.name} — ${formatVariantLabel(selectedVariant.type, selectedVariant.sizeMl)}`}
+      />
     </div>
   );
 }

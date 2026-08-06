@@ -11,6 +11,9 @@ export interface BillLine {
    * compute remaining availability without re-reading product data. */
   oilMlPerUnit: number;
   qty: number;
+  /** Walk-in gift wrap toggle — no recipient/message/address at the counter,
+   * just flags the line as a gift and asks for wrapping. */
+  giftWrap?: boolean;
 }
 
 export type DiscountMode = "flat" | "percent";

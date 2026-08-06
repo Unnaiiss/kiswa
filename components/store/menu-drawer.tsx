@@ -16,6 +16,7 @@ const MENU_LINKS = [
   { href: "/shop", label: "Shop" },
   { href: "/shop?type=oil", label: "Perfume Oils" },
   { href: "/shop?type=spray", label: "Perfume Sprays" },
+  { href: "/gift", label: "Gift a Perfume" },
   { href: "/#our-story", label: "Our Story" },
   { href: CONTACT_URL, label: "Contact" },
 ];

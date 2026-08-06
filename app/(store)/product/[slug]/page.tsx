@@ -7,6 +7,7 @@ import { FragranceNotes } from "@/components/store/fragrance-notes";
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ gift?: string }>;
 }
 
 export async function generateMetadata({
@@ -22,8 +23,11 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProductPage({ params }: ProductPageProps) {
-  const { slug } = await params;
+export default async function ProductPage({
+  params,
+  searchParams,
+}: ProductPageProps) {
+  const [{ slug }, { gift }] = await Promise.all([params, searchParams]);
   const product = await getProductBySlug(slug);
 
   if (!product) notFound();
@@ -50,7 +54,7 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
           <div className="h-px w-full bg-kiswa-border" />
 
-          <VariantSelector product={product} />
+          <VariantSelector product={product} giftMode={gift === "1"} />
         </div>
       </div>
     </main>

@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
-import { getActiveBanners, getFeaturedProducts } from "@/lib/store/queries";
+import {
+  getActiveBanners,
+  getFeaturedProducts,
+  getGiftSection,
+} from "@/lib/store/queries";
 import { BannerCarousel } from "@/components/store/banner-carousel";
 import { FeaturedProducts } from "@/components/store/featured-products";
+import { GiftSection } from "@/components/store/gift-section";
 import { OurStory } from "@/components/store/our-story";
 
 // Revalidate periodically instead of serving a build-time snapshot forever —
@@ -15,15 +20,17 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [products, banners] = await Promise.all([
+  const [products, banners, giftSection] = await Promise.all([
     getFeaturedProducts(8),
     getActiveBanners(),
+    getGiftSection(),
   ]);
 
   return (
     <main className="flex flex-1 flex-col">
       <BannerCarousel banners={banners} />
       <FeaturedProducts products={products} />
+      <GiftSection content={giftSection} />
       <OurStory />
     </main>
   );

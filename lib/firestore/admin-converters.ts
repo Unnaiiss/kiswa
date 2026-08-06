@@ -8,6 +8,7 @@ import type {
 import type {
   AppUserDoc,
   BannerDoc,
+  GiftSectionDoc,
   InvoiceCounter,
   PendingOrderDoc,
   ProductDoc,
@@ -35,3 +36,4 @@ export const invoiceCounterConverter = makeConverter<InvoiceCounter>();
 export const pendingOrderConverter = makeConverter<PendingOrderDoc>();
 export const refundFlagConverter = makeConverter<RefundFlagDoc>();
 export const bannerConverter = makeConverter<BannerDoc>();
+export const giftSectionConverter = makeConverter<GiftSectionDoc>();

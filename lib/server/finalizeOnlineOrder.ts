@@ -79,6 +79,8 @@ export async function finalizeOnlineOrder(
       orderStatus: "paid",
       shippingAddress: pending.shippingAddress,
       createdByUid: "online-checkout",
+      giftShippingAddress: pending.giftShippingAddress ?? null,
+      hidePrices: pending.hidePrices ?? false,
     });
 
     await pendingRef.update({ status: "completed", saleId, invoiceNo });

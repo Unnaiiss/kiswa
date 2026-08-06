@@ -7,8 +7,18 @@ import { formatInr, getStartingPrice } from "@/lib/pricing";
 import { ProductImage } from "./product-image";
 import { TiltCard } from "@/components/ui/tilt-card";
 
-export function ProductCard({ product }: { product: StoreProduct }) {
+export function ProductCard({
+  product,
+  giftMode = false,
+}: {
+  product: StoreProduct;
+  /** Links to the product page pre-flagged for the gift flow (see /gift). */
+  giftMode?: boolean;
+}) {
   const startingPrice = getStartingPrice(product.variants);
+  const href = giftMode
+    ? `/product/${product.slug}?gift=1`
+    : `/product/${product.slug}`;
 
   return (
     <TiltCard>
@@ -16,7 +26,7 @@ export function ProductCard({ product }: { product: StoreProduct }) {
         whileHover={{ y: -6 }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       >
-        <Link href={`/product/${product.slug}`} className="group block">
+        <Link href={href} className="group block">
           <div className="relative aspect-[3/4] overflow-hidden rounded-lg border border-kiswa-border bg-kiswa-surface">
             <motion.div
               className="h-full w-full"

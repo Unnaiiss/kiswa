@@ -1,5 +1,15 @@
-import { bannersCollection, productsCollection } from "@/lib/firestore/admin-collections";
-import type { Banner, BannerDoc, Product, ProductDoc } from "@/lib/firestore/types";
+import {
+  bannersCollection,
+  giftSectionDocRef,
+  productsCollection,
+} from "@/lib/firestore/admin-collections";
+import type {
+  Banner,
+  BannerDoc,
+  GiftSection,
+  Product,
+  ProductDoc,
+} from "@/lib/firestore/types";
 
 // Storefront pages pass products straight into Client Components (product
 // cards, variant selector), so the shape must be plain-serializable — a
@@ -48,4 +58,17 @@ export async function getActiveBanners(): Promise<StoreBanner[]> {
     .orderBy("order", "asc")
     .get();
   return snap.docs.map((doc) => toStoreBanner(doc.id, doc.data()));
+}
+
+// updatedAt-stripping for the same Timestamp-can't-cross-the-RSC-boundary
+// reason as StoreProduct/StoreBanner above.
+export type StoreGiftSection = Omit<GiftSection, "updatedAt">;
+
+export async function getGiftSection(): Promise<StoreGiftSection | null> {
+  const snap = await giftSectionDocRef().get();
+  const data = snap.data();
+  if (!snap.exists || !data) return null;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { updatedAt, ...rest } = data;
+  return { id: snap.id, ...rest };
 }

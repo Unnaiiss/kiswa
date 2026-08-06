@@ -14,6 +14,11 @@ const saleItemInputSchema = z.object({
   productId: z.string().min(1),
   variantId: z.string().min(1),
   qty: z.number().int().positive(),
+  isGift: z.boolean().default(false),
+  giftRecipientName: z.string().trim().nullable().default(null),
+  giftMessage: z.string().trim().max(200).nullable().default(null),
+  giftSenderName: z.string().trim().nullable().default(null),
+  giftWrap: z.boolean().default(false),
 });
 
 const shippingAddressSchema = z.object({
@@ -23,6 +28,11 @@ const shippingAddressSchema = z.object({
   state: z.string().min(1),
   pincode: z.string().min(1),
   country: z.string().min(1),
+});
+
+const giftShippingAddressSchema = shippingAddressSchema.extend({
+  name: z.string().min(1),
+  phone: z.string().min(1),
 });
 
 export const recordSaleInputSchema = z.object({
@@ -45,9 +55,14 @@ export const recordSaleInputSchema = z.object({
   ]),
   shippingAddress: shippingAddressSchema.nullable().default(null),
   createdByUid: z.string().min(1),
+  giftShippingAddress: giftShippingAddressSchema.nullable().default(null),
+  hidePrices: z.boolean().default(false),
 });
 
-export type RecordSaleInput = z.infer<typeof recordSaleInputSchema>;
+// z.input (not z.infer/z.output) so callers can omit fields that have zod
+// defaults (e.g. gift fields, hidePrices) — recordSale() itself normalizes
+// them via .parse() before use.
+export type RecordSaleInput = z.input<typeof recordSaleInputSchema>;
 
 export interface RecordSaleResult {
   saleId: string;
@@ -153,6 +168,11 @@ export async function recordSale(
           qty: item.qty,
           lineTotal: variant.priceInr * item.qty,
           oilMlUsed: variant.oilMlPerUnit * item.qty,
+          isGift: item.isGift,
+          giftRecipientName: item.giftRecipientName,
+          giftMessage: item.giftMessage,
+          giftSenderName: item.giftSenderName,
+          giftWrap: item.giftWrap,
         };
       });
 
@@ -217,6 +237,8 @@ export async function recordSale(
         createdByUid: input.createdByUid,
         createdAt: FieldValue.serverTimestamp(),
         totalOilMlUsed,
+        giftShippingAddress: input.giftShippingAddress,
+        hidePrices: input.hidePrices,
       });
 
       return invoiceNo;

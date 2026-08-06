@@ -146,6 +146,16 @@ export function BillingScreen({ staffName }: { staffName: string }) {
     );
   }
 
+  function handleToggleGiftWrap(productId: string, variantId: string) {
+    setLines((prev) =>
+      prev.map((l) =>
+        l.productId === productId && l.variantId === variantId
+          ? { ...l, giftWrap: !l.giftWrap }
+          : l,
+      ),
+    );
+  }
+
   function resetBill() {
     setLines([]);
     setCustomerName("");
@@ -181,6 +191,7 @@ export function BillingScreen({ staffName }: { staffName: string }) {
             productId: l.productId,
             variantId: l.variantId,
             qty: l.qty,
+            giftWrap: l.giftWrap ?? false,
           })),
           customerName,
           customerPhone,
@@ -224,6 +235,7 @@ export function BillingScreen({ staffName }: { staffName: string }) {
       onIncrement={handleIncrement}
       onDecrement={handleDecrement}
       onRemove={handleRemove}
+      onToggleGiftWrap={handleToggleGiftWrap}
       customerName={customerName}
       onCustomerNameChange={setCustomerName}
       customerPhone={customerPhone}

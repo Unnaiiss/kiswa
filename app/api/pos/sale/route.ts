@@ -11,6 +11,7 @@ const requestSchema = z.object({
         productId: z.string().min(1),
         variantId: z.string().min(1),
         qty: z.number().int().positive(),
+        giftWrap: z.boolean().default(false),
       }),
     )
     .min(1, "Bill is empty"),
@@ -64,8 +65,7 @@ export async function POST(request: Request) {
     productIds.map((id) => products.doc(id).get()),
   );
 
-  let subtotal = 0;
-  const recordItems: { productId: string; variantId: string; qty: number }[] = [];
+  const priceByVariant = new Map<string, number>();
 
   for (const [idx, snap] of productSnaps.entries()) {
     const productId = productIds[idx];
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
       );
     }
     const perVariant = qtyByProductVariant.get(productId)!;
-    for (const [variantId, qty] of perVariant) {
+    for (const variantId of perVariant.keys()) {
       const variant = product.variants.find((v) => v.variantId === variantId);
       if (!variant) {
         return NextResponse.json(
@@ -85,10 +85,28 @@ export async function POST(request: Request) {
           { status: 409 },
         );
       }
-      subtotal += variant.priceInr * qty;
-      recordItems.push({ productId, variantId, qty });
+      priceByVariant.set(`${productId}:${variantId}`, variant.priceInr);
     }
   }
+
+  // Price from live product data (never trust client-supplied prices); built
+  // 1:1 from input.items (not the aggregated map above) so per-line gift-wrap
+  // flags are preserved even if the same variant somehow appears twice.
+  let subtotal = 0;
+  const recordItems = input.items.map((item) => {
+    const price = priceByVariant.get(`${item.productId}:${item.variantId}`)!;
+    subtotal += price * item.qty;
+    return {
+      productId: item.productId,
+      variantId: item.variantId,
+      qty: item.qty,
+      isGift: item.giftWrap,
+      giftRecipientName: null,
+      giftMessage: null,
+      giftSenderName: null,
+      giftWrap: item.giftWrap,
+    };
+  });
 
   const rawDiscount =
     input.discount.mode === "percent"

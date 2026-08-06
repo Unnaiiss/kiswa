@@ -1,6 +1,8 @@
 "use client";
 
+import { Gift } from "lucide-react";
 import type { Sale } from "@/lib/firestore/types";
+import { saleHasGift } from "@/lib/admin/salesAggregation";
 import { formatInr } from "@/lib/pricing";
 
 const CHANNEL_LABEL: Record<Sale["channel"], string> = {
@@ -51,7 +53,17 @@ export function SalesTable({
               onClick={() => onSelect(sale)}
               className="cursor-pointer border-b border-zinc-900 last:border-none hover:bg-zinc-900/50"
             >
-              <td className="px-4 py-2.5 font-medium text-amber-400">{sale.invoiceNo}</td>
+              <td className="px-4 py-2.5 font-medium text-amber-400">
+                <span className="flex items-center gap-1.5">
+                  {sale.invoiceNo}
+                  {saleHasGift(sale) && (
+                    <span className="flex items-center gap-1 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-400 uppercase">
+                      <Gift size={10} />
+                      Gift
+                    </span>
+                  )}
+                </span>
+              </td>
               <td className="px-4 py-2.5 text-zinc-400">
                 {sale.createdAt.toDate().toLocaleString("en-IN", {
                   day: "2-digit",

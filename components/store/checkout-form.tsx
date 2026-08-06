@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Loader2, ShoppingBag } from "lucide-react";
 import { useCart } from "./cart-provider";
@@ -45,12 +45,159 @@ function fieldError(errors: Partial<Record<keyof FormState, string>>, key: keyof
   ) : null;
 }
 
+function validateAddress(form: FormState): Partial<Record<keyof FormState, string>> {
+  const next: Partial<Record<keyof FormState, string>> = {};
+  if (!form.name.trim()) next.name = "Name is required";
+  if (!PHONE_RE.test(form.phone.trim()))
+    next.phone = "Enter a valid 10-digit Indian mobile number";
+  if (!form.line1.trim()) next.line1 = "Address line 1 is required";
+  if (!form.city.trim()) next.city = "City is required";
+  if (!form.state.trim()) next.state = "State is required";
+  if (!PINCODE_RE.test(form.pincode.trim()))
+    next.pincode = "Enter a valid 6-digit PIN code";
+  return next;
+}
+
+function AddressFields({
+  form,
+  errors,
+  onChange,
+  namePlaceholder = "Full name",
+}: {
+  form: FormState;
+  errors: Partial<Record<keyof FormState, string>>;
+  onChange: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
+  namePlaceholder?: string;
+}) {
+  return (
+    <>
+      <div>
+        <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
+          Full name
+        </label>
+        <input
+          className={inputClass}
+          value={form.name}
+          onChange={(e) => onChange("name", e.target.value)}
+          placeholder={namePlaceholder}
+          autoComplete="name"
+        />
+        {fieldError(errors, "name")}
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
+          Mobile number
+        </label>
+        <div className="flex items-center gap-2">
+          <span className="rounded-md border border-kiswa-border bg-kiswa-surface-2 px-3 py-2.5 text-sm text-kiswa-ink-muted">
+            +91
+          </span>
+          <input
+            className={inputClass}
+            value={form.phone}
+            onChange={(e) => onChange("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
+            placeholder="98765 43210"
+            inputMode="numeric"
+            autoComplete="tel-national"
+          />
+        </div>
+        {fieldError(errors, "phone")}
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
+          Address line 1
+        </label>
+        <input
+          className={inputClass}
+          value={form.line1}
+          onChange={(e) => onChange("line1", e.target.value)}
+          placeholder="Flat / house no., building, street"
+          autoComplete="address-line1"
+        />
+        {fieldError(errors, "line1")}
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
+          Address line 2 <span className="text-kiswa-ink-muted/60">(optional)</span>
+        </label>
+        <input
+          className={inputClass}
+          value={form.line2}
+          onChange={(e) => onChange("line2", e.target.value)}
+          placeholder="Landmark, area"
+          autoComplete="address-line2"
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
+            City
+          </label>
+          <input
+            className={inputClass}
+            value={form.city}
+            onChange={(e) => onChange("city", e.target.value)}
+            placeholder="City"
+            autoComplete="address-level2"
+          />
+          {fieldError(errors, "city")}
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
+            PIN code
+          </label>
+          <input
+            className={inputClass}
+            value={form.pincode}
+            onChange={(e) => onChange("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="400001"
+            inputMode="numeric"
+            autoComplete="postal-code"
+          />
+          {fieldError(errors, "pincode")}
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
+          State
+        </label>
+        <select
+          className={inputClass}
+          value={form.state}
+          onChange={(e) => onChange("state", e.target.value)}
+          autoComplete="address-level1"
+        >
+          <option value="">Select state</option>
+          {INDIAN_STATES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        {fieldError(errors, "state")}
+      </div>
+    </>
+  );
+}
+
 export function CheckoutForm() {
   const { items, subtotal, clear } = useCart();
   const router = useRouter();
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+
+  const hasGiftItems = useMemo(() => items.some((i) => i.gift), [items]);
+  const [deliverToDifferentAddress, setDeliverToDifferentAddress] = useState(false);
+  const [giftAddress, setGiftAddress] = useState<FormState>(EMPTY_FORM);
+  const [giftErrors, setGiftErrors] = useState<Partial<Record<keyof FormState, string>>>({});
+  const [hidePrices, setHidePrices] = useState(true);
+
   const [serverError, setServerError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [stage, setStage] = useState<"idle" | "creating" | "paying" | "confirming">("idle");
@@ -58,19 +205,24 @@ export function CheckoutForm() {
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((f) => ({ ...f, [key]: value }));
   }
+  function setGift<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setGiftAddress((f) => ({ ...f, [key]: value }));
+  }
 
   function validate(): boolean {
-    const next: Partial<Record<keyof FormState, string>> = {};
-    if (!form.name.trim()) next.name = "Name is required";
-    if (!PHONE_RE.test(form.phone.trim()))
-      next.phone = "Enter a valid 10-digit Indian mobile number";
-    if (!form.line1.trim()) next.line1 = "Address line 1 is required";
-    if (!form.city.trim()) next.city = "City is required";
-    if (!form.state.trim()) next.state = "State is required";
-    if (!PINCODE_RE.test(form.pincode.trim()))
-      next.pincode = "Enter a valid 6-digit PIN code";
+    const next = validateAddress(form);
     setErrors(next);
-    return Object.keys(next).length === 0;
+
+    let giftValid = true;
+    if (hasGiftItems && deliverToDifferentAddress) {
+      const giftNext = validateAddress(giftAddress);
+      setGiftErrors(giftNext);
+      giftValid = Object.keys(giftNext).length === 0;
+    } else {
+      setGiftErrors({});
+    }
+
+    return Object.keys(next).length === 0 && giftValid;
   }
 
   async function verifyPayment(
@@ -130,6 +282,11 @@ export function CheckoutForm() {
             productId: i.productId,
             variantId: i.variantId,
             qty: i.qty,
+            isGift: !!i.gift,
+            giftRecipientName: i.gift?.recipientName || null,
+            giftMessage: i.gift?.message || null,
+            giftSenderName: i.gift?.senderName || null,
+            giftWrap: i.gift?.giftWrap ?? false,
           })),
           customerName: form.name.trim(),
           customerPhone: form.phone.trim(),
@@ -141,6 +298,20 @@ export function CheckoutForm() {
             pincode: form.pincode.trim(),
             country: "India",
           },
+          hidePrices: hasGiftItems ? hidePrices : false,
+          giftShippingAddress:
+            hasGiftItems && deliverToDifferentAddress
+              ? {
+                  name: giftAddress.name.trim(),
+                  phone: giftAddress.phone.trim(),
+                  line1: giftAddress.line1.trim(),
+                  line2: giftAddress.line2.trim() || null,
+                  city: giftAddress.city.trim(),
+                  state: giftAddress.state.trim(),
+                  pincode: giftAddress.pincode.trim(),
+                  country: "India",
+                }
+              : null,
         }),
       });
       const data = await res.json();
@@ -230,116 +401,7 @@ export function CheckoutForm() {
           </h1>
         </div>
 
-        <div>
-          <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
-            Full name
-          </label>
-          <input
-            className={inputClass}
-            value={form.name}
-            onChange={(e) => set("name", e.target.value)}
-            placeholder="Your name"
-            autoComplete="name"
-          />
-          {fieldError(errors, "name")}
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
-            Mobile number
-          </label>
-          <div className="flex items-center gap-2">
-            <span className="rounded-md border border-kiswa-border bg-kiswa-surface-2 px-3 py-2.5 text-sm text-kiswa-ink-muted">
-              +91
-            </span>
-            <input
-              className={inputClass}
-              value={form.phone}
-              onChange={(e) => set("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
-              placeholder="98765 43210"
-              inputMode="numeric"
-              autoComplete="tel-national"
-            />
-          </div>
-          {fieldError(errors, "phone")}
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
-            Address line 1
-          </label>
-          <input
-            className={inputClass}
-            value={form.line1}
-            onChange={(e) => set("line1", e.target.value)}
-            placeholder="Flat / house no., building, street"
-            autoComplete="address-line1"
-          />
-          {fieldError(errors, "line1")}
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
-            Address line 2 <span className="text-kiswa-ink-muted/60">(optional)</span>
-          </label>
-          <input
-            className={inputClass}
-            value={form.line2}
-            onChange={(e) => set("line2", e.target.value)}
-            placeholder="Landmark, area"
-            autoComplete="address-line2"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
-              City
-            </label>
-            <input
-              className={inputClass}
-              value={form.city}
-              onChange={(e) => set("city", e.target.value)}
-              placeholder="City"
-              autoComplete="address-level2"
-            />
-            {fieldError(errors, "city")}
-          </div>
-          <div>
-            <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
-              PIN code
-            </label>
-            <input
-              className={inputClass}
-              value={form.pincode}
-              onChange={(e) => set("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="400001"
-              inputMode="numeric"
-              autoComplete="postal-code"
-            />
-            {fieldError(errors, "pincode")}
-          </div>
-        </div>
-
-        <div>
-          <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
-            State
-          </label>
-          <select
-            className={inputClass}
-            value={form.state}
-            onChange={(e) => set("state", e.target.value)}
-            autoComplete="address-level1"
-          >
-            <option value="">Select state</option>
-            {INDIAN_STATES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          {fieldError(errors, "state")}
-        </div>
+        <AddressFields form={form} errors={errors} onChange={set} />
 
         <div>
           <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
@@ -352,6 +414,45 @@ export function CheckoutForm() {
             readOnly
           />
         </div>
+
+        {hasGiftItems && (
+          <div className="flex flex-col gap-4 rounded-lg border border-kiswa-gold/30 bg-kiswa-gold/5 p-5">
+            <p className="text-xs uppercase tracking-[0.3em] text-kiswa-gold-soft">
+              Gift options
+            </p>
+
+            <label className="flex cursor-pointer items-start gap-2.5 text-sm text-kiswa-ink">
+              <input
+                type="checkbox"
+                checked={deliverToDifferentAddress}
+                onChange={(e) => setDeliverToDifferentAddress(e.target.checked)}
+                className="mt-0.5 size-4 rounded border-kiswa-border bg-kiswa-surface-2 accent-kiswa-gold"
+              />
+              Deliver to a different address
+            </label>
+
+            {deliverToDifferentAddress && (
+              <div className="flex flex-col gap-4 border-t border-kiswa-gold/20 pt-4">
+                <AddressFields
+                  form={giftAddress}
+                  errors={giftErrors}
+                  onChange={setGift}
+                  namePlaceholder="Recipient's name"
+                />
+              </div>
+            )}
+
+            <label className="flex cursor-pointer items-start gap-2.5 text-sm text-kiswa-ink">
+              <input
+                type="checkbox"
+                checked={hidePrices}
+                onChange={(e) => setHidePrices(e.target.checked)}
+                className="mt-0.5 size-4 rounded border-kiswa-border bg-kiswa-surface-2 accent-kiswa-gold"
+              />
+              Hide prices in the package
+            </label>
+          </div>
+        )}
 
         {serverError && (
           <p className="rounded-md border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
@@ -378,14 +479,26 @@ export function CheckoutForm() {
         <ul className="mt-5 flex flex-col gap-4">
           {items.map((line) => (
             <li
-              key={`${line.productId}-${line.variantId}`}
+              key={line.lineId}
               className="flex justify-between gap-4 text-sm"
             >
               <div>
-                <p className="text-kiswa-ink">{line.productName}</p>
+                <p className="text-kiswa-ink">
+                  {line.productName}
+                  {line.gift && (
+                    <span className="ml-2 rounded-full bg-kiswa-gold/15 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-kiswa-gold uppercase">
+                      Gift
+                    </span>
+                  )}
+                </p>
                 <p className="text-kiswa-ink-muted">
                   {line.variantLabel} × {line.qty}
                 </p>
+                {line.gift && (
+                  <p className="text-kiswa-ink-muted">
+                    For {line.gift.recipientName}
+                  </p>
+                )}
               </div>
               <p className="shrink-0 text-kiswa-ink">
                 {formatInr(line.unitPrice * line.qty)}

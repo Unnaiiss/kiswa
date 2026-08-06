@@ -169,7 +169,9 @@
   #pos-receipt,
   #pos-receipt *,
   #order-invoice,
-  #order-invoice * {
+  #order-invoice *,
+  #gift-card,
+  #gift-card * {
     visibility: visible;
     color: #000 !important;
     background: transparent !important;
@@ -193,6 +195,20 @@
     padding: 12mm;
     page: order-invoice;
   }
+  #gift-card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 148mm;
+    padding: 10mm;
+    page: gift-card;
+  }
+  #gift-card .gift-card-item {
+    break-after: page;
+  }
+  #gift-card .gift-card-item:last-child {
+    break-after: auto;
+  }
   @page pos-receipt {
     size: 80mm auto;
     margin: 0;
@@ -200,5 +216,9 @@
   @page order-invoice {
     size: A4;
     margin: 12mm;
+  }
+  @page gift-card {
+    size: 148mm 105mm;
+    margin: 0;
   }
 }

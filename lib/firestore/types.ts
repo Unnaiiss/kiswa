@@ -93,6 +93,13 @@ export interface SaleItem {
    * Optional because sales recorded before the bulk-oil model shipped have
    * no such field; treat those as unknown (not zero-consumption) ml. */
   oilMlUsed?: number;
+  /** Gifting has no effect on stock/oil logic — these are purely
+   * presentation/packing metadata carried alongside the line. */
+  isGift?: boolean;
+  giftRecipientName?: string | null;
+  giftMessage?: string | null;
+  giftSenderName?: string | null;
+  giftWrap?: boolean;
 }
 
 export interface ShippingAddress {
@@ -102,6 +109,14 @@ export interface ShippingAddress {
   state: string;
   pincode: string;
   country: string;
+}
+
+/** Used only for a gift's "deliver to a different address" option — unlike
+ * the customer's own shippingAddress, this needs the recipient's own name
+ * and phone since they won't match the paying customer. */
+export interface GiftShippingAddress extends ShippingAddress {
+  name: string;
+  phone: string;
 }
 
 export interface SaleDoc {
@@ -125,6 +140,13 @@ export interface SaleDoc {
    * same reason as SaleItem.oilMlUsed — sales predating the bulk-oil model
    * don't have it. */
   totalOilMlUsed?: number;
+  /** Set when any item is a gift and the customer chose "deliver to a
+   * different address" at checkout — separate from shippingAddress, which
+   * stays the billing/customer address. Null otherwise (online only). */
+  giftShippingAddress?: GiftShippingAddress | null;
+  /** "Hide prices in the package" checkbox from checkout — a packing
+   * instruction for staff, not a technical price-hiding mechanism. */
+  hidePrices?: boolean;
 }
 
 export interface Sale extends SaleDoc {
@@ -163,6 +185,11 @@ export interface PendingOrderItem {
   productId: string;
   variantId: string;
   qty: number;
+  isGift?: boolean;
+  giftRecipientName?: string | null;
+  giftMessage?: string | null;
+  giftSenderName?: string | null;
+  giftWrap?: boolean;
 }
 
 export interface PendingOrderDoc {
@@ -175,6 +202,8 @@ export interface PendingOrderDoc {
   saleId: string | null;
   invoiceNo: string | null;
   createdAt: TimestampLike;
+  giftShippingAddress?: GiftShippingAddress | null;
+  hidePrices?: boolean;
 }
 
 export interface PendingOrder extends PendingOrderDoc {
@@ -218,5 +247,24 @@ export interface BannerDoc {
 }
 
 export interface Banner extends BannerDoc {
+  id: string;
+}
+
+/**
+ * Admin-editable homepage content blocks, keyed by a fixed doc id per
+ * section (currently just "giftSection"). Publicly readable, like banners,
+ * since it's non-sensitive marketing copy; writes go through
+ * /api/admin/site-content/* (admin-only).
+ */
+export interface GiftSectionDoc {
+  imageUrl: string;
+  imageUrlMobile: string | null;
+  heading: string;
+  body: string;
+  buttonLabel: string;
+  updatedAt: TimestampLike;
+}
+
+export interface GiftSection extends GiftSectionDoc {
   id: string;
 }

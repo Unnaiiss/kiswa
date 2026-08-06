@@ -1,6 +1,7 @@
 import { adminDb } from "@/lib/firebase/admin";
 import {
   bannerConverter,
+  giftSectionConverter,
   invoiceCounterConverter,
   pendingOrderConverter,
   productConverter,
@@ -49,4 +50,12 @@ export function refundFlagsCollection() {
 
 export function bannersCollection() {
   return adminDb.collection("banners").withConverter(bannerConverter);
+}
+
+export function siteContentCollection() {
+  return adminDb.collection("siteContent").withConverter(giftSectionConverter);
+}
+
+export function giftSectionDocRef() {
+  return siteContentCollection().doc("giftSection");
 }

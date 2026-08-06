@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { Gift, Loader2, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import type { BillLine, DiscountMode, PosPaymentMethod } from "@/lib/pos/types";
 import { formatInr, formatVariantLabel } from "@/lib/pricing";
 
@@ -9,6 +9,7 @@ interface BillPanelProps {
   onIncrement: (productId: string, variantId: string) => void;
   onDecrement: (productId: string, variantId: string) => void;
   onRemove: (productId: string, variantId: string) => void;
+  onToggleGiftWrap: (productId: string, variantId: string) => void;
 
   customerName: string;
   onCustomerNameChange: (value: string) => void;
@@ -47,6 +48,7 @@ export function BillPanel(props: BillPanelProps) {
     onIncrement,
     onDecrement,
     onRemove,
+    onToggleGiftWrap,
     customerName,
     onCustomerNameChange,
     customerPhone,
@@ -89,15 +91,35 @@ export function BillPanel(props: BillPanelProps) {
                       {formatVariantLabel(line.type, line.sizeMl)} ·{" "}
                       {formatInr(line.unitPrice)} each
                     </p>
+                    {line.giftWrap && (
+                      <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-amber-400 uppercase">
+                        <Gift size={10} />
+                        Gift wrapped
+                      </span>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    aria-label="Remove item"
-                    onClick={() => onRemove(line.productId, line.variantId)}
-                    className="cursor-pointer p-1 text-zinc-500 hover:text-red-400"
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      aria-label={line.giftWrap ? "Remove gift wrap" : "Mark as gift wrap"}
+                      onClick={() => onToggleGiftWrap(line.productId, line.variantId)}
+                      className={`cursor-pointer p-1 ${
+                        line.giftWrap
+                          ? "text-amber-400"
+                          : "text-zinc-500 hover:text-amber-400"
+                      }`}
+                    >
+                      <Gift size={16} />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Remove item"
+                      onClick={() => onRemove(line.productId, line.variantId)}
+                      className="cursor-pointer p-1 text-zinc-500 hover:text-red-400"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                   <div className="flex items-center rounded-full border border-zinc-700">

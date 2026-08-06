@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { Gift, Printer } from "lucide-react";
 import { Modal } from "@/components/admin/modal";
 import { adminFetch } from "@/lib/admin/apiClient";
-import { itemVariantLabel } from "@/lib/admin/salesAggregation";
+import { itemVariantLabel, saleHasGift } from "@/lib/admin/salesAggregation";
 import { formatInr } from "@/lib/pricing";
 import type { OrderStatus, Sale } from "@/lib/firestore/types";
 
@@ -21,6 +23,8 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  const giftItems = sale.items.filter((item) => item.isGift);
 
   async function handleUpdateStatus() {
     setSubmitting(true);
@@ -79,13 +83,21 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
 
         <div className="rounded-lg border border-zinc-800">
           <ul className="divide-y divide-zinc-800">
-            {sale.items.map((item) => (
+            {sale.items.map((item, idx) => (
               <li
-                key={item.variantId}
+                key={`${item.productId}-${item.variantId}-${idx}`}
                 className="flex justify-between gap-3 px-3 py-2.5 text-sm"
               >
                 <div>
-                  <p className="text-zinc-50">{item.productName}</p>
+                  <p className="flex items-center gap-1.5 text-zinc-50">
+                    {item.productName}
+                    {item.isGift && (
+                      <span className="flex items-center gap-1 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-400 uppercase">
+                        <Gift size={10} />
+                        Gift
+                      </span>
+                    )}
+                  </p>
                   <p className="text-zinc-500">
                     {itemVariantLabel(item)} × {item.qty}
                   </p>
@@ -114,6 +126,74 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
             <span>{formatInr(sale.total)}</span>
           </div>
         </div>
+
+        {saleHasGift(sale) && (
+          <div className="rounded-lg border-l-4 border-amber-400 bg-amber-400/5 p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <p className="flex items-center gap-1.5 text-xs font-semibold tracking-wide text-amber-400 uppercase">
+                <Gift size={13} />
+                Gift details
+              </p>
+              <Link
+                href={`/admin/sales/${sale.id}/gift-card`}
+                target="_blank"
+                className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-300 underline underline-offset-2 hover:text-amber-400"
+              >
+                <Printer size={12} />
+                Print gift card
+              </Link>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {giftItems.map((item, idx) => (
+                <div key={`${item.variantId}-${idx}`} className="text-sm">
+                  <p className="font-medium text-zinc-50">
+                    {item.productName} — {itemVariantLabel(item)}
+                  </p>
+                  <p className="text-zinc-400">
+                    For <span className="text-zinc-200">{item.giftRecipientName || "—"}</span>
+                    {item.giftSenderName ? ` · From ${item.giftSenderName}` : ""}
+                  </p>
+                  {item.giftMessage && (
+                    <p className="mt-1 rounded-md bg-zinc-900 p-2 text-zinc-300 italic">
+                      &ldquo;{item.giftMessage}&rdquo;
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-zinc-500">
+                    {item.giftWrap ? "Gift wrap requested" : "No gift wrap"}
+                  </p>
+                </div>
+              ))}
+
+              <div className="border-t border-amber-400/20 pt-3 text-sm">
+                <p className="text-zinc-400">
+                  {sale.hidePrices
+                    ? "Hide prices in the package: yes"
+                    : "Hide prices in the package: no"}
+                </p>
+                {sale.giftShippingAddress && (
+                  <div className="mt-2">
+                    <p className="text-xs text-zinc-500 uppercase">
+                      Gift delivery address
+                    </p>
+                    <p className="text-zinc-300">
+                      {sale.giftShippingAddress.name} ·{" "}
+                      {sale.giftShippingAddress.phone}
+                    </p>
+                    <p className="text-zinc-300">
+                      {sale.giftShippingAddress.line1}
+                      {sale.giftShippingAddress.line2
+                        ? `, ${sale.giftShippingAddress.line2}`
+                        : ""}
+                      , {sale.giftShippingAddress.city}, {sale.giftShippingAddress.state}{" "}
+                      — {sale.giftShippingAddress.pincode}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {sale.channel === "online" && (
           <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">

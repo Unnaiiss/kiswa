@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useSalesInRange } from "@/lib/admin/useSalesInRange";
-import { daysAgo, dayKey } from "@/lib/admin/salesAggregation";
+import { daysAgo, dayKey, saleHasGift } from "@/lib/admin/salesAggregation";
 import { SalesTable } from "@/components/admin/sales/sales-table";
 import { SaleDetail } from "@/components/admin/sales/sale-detail";
 import type { OrderStatus, PaymentMethod, Sale, SaleChannel } from "@/lib/firestore/types";
@@ -16,6 +16,7 @@ export default function AdminSalesPage() {
   const [channel, setChannel] = useState<SaleChannel | "all">("all");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "all">("all");
   const [orderStatus, setOrderStatus] = useState<OrderStatus | "all">("all");
+  const [giftOnly, setGiftOnly] = useState(false);
   const [selected, setSelected] = useState<Sale | null>(null);
 
   const from = useMemo(() => new Date(`${fromStr}T00:00:00`), [fromStr]);
@@ -29,9 +30,10 @@ export default function AdminSalesPage() {
         if (channel !== "all" && sale.channel !== channel) return false;
         if (paymentMethod !== "all" && sale.paymentMethod !== paymentMethod) return false;
         if (orderStatus !== "all" && sale.orderStatus !== orderStatus) return false;
+        if (giftOnly && !saleHasGift(sale)) return false;
         return true;
       }),
-    [sales, channel, paymentMethod, orderStatus],
+    [sales, channel, paymentMethod, orderStatus, giftOnly],
   );
 
   return (
@@ -92,6 +94,15 @@ export default function AdminSalesPage() {
           <option value="delivered">Delivered</option>
           <option value="cancelled">Cancelled</option>
         </select>
+        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300">
+          <input
+            type="checkbox"
+            checked={giftOnly}
+            onChange={(e) => setGiftOnly(e.target.checked)}
+            className="size-4 rounded border-zinc-700 bg-zinc-950 accent-amber-400"
+          />
+          Gift orders only
+        </label>
       </div>
 
       <SalesTable sales={filtered} loading={loading} onSelect={setSelected} />

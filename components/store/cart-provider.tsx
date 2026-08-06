@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { CartItem } from "@/lib/cart/types";
+import type { CartItem, GiftDetails } from "@/lib/cart/types";
 
 const STORAGE_KEY = "kiswa-cart";
 
@@ -18,9 +18,18 @@ interface CartContextValue {
   count: number;
   subtotal: number;
   isOpen: boolean;
-  addItem: (item: Omit<CartItem, "qty">, qty: number) => void;
-  updateQty: (productId: string, variantId: string, qty: number) => void;
-  removeItem: (productId: string, variantId: string) => void;
+  /** Non-gift items merge into an existing line with the same
+   * productId+variantId (qty sums); gift items always add a new line, since
+   * each can carry its own message/recipient even for the same variant. */
+  addItem: (
+    item: Omit<CartItem, "qty" | "lineId">,
+    qty: number,
+    gift?: GiftDetails,
+  ) => void;
+  updateQty: (lineId: string, qty: number) => void;
+  removeItem: (lineId: string) => void;
+  updateGiftDetails: (lineId: string, gift: GiftDetails) => void;
+  clearGiftStatus: (lineId: string) => void;
   clear: () => void;
   open: () => void;
   close: () => void;
@@ -28,8 +37,14 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null);
 
-function sameLine(a: CartItem, productId: string, variantId: string) {
-  return a.productId === productId && a.variantId === variantId;
+function sameNonGiftLine(a: CartItem, productId: string, variantId: string) {
+  return !a.gift && a.productId === productId && a.variantId === variantId;
+}
+
+function makeLineId(): string {
+  return typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : `line-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
@@ -53,35 +68,55 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }, [items]);
 
-  const addItem = useCallback((item: Omit<CartItem, "qty">, qty: number) => {
-    setItems((prev) => {
-      const idx = prev.findIndex((l) =>
-        sameLine(l, item.productId, item.variantId),
-      );
-      if (idx === -1) return [...prev, { ...item, qty }];
-      const next = [...prev];
-      next[idx] = { ...next[idx], qty: next[idx].qty + qty };
-      return next;
-    });
-    setIsOpen(true);
-  }, []);
-
-  const updateQty = useCallback(
-    (productId: string, variantId: string, qty: number) => {
+  const addItem = useCallback(
+    (item: Omit<CartItem, "qty" | "lineId">, qty: number, gift?: GiftDetails) => {
       setItems((prev) => {
-        if (qty <= 0) {
-          return prev.filter((l) => !sameLine(l, productId, variantId));
+        if (gift) {
+          return [...prev, { ...item, gift, qty, lineId: makeLineId() }];
         }
-        return prev.map((l) =>
-          sameLine(l, productId, variantId) ? { ...l, qty } : l,
+        const idx = prev.findIndex((l) =>
+          sameNonGiftLine(l, item.productId, item.variantId),
         );
+        if (idx === -1) {
+          return [...prev, { ...item, qty, lineId: makeLineId() }];
+        }
+        const next = [...prev];
+        next[idx] = { ...next[idx], qty: next[idx].qty + qty };
+        return next;
       });
+      setIsOpen(true);
     },
     [],
   );
 
-  const removeItem = useCallback((productId: string, variantId: string) => {
-    setItems((prev) => prev.filter((l) => !sameLine(l, productId, variantId)));
+  const updateQty = useCallback((lineId: string, qty: number) => {
+    setItems((prev) => {
+      if (qty <= 0) {
+        return prev.filter((l) => l.lineId !== lineId);
+      }
+      return prev.map((l) => (l.lineId === lineId ? { ...l, qty } : l));
+    });
+  }, []);
+
+  const removeItem = useCallback((lineId: string) => {
+    setItems((prev) => prev.filter((l) => l.lineId !== lineId));
+  }, []);
+
+  const updateGiftDetails = useCallback((lineId: string, gift: GiftDetails) => {
+    setItems((prev) =>
+      prev.map((l) => (l.lineId === lineId ? { ...l, gift } : l)),
+    );
+  }, []);
+
+  const clearGiftStatus = useCallback((lineId: string) => {
+    setItems((prev) =>
+      prev.map((l) => {
+        if (l.lineId !== lineId) return l;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { gift, ...rest } = l;
+        return rest;
+      }),
+    );
   }, []);
 
   const clear = useCallback(() => setItems([]), []);
@@ -103,11 +138,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       addItem,
       updateQty,
       removeItem,
+      updateGiftDetails,
+      clearGiftStatus,
       clear,
       open,
       close,
     }),
-    [items, count, subtotal, isOpen, addItem, updateQty, removeItem, clear, open, close],
+    [
+      items,
+      count,
+      subtotal,
+      isOpen,
+      addItem,
+      updateQty,
+      removeItem,
+      updateGiftDetails,
+      clearGiftStatus,
+      clear,
+      open,
+      close,
+    ],
   );
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

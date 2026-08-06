@@ -8,6 +8,7 @@ import {
   channelSplit,
   daysAgo,
   dayKey,
+  giftOrdersCount,
   mlConsumedByChannel,
   oilSprayRevenueSplit,
   oilUsageBreakdown,
@@ -53,6 +54,7 @@ export default function AdminReportsPage() {
     () => oilUsageBreakdown(sales, movementsBySaleId),
     [sales, movementsBySaleId],
   );
+  const giftOrders = useMemo(() => giftOrdersCount(sales), [sales]);
 
   function handleExport() {
     const csv = salesToCsv(sales);
@@ -101,7 +103,7 @@ export default function AdminReportsPage() {
         <p className="text-sm text-zinc-500">Loading report…</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <StatCard label="Revenue" revenue={revenue} accent="amber" />
             <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
@@ -122,6 +124,12 @@ export default function AdminReportsPage() {
               <p className="mt-2 text-2xl font-bold text-zinc-50">
                 {formatMl(mlConsumed)}
               </p>
+            </div>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                Gift orders
+              </p>
+              <p className="mt-2 text-2xl font-bold text-zinc-50">{giftOrders}</p>
             </div>
           </div>
 

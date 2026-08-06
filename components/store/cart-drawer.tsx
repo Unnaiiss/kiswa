@@ -1,13 +1,26 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
+import { Gift, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { useCart } from "./cart-provider";
+import { GiftDialog } from "./gift-dialog";
 import { formatInr } from "@/lib/pricing";
+import type { CartItem } from "@/lib/cart/types";
 
 export function CartDrawer() {
-  const { items, isOpen, close, subtotal, updateQty, removeItem } = useCart();
+  const {
+    items,
+    isOpen,
+    close,
+    subtotal,
+    updateQty,
+    removeItem,
+    updateGiftDetails,
+    clearGiftStatus,
+  } = useCart();
+  const [editingLine, setEditingLine] = useState<CartItem | null>(null);
 
   return (
     <AnimatePresence>
@@ -63,7 +76,7 @@ export function CartDrawer() {
                 <ul className="flex-1 overflow-y-auto px-6 py-4">
                   {items.map((line) => (
                     <li
-                      key={`${line.productId}-${line.variantId}`}
+                      key={line.lineId}
                       className="flex gap-4 border-b border-kiswa-border/60 py-4 last:border-none"
                     >
                       <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border border-kiswa-border bg-kiswa-surface-2">
@@ -79,18 +92,36 @@ export function CartDrawer() {
                         <p className="text-xs text-kiswa-ink-muted">
                           {formatInr(line.unitPrice)} each
                         </p>
+
+                        {line.gift && (
+                          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="inline-flex items-center gap-1 rounded-full bg-kiswa-gold/15 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-kiswa-gold uppercase">
+                              <Gift size={10} />
+                              Gift for {line.gift.recipientName}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setEditingLine(line)}
+                              className="cursor-pointer text-[11px] text-kiswa-ink-muted underline underline-offset-2 hover:text-kiswa-gold"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => clearGiftStatus(line.lineId)}
+                              className="cursor-pointer text-[11px] text-kiswa-ink-muted underline underline-offset-2 hover:text-red-400"
+                            >
+                              Remove gift
+                            </button>
+                          </div>
+                        )}
+
                         <div className="mt-1 flex items-center gap-3">
                           <div className="flex items-center rounded-full border border-kiswa-border">
                             <button
                               type="button"
                               aria-label="Decrease quantity"
-                              onClick={() =>
-                                updateQty(
-                                  line.productId,
-                                  line.variantId,
-                                  line.qty - 1,
-                                )
-                              }
+                              onClick={() => updateQty(line.lineId, line.qty - 1)}
                               className="cursor-pointer p-1.5 text-kiswa-ink-muted hover:text-kiswa-gold"
                             >
                               <Minus size={12} />
@@ -101,13 +132,7 @@ export function CartDrawer() {
                             <button
                               type="button"
                               aria-label="Increase quantity"
-                              onClick={() =>
-                                updateQty(
-                                  line.productId,
-                                  line.variantId,
-                                  line.qty + 1,
-                                )
-                              }
+                              onClick={() => updateQty(line.lineId, line.qty + 1)}
                               className="cursor-pointer p-1.5 text-kiswa-ink-muted hover:text-kiswa-gold"
                             >
                               <Plus size={12} />
@@ -116,9 +141,7 @@ export function CartDrawer() {
                           <button
                             type="button"
                             aria-label="Remove item"
-                            onClick={() =>
-                              removeItem(line.productId, line.variantId)
-                            }
+                            onClick={() => removeItem(line.lineId)}
                             className="cursor-pointer text-kiswa-ink-muted hover:text-red-400"
                           >
                             <Trash2 size={14} />
@@ -150,6 +173,22 @@ export function CartDrawer() {
               </>
             )}
           </motion.aside>
+
+          <GiftDialog
+            open={editingLine !== null}
+            onClose={() => setEditingLine(null)}
+            itemLabel={
+              editingLine
+                ? `${editingLine.productName} — ${editingLine.variantLabel}`
+                : ""
+            }
+            initial={editingLine?.gift}
+            confirmLabel="Save changes"
+            onConfirm={(details) => {
+              if (editingLine) updateGiftDetails(editingLine.lineId, details);
+              setEditingLine(null);
+            }}
+          />
         </>
       )}
     </AnimatePresence>
