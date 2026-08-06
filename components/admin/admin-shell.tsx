@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   Boxes,
+  Image as ImageIcon,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -19,6 +20,7 @@ import type { SessionClaims } from "@/lib/server/sessionCookie";
 const NAV_ITEMS = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/products", label: "Products", icon: Package, exact: false },
+  { href: "/admin/banners", label: "Banners", icon: ImageIcon, exact: false },
   { href: "/admin/stock", label: "Stock", icon: Boxes, exact: false },
   { href: "/admin/sales", label: "Sales", icon: Receipt, exact: false },
   { href: "/admin/reports", label: "Reports", icon: BarChart3, exact: false },

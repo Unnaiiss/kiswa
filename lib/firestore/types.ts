@@ -203,3 +203,20 @@ export interface RefundFlagDoc {
 export interface RefundFlag extends RefundFlagDoc {
   id: string;
 }
+
+/** Admin-managed homepage poster carousel slide. */
+export interface BannerDoc {
+  imageUrl: string;
+  imageUrlMobile: string | null;
+  altText: string;
+  /** Internal path (e.g. "/shop") or full external URL. Null = not clickable. */
+  linkUrl: string | null;
+  order: number;
+  isActive: boolean;
+  createdAt: TimestampLike;
+  updatedAt: TimestampLike;
+}
+
+export interface Banner extends BannerDoc {
+  id: string;
+}

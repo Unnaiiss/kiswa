@@ -54,6 +54,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Public can read active homepage carousel banners; staff/admin can read
+    // all (including inactive) for the admin panel. Writes go through
+    // /api/admin/banners (firebase-admin, admin-only).
+    match /banners/{bannerId} {
+      allow read: if resource.data.isActive == true || isStaffOrAdmin();
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

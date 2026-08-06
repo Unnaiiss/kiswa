@@ -8,6 +8,7 @@ import type {
 } from "firebase/firestore";
 import type {
   AppUserDoc,
+  BannerDoc,
   InvoiceCounter,
   ProductDoc,
   RefundFlagDoc,
@@ -35,3 +36,4 @@ export const saleConverter = makeConverter<SaleDoc>();
 export const userConverter = makeConverter<AppUserDoc>();
 export const invoiceCounterConverter = makeConverter<InvoiceCounter>();
 export const refundFlagConverter = makeConverter<RefundFlagDoc>();
+export const bannerConverter = makeConverter<BannerDoc>();

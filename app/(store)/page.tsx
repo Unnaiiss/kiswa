@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { getFeaturedProducts } from "@/lib/store/queries";
-import { Hero } from "@/components/store/hero";
+import { getActiveBanners, getFeaturedProducts } from "@/lib/store/queries";
+import { BannerCarousel } from "@/components/store/banner-carousel";
 import { FeaturedProducts } from "@/components/store/featured-products";
 import { OurStory } from "@/components/store/our-story";
 
@@ -15,11 +15,14 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const products = await getFeaturedProducts(8);
+  const [products, banners] = await Promise.all([
+    getFeaturedProducts(8),
+    getActiveBanners(),
+  ]);
 
   return (
     <main className="flex flex-1 flex-col">
-      <Hero />
+      <BannerCarousel banners={banners} />
       <FeaturedProducts products={products} />
       <OurStory />
     </main>
