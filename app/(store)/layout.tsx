@@ -1,7 +1,7 @@
 import { Inter, Playfair_Display } from "next/font/google";
 import { CartProvider } from "@/components/store/cart-provider";
 import { CartDrawer } from "@/components/store/cart-drawer";
-import { StoreNavbar } from "@/components/store/navbar";
+import { StoreHeader } from "@/components/store/header";
 import { StoreFooter } from "@/components/store/footer";
 import { getActiveProducts } from "@/lib/store/queries";
 
@@ -29,8 +29,8 @@ export default async function StoreLayout({
       className={`${playfair.variable} ${inter.variable} flex flex-1 flex-col bg-kiswa-void font-body text-kiswa-ink`}
     >
       <CartProvider>
-        <StoreNavbar products={products} />
-        <div className="flex flex-1 flex-col pt-nav">{children}</div>
+        <StoreHeader products={products} />
+        <div className="flex flex-1 flex-col">{children}</div>
         <StoreFooter />
         <CartDrawer />
       </CartProvider>

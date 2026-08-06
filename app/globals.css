@@ -59,12 +59,21 @@
   --color-kiswa-gold: #d4af37;
   --color-kiswa-gold-soft: #e8c96a;
   --color-kiswa-gold-dim: #8a6d28;
+  --color-kiswa-maroon: #4a1220;
   --font-display: var(--font-playfair);
   --font-body: var(--font-inter);
-  /* Fixed navbar height — used to offset page content and to cancel that
-     offset on the homepage hero so it can bleed full-height behind the
-     transparent navbar. */
+  /* Sticky header height — used by the homepage hero to cancel the header's
+     own reserved flow space so it can bleed full-height behind the
+     transparent header. The announcement bar above it is separate and not
+     included here since it scrolls away rather than staying pinned. */
   --spacing-nav: 4.75rem;
+  --animate-kiswa-marquee: kiswa-marquee 34s linear infinite;
+}
+
+@keyframes kiswa-marquee {
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 :root {
