@@ -2,11 +2,6 @@
 
 import { motion, type Variants } from "framer-motion";
 
-const container: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.06 } },
-};
-
 const word: Variants = {
   hidden: { opacity: 0, y: "0.7em" },
   show: {
@@ -16,21 +11,38 @@ const word: Variants = {
   },
 };
 
+function containerVariants(delay: number): Variants {
+  return {
+    hidden: {},
+    show: { transition: { staggerChildren: 0.06, delayChildren: delay } },
+  };
+}
+
 interface RevealTextProps {
   text: string;
   className?: string;
+  /** Extra delay (seconds) before this instance's words start revealing —
+   * lets multiple RevealText lines cascade in sequence. */
+  delay?: number;
+  as?: "h1" | "h2";
 }
 
 // Reveals a heading word-by-word (masked slide-up) the first time it scrolls
 // into view. Each word sits in its own overflow-hidden span so the motion
 // span can translate from below without the whole line jumping.
-export function RevealText({ text, className = "" }: RevealTextProps) {
+export function RevealText({
+  text,
+  className = "",
+  delay = 0,
+  as = "h2",
+}: RevealTextProps) {
   const words = text.split(" ");
+  const MotionTag = motion[as];
 
   return (
-    <motion.h2
+    <MotionTag
       className={className}
-      variants={container}
+      variants={containerVariants(delay)}
       initial="hidden"
       whileInView="show"
       viewport={{ once: true, margin: "-80px" }}
@@ -43,6 +55,6 @@ export function RevealText({ text, className = "" }: RevealTextProps) {
           </motion.span>
         </span>
       ))}
-    </motion.h2>
+    </MotionTag>
   );
 }
