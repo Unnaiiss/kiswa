@@ -7,7 +7,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { StoreBanner } from "@/lib/store/queries";
 
-const AUTO_ADVANCE_MS = 5000;
+const AUTO_ADVANCE_MS = 2000;
+const SLIDE_TRANSITION_S = 0.45;
 const SWIPE_THRESHOLD_PX = 50;
 
 function useReducedMotion() {
@@ -146,7 +147,7 @@ export function BannerCarousel({ banners }: { banners: StoreBanner[] }) {
             initial={reducedMotion ? { opacity: 0 } : { opacity: 0, x: direction * 40 }}
             animate={{ opacity: 1, x: 0 }}
             exit={reducedMotion ? { opacity: 0 } : { opacity: 0, x: direction * -40 }}
-            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            transition={{ duration: SLIDE_TRANSITION_S, ease: [0.16, 1, 0.3, 1] }}
             className="absolute inset-0"
           >
             {current.linkUrl ? (
