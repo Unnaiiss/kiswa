@@ -1,12 +1,14 @@
 import {
   bannersCollection,
   giftSectionDocRef,
+  ourStorySectionDocRef,
   productsCollection,
 } from "@/lib/firestore/admin-collections";
 import type {
   Banner,
   BannerDoc,
   GiftSection,
+  OurStorySection,
   Product,
   ProductDoc,
 } from "@/lib/firestore/types";
@@ -66,6 +68,18 @@ export type StoreGiftSection = Omit<GiftSection, "updatedAt">;
 
 export async function getGiftSection(): Promise<StoreGiftSection | null> {
   const snap = await giftSectionDocRef().get();
+  const data = snap.data();
+  if (!snap.exists || !data) return null;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { updatedAt, ...rest } = data;
+  return { id: snap.id, ...rest };
+}
+
+// Same updatedAt-stripping reason as StoreGiftSection above.
+export type StoreOurStorySection = Omit<OurStorySection, "updatedAt">;
+
+export async function getOurStorySection(): Promise<StoreOurStorySection | null> {
+  const snap = await ourStorySectionDocRef().get();
   const data = snap.data();
   if (!snap.exists || !data) return null;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

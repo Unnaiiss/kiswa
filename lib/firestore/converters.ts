@@ -11,6 +11,7 @@ import type {
   BannerDoc,
   GiftSectionDoc,
   InvoiceCounter,
+  OurStorySectionDoc,
   ProductDoc,
   RefundFlagDoc,
   SaleDoc,
@@ -39,3 +40,4 @@ export const invoiceCounterConverter = makeConverter<InvoiceCounter>();
 export const refundFlagConverter = makeConverter<RefundFlagDoc>();
 export const bannerConverter = makeConverter<BannerDoc>();
 export const giftSectionConverter = makeConverter<GiftSectionDoc>();
+export const ourStorySectionConverter = makeConverter<OurStorySectionDoc>();

@@ -3,6 +3,7 @@ import {
   getActiveBanners,
   getFeaturedProducts,
   getGiftSection,
+  getOurStorySection,
 } from "@/lib/store/queries";
 import { BannerCarousel } from "@/components/store/banner-carousel";
 import { FeaturedProducts } from "@/components/store/featured-products";
@@ -20,10 +21,11 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [products, banners, giftSection] = await Promise.all([
+  const [products, banners, giftSection, ourStorySection] = await Promise.all([
     getFeaturedProducts(8),
     getActiveBanners(),
     getGiftSection(),
+    getOurStorySection(),
   ]);
 
   return (
@@ -31,7 +33,7 @@ export default async function HomePage() {
       <BannerCarousel banners={banners} />
       <FeaturedProducts products={products} />
       <GiftSection content={giftSection} />
-      <OurStory />
+      <OurStory content={ourStorySection} />
     </main>
   );
 }

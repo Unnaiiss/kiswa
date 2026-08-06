@@ -1,9 +1,14 @@
-import { Droplet, SprayCan } from "lucide-react";
 import { Reveal } from "./reveal";
 import { RevealText } from "@/components/ui/reveal-text";
 import { BlurText } from "@/components/ui/blur-text";
+import { OurStoryCard } from "./our-story-card";
+import type { StoreOurStorySection } from "@/lib/store/queries";
 
-export function OurStory() {
+export function OurStory({
+  content,
+}: {
+  content: StoreOurStorySection | null;
+}) {
   return (
     <section
       id="our-story"
@@ -28,26 +33,22 @@ export function OurStory() {
 
         <Reveal delay={0.15}>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-lg border border-kiswa-border bg-kiswa-surface p-8">
-              <Droplet className="text-kiswa-gold" size={28} />
-              <h3 className="mt-4 font-display text-xl text-kiswa-ink">
-                Perfume Oil
-              </h3>
-              <p className="mt-2 text-sm text-kiswa-ink-muted">
-                Concentrated attar, applied direct to the skin. Slow to
-                open, long to fade.
-              </p>
-            </div>
-            <div className="rounded-lg border border-kiswa-border bg-kiswa-surface p-8 sm:mt-8">
-              <SprayCan className="text-kiswa-gold" size={28} />
-              <h3 className="mt-4 font-display text-xl text-kiswa-ink">
-                Perfume Spray
-              </h3>
-              <p className="mt-2 text-sm text-kiswa-ink-muted">
-                The same blend, lightened into a fine mist for everyday
-                wear.
-              </p>
-            </div>
+            <OurStoryCard
+              variant="oil"
+              title="Perfume Oil"
+              description="Concentrated attar, applied direct to the skin. Slow to open, long to fade."
+              imageUrl={content?.oilCardImageUrl ?? null}
+              imageUrlMobile={content?.oilCardImageUrlMobile ?? null}
+              alt="A KISWA attar oil bottle"
+            />
+            <OurStoryCard
+              variant="spray"
+              title="Perfume Spray"
+              description="The same blend, lightened into a fine mist for everyday wear."
+              imageUrl={content?.sprayCardImageUrl ?? null}
+              imageUrlMobile={content?.sprayCardImageUrlMobile ?? null}
+              alt="A KISWA perfume spray bottle"
+            />
           </div>
         </Reveal>
       </div>

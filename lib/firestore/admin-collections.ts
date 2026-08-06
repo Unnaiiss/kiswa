@@ -3,6 +3,7 @@ import {
   bannerConverter,
   giftSectionConverter,
   invoiceCounterConverter,
+  ourStorySectionConverter,
   pendingOrderConverter,
   productConverter,
   refundFlagConverter,
@@ -52,10 +53,20 @@ export function bannersCollection() {
   return adminDb.collection("banners").withConverter(bannerConverter);
 }
 
+// One fixed doc per homepage section, each with its own shape — the
+// converter is applied per-doc-ref below rather than at the collection
+// level, since a single collection-level converter can't type multiple
+// distinct doc shapes.
 export function siteContentCollection() {
-  return adminDb.collection("siteContent").withConverter(giftSectionConverter);
+  return adminDb.collection("siteContent");
 }
 
 export function giftSectionDocRef() {
-  return siteContentCollection().doc("giftSection");
+  return siteContentCollection().doc("giftSection").withConverter(giftSectionConverter);
+}
+
+export function ourStorySectionDocRef() {
+  return siteContentCollection()
+    .doc("ourStory")
+    .withConverter(ourStorySectionConverter);
 }

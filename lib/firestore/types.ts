@@ -268,3 +268,22 @@ export interface GiftSectionDoc {
 export interface GiftSection extends GiftSectionDoc {
   id: string;
 }
+
+/**
+ * Admin-editable images for the homepage "Our Story" section's two cards
+ * (Perfume Oil / Perfume Spray). Each field is independently optional — the
+ * storefront falls back to an icon treatment (matching ProductImage's
+ * no-photo fallback) when unset, since this catalog has no real product
+ * photography yet.
+ */
+export interface OurStorySectionDoc {
+  oilCardImageUrl: string | null;
+  oilCardImageUrlMobile: string | null;
+  sprayCardImageUrl: string | null;
+  sprayCardImageUrlMobile: string | null;
+  updatedAt: TimestampLike;
+}
+
+export interface OurStorySection extends OurStorySectionDoc {
+  id: string;
+}
