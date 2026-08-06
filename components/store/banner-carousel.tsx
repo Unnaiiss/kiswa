@@ -127,83 +127,94 @@ export function BannerCarousel({ banners }: { banners: StoreBanner[] }) {
   );
 
   return (
-    <section
-      className="group relative w-full overflow-hidden bg-kiswa-surface aspect-[1080/1350] md:aspect-[1920/800]"
-      onMouseEnter={() => setPaused(true)}
-      onMouseLeave={() => setPaused(false)}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
-      {!firstLoaded && (
-        <div className="absolute inset-0 z-10 animate-pulse bg-kiswa-surface-2" />
-      )}
+    <div className="w-full px-[5%] pt-3 sm:px-[6%] md:mx-auto md:max-w-[1200px] md:px-6 md:pt-4">
+      <section
+        className="group relative w-full overflow-hidden rounded-[20px] bg-kiswa-surface shadow-[0_16px_40px_-18px_rgba(0,0,0,0.5)] aspect-[3/4] md:aspect-[16/9] md:rounded-[28px]"
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
+        {!firstLoaded && (
+          <div className="absolute inset-0 z-10 animate-pulse bg-kiswa-surface-2" />
+        )}
 
-      <AnimatePresence initial={false} custom={direction} mode="wait">
-        <motion.div
-          key={current.id}
-          custom={direction}
-          initial={reducedMotion ? { opacity: 0 } : { opacity: 0, x: direction * 40 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={reducedMotion ? { opacity: 0 } : { opacity: 0, x: direction * -40 }}
-          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-          className="absolute inset-0"
-        >
-          {current.linkUrl ? (
-            current.linkUrl.startsWith("/") ? (
-              <Link href={current.linkUrl} className="absolute inset-0" aria-label={current.altText}>
-                {slideContent}
-              </Link>
+        <AnimatePresence initial={false} custom={direction} mode="wait">
+          <motion.div
+            key={current.id}
+            custom={direction}
+            initial={reducedMotion ? { opacity: 0 } : { opacity: 0, x: direction * 40 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={reducedMotion ? { opacity: 0 } : { opacity: 0, x: direction * -40 }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute inset-0"
+          >
+            {current.linkUrl ? (
+              current.linkUrl.startsWith("/") ? (
+                <Link href={current.linkUrl} className="absolute inset-0" aria-label={current.altText}>
+                  {slideContent}
+                </Link>
+              ) : (
+                <a
+                  href={current.linkUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute inset-0"
+                  aria-label={current.altText}
+                >
+                  {slideContent}
+                </a>
+              )
             ) : (
-              <a
-                href={current.linkUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="absolute inset-0"
-                aria-label={current.altText}
-              >
-                {slideContent}
-              </a>
-            )
-          ) : (
-            slideContent
-          )}
-        </motion.div>
-      </AnimatePresence>
+              slideContent
+            )}
+          </motion.div>
+        </AnimatePresence>
 
-      {count > 1 && (
-        <>
-          <button
-            type="button"
-            onClick={goPrev}
-            aria-label="Previous banner"
-            className="absolute top-1/2 left-3 z-20 hidden h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-kiswa-ink/20 bg-kiswa-void/50 text-kiswa-ink opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 sm:flex"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <button
-            type="button"
-            onClick={goNext}
-            aria-label="Next banner"
-            className="absolute top-1/2 right-3 z-20 hidden h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-kiswa-ink/20 bg-kiswa-void/50 text-kiswa-ink opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 sm:flex"
-          >
-            <ChevronRight size={20} />
-          </button>
+        {count > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={goPrev}
+              aria-label="Previous banner"
+              className="absolute top-1/2 left-3 z-20 hidden h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-kiswa-ink/20 bg-kiswa-void/50 text-kiswa-ink opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 md:flex"
+            >
+              <ChevronLeft size={20} />
+            </button>
+            <button
+              type="button"
+              onClick={goNext}
+              aria-label="Next banner"
+              className="absolute top-1/2 right-3 z-20 hidden h-11 w-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border border-kiswa-ink/20 bg-kiswa-void/50 text-kiswa-ink opacity-0 backdrop-blur-sm transition-opacity group-hover:opacity-100 md:flex"
+            >
+              <ChevronRight size={20} />
+            </button>
 
-          <div className="absolute inset-x-0 bottom-4 z-20 flex justify-center gap-2">
-            {banners.map((banner, i) => (
-              <button
-                key={banner.id}
-                type="button"
-                onClick={() => goTo(i, i > index ? 1 : -1)}
-                aria-label={`Go to banner ${i + 1}`}
-                className={`h-2 cursor-pointer rounded-full transition-all ${
-                  i === index ? "w-6 bg-kiswa-gold" : "w-2 bg-kiswa-ink/40 hover:bg-kiswa-ink/60"
-                }`}
-              />
-            ))}
-          </div>
-        </>
-      )}
-    </section>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-16 bg-gradient-to-t from-black/35 to-transparent"
+            />
+
+            <div className="absolute inset-x-0 bottom-2 z-20 flex justify-center">
+              {banners.map((banner, i) => (
+                <button
+                  key={banner.id}
+                  type="button"
+                  onClick={() => goTo(i, i > index ? 1 : -1)}
+                  aria-label={`Go to banner ${i + 1}`}
+                  className="flex h-11 w-8 cursor-pointer items-center justify-center"
+                >
+                  <span
+                    className={`block h-1.5 rounded-full transition-all ${
+                      i === index ? "w-5 bg-kiswa-gold" : "w-1.5 bg-white/50"
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </section>
+    </div>
   );
 }
