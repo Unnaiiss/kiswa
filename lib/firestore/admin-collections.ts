@@ -1,6 +1,7 @@
 import { adminDb } from "@/lib/firebase/admin";
 import {
   bannerConverter,
+  comboConverter,
   giftSectionConverter,
   invoiceCounterConverter,
   ourStorySectionConverter,
@@ -51,6 +52,10 @@ export function refundFlagsCollection() {
 
 export function bannersCollection() {
   return adminDb.collection("banners").withConverter(bannerConverter);
+}
+
+export function combosCollection() {
+  return adminDb.collection("combos").withConverter(comboConverter);
 }
 
 // One fixed doc per homepage section, each with its own shape — the

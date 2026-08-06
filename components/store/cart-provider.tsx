@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import type { CartItem, GiftDetails } from "@/lib/cart/types";
+import type { CartItem, ComboCartDetails, GiftDetails } from "@/lib/cart/types";
 
 const STORAGE_KEY = "kiswa-cart";
 
@@ -18,7 +18,7 @@ interface CartContextValue {
   count: number;
   subtotal: number;
   isOpen: boolean;
-  /** Non-gift items merge into an existing line with the same
+  /** Non-gift, non-combo items merge into an existing line with the same
    * productId+variantId (qty sums); gift items always add a new line, since
    * each can carry its own message/recipient even for the same variant. */
   addItem: (
@@ -26,6 +26,10 @@ interface CartContextValue {
     qty: number,
     gift?: GiftDetails,
   ) => void;
+  /** Combo lines always add a new line (never merge) — two adds of the same
+   * combo can carry different choose-any picks, so they must stay distinct
+   * cart lines even though they'd share a comboId. */
+  addCombo: (combo: ComboCartDetails, unitPrice: number, qty: number) => void;
   updateQty: (lineId: string, qty: number) => void;
   removeItem: (lineId: string) => void;
   updateGiftDetails: (lineId: string, gift: GiftDetails) => void;
@@ -38,7 +42,7 @@ interface CartContextValue {
 const CartContext = createContext<CartContextValue | null>(null);
 
 function sameNonGiftLine(a: CartItem, productId: string, variantId: string) {
-  return !a.gift && a.productId === productId && a.variantId === variantId;
+  return !a.gift && !a.combo && a.productId === productId && a.variantId === variantId;
 }
 
 function makeLineId(): string {
@@ -84,6 +88,32 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         next[idx] = { ...next[idx], qty: next[idx].qty + qty };
         return next;
       });
+      setIsOpen(true);
+    },
+    [],
+  );
+
+  const addCombo = useCallback(
+    (combo: ComboCartDetails, unitPrice: number, qty: number) => {
+      setItems((prev) => [
+        ...prev,
+        {
+          lineId: makeLineId(),
+          productId: combo.comboId,
+          variantId: "combo",
+          productName: combo.comboTitle,
+          slug: "",
+          variantLabel: combo.components
+            .map((c) => `${c.variantLabel}${c.qty > 1 ? ` ×${c.qty}` : ""}`)
+            .join(", "),
+          type: "oil",
+          sizeMl: 0,
+          unitPrice,
+          oilMlPerUnit: 0,
+          qty,
+          combo,
+        },
+      ]);
       setIsOpen(true);
     },
     [],
@@ -136,6 +166,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       subtotal,
       isOpen,
       addItem,
+      addCombo,
       updateQty,
       removeItem,
       updateGiftDetails,
@@ -150,6 +181,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       subtotal,
       isOpen,
       addItem,
+      addCombo,
       updateQty,
       removeItem,
       updateGiftDetails,

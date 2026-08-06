@@ -25,10 +25,16 @@ function formatDateTime(date: Date): string {
   });
 }
 
+function itemVariantText(item: ReceiptData["items"][number]): string {
+  return item.combo
+    ? item.combo.components.map((c) => `${c.variantLabel}${c.qty > 1 ? ` x${c.qty}` : ""}`).join(", ")
+    : formatVariantLabel(item.type, item.sizeMl);
+}
+
 function buildWhatsAppMessage(receipt: ReceiptData): string {
   const lines = receipt.items.map(
     (item) =>
-      `${item.productName} (${formatVariantLabel(item.type, item.sizeMl)}) x${item.qty} - ${formatInr(item.unitPrice * item.qty)}`,
+      `${item.productName} (${itemVariantText(item)}) x${item.qty} - ${formatInr(item.unitPrice * item.qty)}`,
   );
   return [
     `KISWA — Invoice ${receipt.invoiceNo}`,
@@ -101,7 +107,7 @@ export function ReceiptScreen({ receipt, onNewSale }: ReceiptScreenProps) {
                   {item.productName}
                   <span className="text-zinc-500">
                     {" "}
-                    ({formatVariantLabel(item.type, item.sizeMl)}) x{item.qty}
+                    ({itemVariantText(item)}) x{item.qty}
                   </span>
                 </span>
                 <span className="shrink-0">

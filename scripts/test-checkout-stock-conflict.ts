@@ -80,7 +80,7 @@ async function main() {
   );
   const conflictOrderId = "test_rzp_order_conflict";
   await pendingOrdersCollection().doc(conflictOrderId).set({
-    items: [{ productId: TEST_PRODUCT_ID, variantId: "oil-3ml", qty: 1 }],
+    items: [{ kind: "product", productId: TEST_PRODUCT_ID, variantId: "oil-3ml", qty: 1 }],
     customerName: "Priya Sharma",
     customerPhone: "9876543210",
     shippingAddress: SHIPPING_ADDRESS,
@@ -96,7 +96,7 @@ async function main() {
     channel: "offline",
     customerName: "Walk-in Customer",
     customerPhone: "9999999999",
-    items: [{ productId: TEST_PRODUCT_ID, variantId: "oil-3ml", qty: 1 }],
+    items: [{ kind: "product", productId: TEST_PRODUCT_ID, variantId: "oil-3ml", qty: 1 }],
     discount: 0,
     paymentMethod: "cash",
     paymentStatus: "paid",
@@ -156,7 +156,7 @@ async function main() {
 
   const okOrderId = "test_rzp_order_ok";
   await pendingOrdersCollection().doc(okOrderId).set({
-    items: [{ productId: TEST_PRODUCT_ID, variantId: "spray-50ml", qty: 2 }],
+    items: [{ kind: "product", productId: TEST_PRODUCT_ID, variantId: "spray-50ml", qty: 2 }],
     customerName: "Priya Sharma",
     customerPhone: "9876543210",
     shippingAddress: SHIPPING_ADDRESS,

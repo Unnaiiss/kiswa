@@ -9,6 +9,7 @@ import type {
 import type {
   AppUserDoc,
   BannerDoc,
+  ComboDoc,
   GiftSectionDoc,
   InvoiceCounter,
   OurStorySectionDoc,
@@ -41,3 +42,4 @@ export const refundFlagConverter = makeConverter<RefundFlagDoc>();
 export const bannerConverter = makeConverter<BannerDoc>();
 export const giftSectionConverter = makeConverter<GiftSectionDoc>();
 export const ourStorySectionConverter = makeConverter<OurStorySectionDoc>();
+export const comboConverter = makeConverter<ComboDoc>();

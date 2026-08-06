@@ -71,8 +71,8 @@ async function main() {
     customerName: "Test Customer",
     customerPhone: "9999999999",
     items: [
-      { productId: TEST_PRODUCT_ID, variantId: "oil-3ml", qty: 1 },
-      { productId: TEST_PRODUCT_ID, variantId: "spray-50ml", qty: 1 },
+      { kind: "product", productId: TEST_PRODUCT_ID, variantId: "oil-3ml", qty: 1 },
+      { kind: "product", productId: TEST_PRODUCT_ID, variantId: "spray-50ml", qty: 1 },
     ],
     discount: 0,
     paymentMethod: "cash",

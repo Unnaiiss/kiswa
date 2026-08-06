@@ -1,8 +1,8 @@
 "use client";
 
-import { Gift } from "lucide-react";
+import { Gift, Package } from "lucide-react";
 import type { Sale } from "@/lib/firestore/types";
-import { saleHasGift } from "@/lib/admin/salesAggregation";
+import { saleHasCombo, saleHasGift } from "@/lib/admin/salesAggregation";
 import { formatInr } from "@/lib/pricing";
 
 const CHANNEL_LABEL: Record<Sale["channel"], string> = {
@@ -60,6 +60,12 @@ export function SalesTable({
                     <span className="flex items-center gap-1 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-400 uppercase">
                       <Gift size={10} />
                       Gift
+                    </span>
+                  )}
+                  {saleHasCombo(sale) && (
+                    <span className="flex items-center gap-1 rounded-full bg-sky-400/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-sky-400 uppercase">
+                      <Package size={10} />
+                      Combo
                     </span>
                   )}
                 </span>

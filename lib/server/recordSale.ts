@@ -2,15 +2,17 @@ import { z } from "zod";
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import {
+  combosCollection,
   invoiceCounterDoc,
   productsCollection,
   salesCollection,
   stockMovementsCollection,
 } from "@/lib/firestore/admin-collections";
 import { formatVariantLabel } from "@/lib/pricing";
-import type { ProductDoc, SaleItem } from "@/lib/firestore/types";
+import type { ComboDoc, ComboSaleComponent, ProductDoc, SaleItem } from "@/lib/firestore/types";
 
-const saleItemInputSchema = z.object({
+const productSaleItemInputSchema = z.object({
+  kind: z.literal("product"),
   productId: z.string().min(1),
   variantId: z.string().min(1),
   qty: z.number().int().positive(),
@@ -20,6 +22,25 @@ const saleItemInputSchema = z.object({
   giftSenderName: z.string().trim().nullable().default(null),
   giftWrap: z.boolean().default(false),
 });
+
+/** comboId + qty is the customer's intent; selections names their picks for
+ * a 'choose-any' combo (ignored for 'fixed', which uses the combo doc's own
+ * items[]). Price, title, and component expansion are always re-derived
+ * from the live combo + product docs inside the transaction below, never
+ * trusted from the caller. */
+const comboSaleItemInputSchema = z.object({
+  kind: z.literal("combo"),
+  comboId: z.string().min(1),
+  qty: z.number().int().positive(),
+  selections: z
+    .array(z.object({ productId: z.string().min(1), variantId: z.string().min(1) }))
+    .default([]),
+});
+
+const saleItemInputSchema = z.discriminatedUnion("kind", [
+  productSaleItemInputSchema,
+  comboSaleItemInputSchema,
+]);
 
 const shippingAddressSchema = z.object({
   line1: z.string().min(1),
@@ -73,11 +94,67 @@ export function formatInvoiceNo(year: number, seq: number): string {
   return `KSW-${year}-${String(seq).padStart(4, "0")}`;
 }
 
+interface ComboComponentQty {
+  productId: string;
+  variantId: string;
+  qty: number;
+}
+
+function assertComboAvailable(combo: ComboDoc) {
+  if (!combo.isActive) {
+    throw new Error(`${combo.title} is no longer available`);
+  }
+  const now = new Date();
+  if (combo.validFrom && combo.validFrom.toDate() > now) {
+    throw new Error(`${combo.title} is not available yet`);
+  }
+  if (combo.validUntil && combo.validUntil.toDate() < now) {
+    throw new Error(`${combo.title} has expired`);
+  }
+}
+
+/** Expands a combo line into its per-ONE-combo-unit components (grouped by
+ * variant, so a repeated choose-any pick becomes qty 2 rather than two rows).
+ * The caller multiplies by the combo line's own qty afterward. */
+function comboComponentsPerUnit(
+  combo: ComboDoc,
+  selections: { productId: string; variantId: string }[],
+): ComboComponentQty[] {
+  if (combo.type === "fixed") {
+    return combo.items.map((i) => ({
+      productId: i.productId,
+      variantId: i.variantId,
+      qty: i.qty,
+    }));
+  }
+
+  if (combo.chooseCount === null || selections.length !== combo.chooseCount) {
+    throw new Error(
+      `${combo.title} requires exactly ${combo.chooseCount ?? 0} selections`,
+    );
+  }
+  const eligibleKeys = new Set(
+    combo.eligibleVariants.map((v) => `${v.productId}:${v.variantId}`),
+  );
+  const grouped = new Map<string, ComboComponentQty>();
+  for (const sel of selections) {
+    const key = `${sel.productId}:${sel.variantId}`;
+    if (!eligibleKeys.has(key)) {
+      throw new Error(`${combo.title}: an invalid selection was submitted`);
+    }
+    const existing = grouped.get(key);
+    if (existing) existing.qty += 1;
+    else grouped.set(key, { productId: sel.productId, variantId: sel.variantId, qty: 1 });
+  }
+  return [...grouped.values()];
+}
+
 export async function recordSale(
   rawInput: RecordSaleInput,
 ): Promise<RecordSaleResult> {
   const input = recordSaleInputSchema.parse(rawInput);
   const products = productsCollection();
+  const combos = combosCollection();
   const counterRef = invoiceCounterDoc();
   const saleRef = salesCollection().doc();
   const movements = stockMovementsCollection();
@@ -85,8 +162,46 @@ export async function recordSale(
   const invoiceNo = await adminDb.runTransaction(
     async (tx) => {
       // ---- ALL READS FIRST ----
-      const productIds = [...new Set(input.items.map((i) => i.productId))];
-      const productRefs = productIds.map((id) => products.doc(id));
+      const comboIds = [
+        ...new Set(
+          input.items
+            .filter((i) => i.kind === "combo")
+            .map((i) => i.comboId),
+        ),
+      ];
+      const comboSnaps = await Promise.all(
+        comboIds.map((id) => tx.get(combos.doc(id))),
+      );
+      const comboMap = new Map<string, ComboDoc>();
+      comboSnaps.forEach((snap, idx) => {
+        const data = snap.data();
+        if (!snap.exists || !data) {
+          throw new Error(`Combo ${comboIds[idx]} not found`);
+        }
+        comboMap.set(comboIds[idx], data);
+      });
+
+      // Expand every combo line into its per-unit components now (needs
+      // only the combo doc, just read above) so every productId this sale
+      // touches is known before reading product docs.
+      const comboExpansions = new Map<number, ComboComponentQty[]>();
+      input.items.forEach((item, idx) => {
+        if (item.kind !== "combo") return;
+        const combo = comboMap.get(item.comboId)!;
+        assertComboAvailable(combo);
+        comboExpansions.set(idx, comboComponentsPerUnit(combo, item.selections));
+      });
+
+      const productIds = new Set<string>();
+      input.items.forEach((item, idx) => {
+        if (item.kind === "product") {
+          productIds.add(item.productId);
+        } else {
+          for (const c of comboExpansions.get(idx)!) productIds.add(c.productId);
+        }
+      });
+      const productIdList = [...productIds];
+      const productRefs = productIdList.map((id) => products.doc(id));
       const productSnaps = await Promise.all(
         productRefs.map((ref) => tx.get(ref)),
       );
@@ -97,40 +212,43 @@ export async function recordSale(
       productSnaps.forEach((snap, idx) => {
         const data = snap.data();
         if (!snap.exists || !data) {
-          throw new Error(`Product ${productIds[idx]} not found`);
+          throw new Error(`Product ${productIdList[idx]} not found`);
         }
-        productMap.set(productIds[idx], data);
+        productMap.set(productIdList[idx], data);
       });
 
-      // Aggregate requested qty per (productId, variantId) so the same
-      // variant sold twice in one bill is checked/decremented once.
+      // Flat (productId, variantId) -> qty draw this sale makes — one entry
+      // per direct product item, N entries per combo line (its expanded
+      // components × the line's own qty). Aggregating them all into one map
+      // (rather than per-source) means a fragrance bought both directly and
+      // via a combo in the same sale nets against its one shared oil pool.
       const qtyByProductVariant = new Map<string, Map<string, number>>();
-      for (const item of input.items) {
-        const product = productMap.get(item.productId);
-        if (!product) {
-          throw new Error(`Product ${item.productId} not found`);
-        }
-        const variant = product.variants.find(
-          (v) => v.variantId === item.variantId,
-        );
+      function addDraw(productId: string, variantId: string, qty: number) {
+        const product = productMap.get(productId);
+        if (!product) throw new Error(`Product ${productId} not found`);
+        const variant = product.variants.find((v) => v.variantId === variantId);
         if (!variant) {
-          throw new Error(
-            `Variant ${item.variantId} not found on product ${item.productId}`,
-          );
+          throw new Error(`Variant ${variantId} not found on product ${productId}`);
         }
         const perVariant =
-          qtyByProductVariant.get(item.productId) ?? new Map<string, number>();
-        perVariant.set(
-          item.variantId,
-          (perVariant.get(item.variantId) ?? 0) + item.qty,
-        );
-        qtyByProductVariant.set(item.productId, perVariant);
+          qtyByProductVariant.get(productId) ?? new Map<string, number>();
+        perVariant.set(variantId, (perVariant.get(variantId) ?? 0) + qty);
+        qtyByProductVariant.set(productId, perVariant);
       }
+      input.items.forEach((item, idx) => {
+        if (item.kind === "product") {
+          addDraw(item.productId, item.variantId, item.qty);
+        } else {
+          for (const c of comboExpansions.get(idx)!) {
+            addDraw(c.productId, c.variantId, c.qty * item.qty);
+          }
+        }
+      });
 
-      // Validate: every variant sold must be active, and each product's
-      // total ml need — summed across every item of that product in this
-      // sale, since all its variants are bottled from one oil pool — must
-      // not exceed what's left in stock.
+      // Validate: every variant drawn must be active, and each product's
+      // total ml need — summed across every draw of that product in this
+      // sale, direct or combo-sourced, since all its variants are bottled
+      // from one oil pool — must not exceed what's left in stock.
       const mlNeededByProduct = new Map<string, number>();
       for (const [productId, perVariant] of qtyByProductVariant) {
         const product = productMap.get(productId)!;
@@ -154,26 +272,98 @@ export async function recordSale(
         mlNeededByProduct.set(productId, mlNeeded);
       }
 
-      const saleItems: SaleItem[] = input.items.map((item) => {
-        const product = productMap.get(item.productId)!;
-        const variant = product.variants.find(
-          (v) => v.variantId === item.variantId,
-        )!;
-        return {
-          productId: item.productId,
-          productName: product.name,
-          variantId: variant.variantId,
-          sizeMl: variant.sizeMl,
-          unitPrice: variant.priceInr,
+      // ---- BUILD SALE ITEMS + STOCK-MOVEMENT DRAWS ----
+      // One SaleItem per input line (product or combo — a combo never
+      // explodes into multiple SaleItems, its components live nested under
+      // comboComponents instead), but one stockMovement per underlying
+      // (productId, variantId) draw, so a combo's oil deduction stays
+      // itemized per fragrance in the audit trail.
+      const saleItems: SaleItem[] = [];
+      const movementDraws: {
+        productId: string;
+        productName: string;
+        variantId: string;
+        variantLabel: string;
+        mlChange: number;
+        note: string | null;
+      }[] = [];
+
+      input.items.forEach((item, idx) => {
+        if (item.kind === "product") {
+          const product = productMap.get(item.productId)!;
+          const variant = product.variants.find(
+            (v) => v.variantId === item.variantId,
+          )!;
+          const oilMlUsed = variant.oilMlPerUnit * item.qty;
+          saleItems.push({
+            productId: item.productId,
+            productName: product.name,
+            variantId: variant.variantId,
+            sizeMl: variant.sizeMl,
+            unitPrice: variant.priceInr,
+            qty: item.qty,
+            lineTotal: variant.priceInr * item.qty,
+            oilMlUsed,
+            isGift: item.isGift,
+            giftRecipientName: item.giftRecipientName,
+            giftMessage: item.giftMessage,
+            giftSenderName: item.giftSenderName,
+            giftWrap: item.giftWrap,
+          });
+          movementDraws.push({
+            productId: item.productId,
+            productName: product.name,
+            variantId: variant.variantId,
+            variantLabel: formatVariantLabel(variant.type, variant.sizeMl),
+            mlChange: -oilMlUsed,
+            note: null,
+          });
+          return;
+        }
+
+        const combo = comboMap.get(item.comboId)!;
+        const componentsPerUnit = comboExpansions.get(idx)!;
+        const comboComponents: ComboSaleComponent[] = componentsPerUnit.map((c) => {
+          const product = productMap.get(c.productId)!;
+          const variant = product.variants.find((v) => v.variantId === c.variantId)!;
+          const totalQty = c.qty * item.qty;
+          const oilMlUsed = variant.oilMlPerUnit * totalQty;
+          movementDraws.push({
+            productId: c.productId,
+            productName: product.name,
+            variantId: variant.variantId,
+            variantLabel: formatVariantLabel(variant.type, variant.sizeMl),
+            mlChange: -oilMlUsed,
+            note: `Combo: ${combo.title}`,
+          });
+          return {
+            productId: c.productId,
+            productName: product.name,
+            variantId: variant.variantId,
+            variantLabel: formatVariantLabel(variant.type, variant.sizeMl),
+            sizeMl: variant.sizeMl,
+            qty: totalQty,
+            oilMlUsed,
+          };
+        });
+        const totalOilMlUsed = comboComponents.reduce(
+          (sum, c) => sum + c.oilMlUsed,
+          0,
+        );
+
+        saleItems.push({
+          productId: item.comboId,
+          productName: combo.title,
+          variantId: "combo",
+          sizeMl: 0,
+          unitPrice: combo.comboPriceInr,
           qty: item.qty,
-          lineTotal: variant.priceInr * item.qty,
-          oilMlUsed: variant.oilMlPerUnit * item.qty,
-          isGift: item.isGift,
-          giftRecipientName: item.giftRecipientName,
-          giftMessage: item.giftMessage,
-          giftSenderName: item.giftSenderName,
-          giftWrap: item.giftWrap,
-        };
+          lineTotal: combo.comboPriceInr * item.qty,
+          oilMlUsed: totalOilMlUsed,
+          comboId: item.comboId,
+          comboTitle: combo.title,
+          comboComponents,
+        });
       });
 
       const subtotal = saleItems.reduce((sum, i) => sum + i.lineTotal, 0);
@@ -199,20 +389,16 @@ export async function recordSale(
 
       const saleReason =
         input.channel === "online" ? "online_sale" : "offline_sale";
-      for (const item of saleItems) {
-        const product = productMap.get(item.productId)!;
-        const variant = product.variants.find(
-          (v) => v.variantId === item.variantId,
-        )!;
+      for (const draw of movementDraws) {
         tx.set(movements.doc(), {
-          productId: item.productId,
-          productName: item.productName,
-          variantId: item.variantId,
-          variantLabel: formatVariantLabel(variant.type, variant.sizeMl),
-          mlChange: -(item.oilMlUsed ?? 0),
+          productId: draw.productId,
+          productName: draw.productName,
+          variantId: draw.variantId,
+          variantLabel: draw.variantLabel,
+          mlChange: draw.mlChange,
           reason: saleReason,
           referenceId: saleRef.id,
-          note: null,
+          note: draw.note,
           createdAt: FieldValue.serverTimestamp(),
         });
       }

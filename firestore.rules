@@ -70,6 +70,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Public can read active combo offers; staff/admin can read all
+    // (including inactive/expired) for the admin panel. Writes go through
+    // /api/admin/combos/* (firebase-admin, admin-only).
+    match /combos/{comboId} {
+      allow read: if resource.data.isActive == true || isStaffOrAdmin();
+      allow write: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

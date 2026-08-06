@@ -13,6 +13,7 @@ import {
   Menu,
   Package,
   Receipt,
+  Tag,
   X,
 } from "lucide-react";
 import { logout } from "@/lib/auth/session";
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
     icon: LayoutPanelTop,
     exact: false,
   },
+  { href: "/admin/combos", label: "Combo Offers", icon: Tag, exact: false },
   { href: "/admin/stock", label: "Stock", icon: Boxes, exact: false },
   { href: "/admin/sales", label: "Sales", icon: Receipt, exact: false },
   { href: "/admin/reports", label: "Reports", icon: BarChart3, exact: false },

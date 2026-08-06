@@ -10,6 +10,12 @@ const fieldsSchema = z.object({
   linkUrl: z.string().trim().optional(),
   order: z.coerce.number().int().nonnegative(),
   isActive: z.enum(["true", "false"]),
+  buttonEnabled: z.enum(["true", "false"]).default("false"),
+  buttonLabel: z.string().trim().optional(),
+  buttonLink: z.string().trim().optional(),
+  buttonPosition: z
+    .enum(["bottom-center", "bottom-left", "center"])
+    .default("bottom-center"),
 });
 
 function isValidLinkUrl(value: string) {
@@ -36,6 +42,10 @@ export async function POST(request: Request) {
     linkUrl: formData.get("linkUrl") ?? undefined,
     order: formData.get("order"),
     isActive: formData.get("isActive"),
+    buttonEnabled: formData.get("buttonEnabled") ?? undefined,
+    buttonLabel: formData.get("buttonLabel") ?? undefined,
+    buttonLink: formData.get("buttonLink") ?? undefined,
+    buttonPosition: formData.get("buttonPosition") ?? undefined,
   });
   if (!parsed.success) {
     return NextResponse.json(
@@ -51,6 +61,24 @@ export async function POST(request: Request) {
       { error: "Link must be an internal path starting with / or a full https:// URL" },
       { status: 400 },
     );
+  }
+
+  const buttonEnabled = input.buttonEnabled === "true";
+  const buttonLabel = input.buttonLabel?.trim() || null;
+  const buttonLink = input.buttonLink?.trim() || null;
+  if (buttonEnabled) {
+    if (!buttonLabel) {
+      return NextResponse.json(
+        { error: "Button label is required when the button is enabled" },
+        { status: 400 },
+      );
+    }
+    if (!buttonLink || !isValidLinkUrl(buttonLink)) {
+      return NextResponse.json(
+        { error: "Button link must be an internal path starting with / or a full https:// URL" },
+        { status: 400 },
+      );
+    }
   }
 
   const desktopImage = formData.get("desktopImage");
@@ -72,6 +100,10 @@ export async function POST(request: Request) {
     linkUrl,
     order: input.order,
     isActive: input.isActive === "true",
+    buttonEnabled,
+    buttonLabel,
+    buttonLink,
+    buttonPosition: input.buttonPosition,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   });

@@ -80,6 +80,22 @@ export type OrderStatus =
   | "delivered"
   | "cancelled";
 
+/** One fragrance/variant drawn from a combo, expanded and snapshotted at
+ * sale time — qty and oilMlUsed are already totalled across the whole
+ * combo line (i.e. per-combo-unit amount × the line's own qty), matching
+ * how SaleItem.oilMlUsed is a fully-baked line total rather than a per-unit
+ * figure. Lets reports attribute combo oil usage back to the underlying
+ * fragrance instead of lumping it under the combo. */
+export interface ComboSaleComponent {
+  productId: string;
+  productName: string;
+  variantId: string;
+  variantLabel: string;
+  sizeMl: number;
+  qty: number;
+  oilMlUsed: number;
+}
+
 export interface SaleItem {
   productId: string;
   productName: string;
@@ -100,6 +116,15 @@ export interface SaleItem {
   giftMessage?: string | null;
   giftSenderName?: string | null;
   giftWrap?: boolean;
+  /** Set when this line is a combo bundle rather than a single variant —
+   * productId/variantId/sizeMl above become placeholders (productId is the
+   * combo's id, variantId is the literal "combo", sizeMl is 0) since a combo
+   * has no single size; unitPrice/lineTotal are the fixed combo price
+   * (never the sum of components), and comboComponents holds the expanded,
+   * oil-accounted breakdown. */
+  comboId?: string | null;
+  comboTitle?: string | null;
+  comboComponents?: ComboSaleComponent[] | null;
 }
 
 export interface ShippingAddress {
@@ -181,7 +206,8 @@ export type PendingOrderStatus =
   | "completed"
   | "refund_flagged";
 
-export interface PendingOrderItem {
+export interface PendingOrderProductItem {
+  kind: "product";
   productId: string;
   variantId: string;
   qty: number;
@@ -191,6 +217,20 @@ export interface PendingOrderItem {
   giftSenderName?: string | null;
   giftWrap?: boolean;
 }
+
+/** A combo line — comboId + qty is the intent; selections names the
+ * customer's picks for a 'choose-any' combo (ignored server-side for
+ * 'fixed' combos, which use the combo doc's own items[] instead). Price,
+ * title, and component expansion are always re-derived from the live combo
+ * doc inside recordSale's transaction, never trusted from the client. */
+export interface PendingOrderComboItem {
+  kind: "combo";
+  comboId: string;
+  qty: number;
+  selections: { productId: string; variantId: string }[];
+}
+
+export type PendingOrderItem = PendingOrderProductItem | PendingOrderComboItem;
 
 export interface PendingOrderDoc {
   items: PendingOrderItem[];
@@ -233,6 +273,8 @@ export interface RefundFlag extends RefundFlagDoc {
   id: string;
 }
 
+export type BannerButtonPosition = "bottom-center" | "bottom-left" | "center";
+
 /** Admin-managed homepage poster carousel slide. */
 export interface BannerDoc {
   imageUrl: string;
@@ -242,6 +284,14 @@ export interface BannerDoc {
   linkUrl: string | null;
   order: number;
   isActive: boolean;
+  /** A CTA button overlaid on the slide — independent of linkUrl (the whole
+   * slide can link somewhere while the button points elsewhere, e.g. a combo
+   * poster where the slide links to its own promo page but the button jumps
+   * straight to /offers). Only rendered when buttonEnabled is true. */
+  buttonEnabled: boolean;
+  buttonLabel: string | null;
+  buttonLink: string | null;
+  buttonPosition: BannerButtonPosition;
   createdAt: TimestampLike;
   updatedAt: TimestampLike;
 }
@@ -285,5 +335,65 @@ export interface OurStorySectionDoc {
 }
 
 export interface OurStorySection extends OurStorySectionDoc {
+  id: string;
+}
+
+export type ComboType = "fixed" | "choose-any";
+
+/** One fixed component of a 'fixed' combo — productName/variantLabel are
+ * display snapshots for the admin list; recordSale always re-derives the
+ * authoritative price/oil figures from the live product doc, never these. */
+export interface ComboFixedItem {
+  productId: string;
+  variantId: string;
+  productName: string;
+  variantLabel: string;
+  qty: number;
+}
+
+/** One variant eligible for a 'choose-any' combo's picker. */
+export interface ComboEligibleVariant {
+  productId: string;
+  variantId: string;
+  productName: string;
+  variantLabel: string;
+}
+
+/** Admin-managed bundle offer. 'fixed' combos are a specific bundle of
+ * variants at a set price; 'choose-any' combos let the customer pick
+ * `chooseCount` variants (repeats allowed) from `eligibleVariants` for the
+ * same fixed price. Only one of items/chooseCount+eligibleVariants is
+ * populated depending on `type`. Public read of active combos; writes only
+ * via /api/admin/combos/* (admin-only, firebase-admin). */
+export interface ComboDoc {
+  title: string;
+  slug: string;
+  description: string;
+  imageUrl: string | null;
+  imageUrlMobile: string | null;
+  /** The fixed price charged for the whole bundle — never the sum of
+   * component prices. */
+  comboPriceInr: number;
+  /** Sum of the included/eligible variants' regular prices, computed and
+   * snapshotted at save time — used only for the struck-through "was"
+   * price and savings badge, never for charging. */
+  originalPriceInr: number;
+  type: ComboType;
+  /** 'fixed' only — the exact bundle contents. Empty for 'choose-any'. */
+  items: ComboFixedItem[];
+  /** 'choose-any' only — how many picks the customer must make. Null for 'fixed'. */
+  chooseCount: number | null;
+  /** 'choose-any' only — the pool the customer picks from. Empty for 'fixed'. */
+  eligibleVariants: ComboEligibleVariant[];
+  isActive: boolean;
+  order: number;
+  validFrom: TimestampLike | null;
+  validUntil: TimestampLike | null;
+  badgeText: string | null;
+  createdAt: TimestampLike;
+  updatedAt: TimestampLike;
+}
+
+export interface Combo extends ComboDoc {
   id: string;
 }

@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Gift, Printer } from "lucide-react";
+import { Gift, Package, Printer } from "lucide-react";
 import { Modal } from "@/components/admin/modal";
 import { adminFetch } from "@/lib/admin/apiClient";
-import { itemVariantLabel, saleHasGift } from "@/lib/admin/salesAggregation";
+import { itemVariantLabel, saleHasCombo, saleHasGift } from "@/lib/admin/salesAggregation";
 import { formatInr } from "@/lib/pricing";
 import type { OrderStatus, Sale } from "@/lib/firestore/types";
 
@@ -25,6 +25,7 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
   const [saved, setSaved] = useState(false);
 
   const giftItems = sale.items.filter((item) => item.isGift);
+  const comboItems = sale.items.filter((item) => item.comboId);
 
   async function handleUpdateStatus() {
     setSubmitting(true);
@@ -90,6 +91,7 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
               >
                 <div>
                   <p className="flex items-center gap-1.5 text-zinc-50">
+                    {item.comboId && <Package size={13} className="text-sky-400" />}
                     {item.productName}
                     {item.isGift && (
                       <span className="flex items-center gap-1 rounded-full bg-amber-400/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-amber-400 uppercase">
@@ -98,9 +100,18 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
                       </span>
                     )}
                   </p>
-                  <p className="text-zinc-500">
-                    {itemVariantLabel(item)} × {item.qty}
-                  </p>
+                  {item.comboComponents && item.comboComponents.length > 0 ? (
+                    <p className="text-zinc-500">
+                      {item.comboComponents
+                        .map((c) => `${c.variantLabel}${c.qty > 1 ? ` ×${c.qty}` : ""}`)
+                        .join(", ")}{" "}
+                      × {item.qty}
+                    </p>
+                  ) : (
+                    <p className="text-zinc-500">
+                      {itemVariantLabel(item)} × {item.qty}
+                    </p>
+                  )}
                 </div>
                 <p className="shrink-0 font-medium text-zinc-50">
                   {formatInr(item.lineTotal)}
@@ -126,6 +137,32 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
             <span>{formatInr(sale.total)}</span>
           </div>
         </div>
+
+        {saleHasCombo(sale) && (
+          <div className="rounded-lg border-l-4 border-sky-400 bg-sky-400/5 p-4">
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-sky-400 uppercase">
+              <Package size={13} />
+              Combo details
+            </p>
+            <div className="flex flex-col gap-3">
+              {comboItems.map((item, idx) => (
+                <div key={`${item.comboId}-${idx}`} className="text-sm">
+                  <p className="font-medium text-zinc-50">
+                    {item.comboTitle} × {item.qty}
+                  </p>
+                  <ul className="mt-1 text-zinc-400">
+                    {(item.comboComponents ?? []).map((c, cIdx) => (
+                      <li key={`${c.productId}-${c.variantId}-${cIdx}`}>
+                        {c.productName} — {c.variantLabel}
+                        {c.qty > 1 ? ` ×${c.qty}` : ""} ({c.oilMlUsed}ml oil)
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {saleHasGift(sale) && (
           <div className="rounded-lg border-l-4 border-amber-400 bg-amber-400/5 p-4">

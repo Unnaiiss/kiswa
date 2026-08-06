@@ -11,6 +11,13 @@ const fieldsSchema = z.object({
   order: z.coerce.number().int().nonnegative(),
   isActive: z.enum(["true", "false"]),
   removeMobileImage: z.enum(["true", "false"]).optional(),
+  // Optional (not defaulted) — absent means "leave as-is" (e.g. the
+  // active-toggle quick action in the admin table only submits
+  // altText/linkUrl/order/isActive and shouldn't reset the button fields).
+  buttonEnabled: z.enum(["true", "false"]).optional(),
+  buttonLabel: z.string().trim().optional(),
+  buttonLink: z.string().trim().optional(),
+  buttonPosition: z.enum(["bottom-center", "bottom-left", "center"]).optional(),
 });
 
 function isValidLinkUrl(value: string) {
@@ -49,6 +56,10 @@ export async function PATCH(
     order: formData.get("order"),
     isActive: formData.get("isActive"),
     removeMobileImage: formData.get("removeMobileImage") ?? undefined,
+    buttonEnabled: formData.get("buttonEnabled") ?? undefined,
+    buttonLabel: formData.get("buttonLabel") ?? undefined,
+    buttonLink: formData.get("buttonLink") ?? undefined,
+    buttonPosition: formData.get("buttonPosition") ?? undefined,
   });
   if (!parsed.success) {
     return NextResponse.json(
@@ -64,6 +75,30 @@ export async function PATCH(
       { error: "Link must be an internal path starting with / or a full https:// URL" },
       { status: 400 },
     );
+  }
+
+  const buttonEnabled =
+    input.buttonEnabled !== undefined
+      ? input.buttonEnabled === "true"
+      : current.buttonEnabled;
+  const buttonLabel =
+    input.buttonLabel !== undefined ? input.buttonLabel.trim() || null : current.buttonLabel;
+  const buttonLink =
+    input.buttonLink !== undefined ? input.buttonLink.trim() || null : current.buttonLink;
+  const buttonPosition = input.buttonPosition ?? current.buttonPosition ?? "bottom-center";
+  if (buttonEnabled) {
+    if (!buttonLabel) {
+      return NextResponse.json(
+        { error: "Button label is required when the button is enabled" },
+        { status: 400 },
+      );
+    }
+    if (!buttonLink || !isValidLinkUrl(buttonLink)) {
+      return NextResponse.json(
+        { error: "Button link must be an internal path starting with / or a full https:// URL" },
+        { status: 400 },
+      );
+    }
   }
 
   const desktopImage = formData.get("desktopImage");
@@ -90,6 +125,10 @@ export async function PATCH(
     linkUrl,
     order: input.order,
     isActive: input.isActive === "true",
+    buttonEnabled,
+    buttonLabel,
+    buttonLink,
+    buttonPosition,
     updatedAt: FieldValue.serverTimestamp(),
   });
 

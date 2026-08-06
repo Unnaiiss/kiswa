@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { Gift, Minus, Plus, ShoppingBag, Trash2, X } from "lucide-react";
+import { Gift, Minus, Package, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { useCart } from "./cart-provider";
 import { GiftDialog } from "./gift-dialog";
 import { formatInr } from "@/lib/pricing";
@@ -84,14 +84,34 @@ export function CartDrawer() {
                       </div>
                       <div className="flex flex-1 flex-col gap-1">
                         <p className="text-sm leading-snug text-kiswa-ink">
-                          {line.productName}{" "}
-                          <span className="text-kiswa-ink-muted">
-                            — {line.variantLabel}
-                          </span>
+                          {line.combo ? (
+                            <span className="inline-flex items-center gap-1.5">
+                              <Package size={12} className="text-kiswa-gold" />
+                              {line.productName}
+                            </span>
+                          ) : (
+                            <>
+                              {line.productName}{" "}
+                              <span className="text-kiswa-ink-muted">
+                                — {line.variantLabel}
+                              </span>
+                            </>
+                          )}
                         </p>
-                        <p className="text-xs text-kiswa-ink-muted">
-                          {formatInr(line.unitPrice)} each
-                        </p>
+                        {line.combo ? (
+                          <ul className="text-xs text-kiswa-ink-muted">
+                            {line.combo.components.map((c, idx) => (
+                              <li key={`${c.productId}-${c.variantId}-${idx}`}>
+                                {c.productName} — {c.variantLabel}
+                                {c.qty > 1 ? ` ×${c.qty}` : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-kiswa-ink-muted">
+                            {formatInr(line.unitPrice)} each
+                          </p>
+                        )}
 
                         {line.gift && (
                           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">

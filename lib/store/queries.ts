@@ -1,12 +1,16 @@
 import {
   bannersCollection,
+  combosCollection,
   giftSectionDocRef,
   ourStorySectionDocRef,
   productsCollection,
 } from "@/lib/firestore/admin-collections";
+import { isComboCurrentlyValid } from "@/lib/combos";
 import type {
   Banner,
   BannerDoc,
+  Combo,
+  ComboDoc,
   GiftSection,
   OurStorySection,
   Product,
@@ -85,4 +89,38 @@ export async function getOurStorySection(): Promise<StoreOurStorySection | null>
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { updatedAt, ...rest } = data;
   return { id: snap.id, ...rest };
+}
+
+// createdAt/updatedAt stripped for the same RSC-boundary reason as above;
+// validFrom/validUntil are dropped too since date-window filtering already
+// happens server-side below — the client never needs the raw Timestamps.
+export type StoreCombo = Omit<
+  Combo,
+  "createdAt" | "updatedAt" | "validFrom" | "validUntil"
+>;
+
+function toStoreCombo(id: string, data: ComboDoc): StoreCombo {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { createdAt, updatedAt, validFrom, validUntil, ...rest } = data;
+  return { id, ...rest };
+}
+
+export async function getActiveCombos(): Promise<StoreCombo[]> {
+  const snap = await combosCollection()
+    .where("isActive", "==", true)
+    .orderBy("order", "asc")
+    .get();
+  const now = new Date();
+  return snap.docs
+    .filter((doc) => isComboCurrentlyValid(doc.data(), now))
+    .map((doc) => toStoreCombo(doc.id, doc.data()));
+}
+
+export async function getComboBySlug(slug: string): Promise<StoreCombo | null> {
+  const snap = await combosCollection().where("slug", "==", slug).limit(1).get();
+  if (snap.empty) return null;
+  const doc = snap.docs[0];
+  const data = doc.data();
+  if (!isComboCurrentlyValid(data, new Date())) return null;
+  return toStoreCombo(doc.id, data);
 }

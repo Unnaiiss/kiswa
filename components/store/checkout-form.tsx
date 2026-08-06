@@ -278,16 +278,26 @@ export function CheckoutForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: items.map((i) => ({
-            productId: i.productId,
-            variantId: i.variantId,
-            qty: i.qty,
-            isGift: !!i.gift,
-            giftRecipientName: i.gift?.recipientName || null,
-            giftMessage: i.gift?.message || null,
-            giftSenderName: i.gift?.senderName || null,
-            giftWrap: i.gift?.giftWrap ?? false,
-          })),
+          items: items.map((i) =>
+            i.combo
+              ? {
+                  kind: "combo" as const,
+                  comboId: i.combo.comboId,
+                  qty: i.qty,
+                  selections: i.combo.selections,
+                }
+              : {
+                  kind: "product" as const,
+                  productId: i.productId,
+                  variantId: i.variantId,
+                  qty: i.qty,
+                  isGift: !!i.gift,
+                  giftRecipientName: i.gift?.recipientName || null,
+                  giftMessage: i.gift?.message || null,
+                  giftSenderName: i.gift?.senderName || null,
+                  giftWrap: i.gift?.giftWrap ?? false,
+                },
+          ),
           customerName: form.name.trim(),
           customerPhone: form.phone.trim(),
           shippingAddress: {
@@ -491,9 +501,15 @@ export function CheckoutForm() {
                     </span>
                   )}
                 </p>
-                <p className="text-kiswa-ink-muted">
-                  {line.variantLabel} × {line.qty}
-                </p>
+                {line.combo ? (
+                  <p className="text-kiswa-ink-muted">
+                    {line.combo.components.map((c) => c.variantLabel).join(", ")} × {line.qty}
+                  </p>
+                ) : (
+                  <p className="text-kiswa-ink-muted">
+                    {line.variantLabel} × {line.qty}
+                  </p>
+                )}
                 {line.gift && (
                   <p className="text-kiswa-ink-muted">
                     For {line.gift.recipientName}

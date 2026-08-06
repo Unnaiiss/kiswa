@@ -6,6 +6,8 @@ import { useSalesInRange } from "@/lib/admin/useSalesInRange";
 import { useSaleMovementsInRange } from "@/lib/admin/useSaleMovementsInRange";
 import {
   channelSplit,
+  comboRevenue,
+  comboUnitsSold,
   daysAgo,
   dayKey,
   giftOrdersCount,
@@ -17,6 +19,7 @@ import {
   totalRevenue,
 } from "@/lib/admin/salesAggregation";
 import { downloadCsv, salesToCsv } from "@/lib/admin/csv";
+import { formatInr } from "@/lib/pricing";
 import { StatCard } from "@/components/admin/dashboard/stat-card";
 import { SplitBar } from "@/components/admin/reports/split-bar";
 
@@ -55,6 +58,8 @@ export default function AdminReportsPage() {
     [sales, movementsBySaleId],
   );
   const giftOrders = useMemo(() => giftOrdersCount(sales), [sales]);
+  const comboRev = useMemo(() => comboRevenue(sales), [sales]);
+  const comboRows = useMemo(() => comboUnitsSold(sales), [sales]);
 
   function handleExport() {
     const csv = salesToCsv(sales);
@@ -103,7 +108,7 @@ export default function AdminReportsPage() {
         <p className="text-sm text-zinc-500">Loading report…</p>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-6">
             <StatCard label="Revenue" revenue={revenue} accent="amber" />
             <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
               <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
@@ -130,6 +135,14 @@ export default function AdminReportsPage() {
                 Gift orders
               </p>
               <p className="mt-2 text-2xl font-bold text-zinc-50">{giftOrders}</p>
+            </div>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                Combo revenue
+              </p>
+              <p className="mt-2 text-2xl font-bold text-zinc-50">
+                {formatInr(comboRev)}
+              </p>
             </div>
           </div>
 
@@ -186,6 +199,40 @@ export default function AdminReportsPage() {
                         </td>
                         <td className="py-2 text-right font-medium text-zinc-50">
                           {formatMl(row.oilMlUsed)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+            <h2 className="mb-4 text-sm font-semibold text-zinc-50">
+              Combo offers
+            </h2>
+            {comboRows.length === 0 ? (
+              <p className="text-sm text-zinc-500">No combo sales in this range.</p>
+            ) : (
+              <div className="max-h-96 overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-800 text-left text-xs uppercase tracking-wide text-zinc-500">
+                      <th className="py-2 pr-3 font-medium">Combo</th>
+                      <th className="py-2 pr-3 text-right font-medium">Units sold</th>
+                      <th className="py-2 text-right font-medium">Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-zinc-800/60">
+                    {comboRows.map((row) => (
+                      <tr key={row.comboTitle}>
+                        <td className="py-2 pr-3 text-zinc-300">{row.comboTitle}</td>
+                        <td className="py-2 pr-3 text-right text-zinc-300">
+                          {row.unitsSold}
+                        </td>
+                        <td className="py-2 text-right font-medium text-zinc-50">
+                          {formatInr(row.revenue)}
                         </td>
                       </tr>
                     ))}

@@ -1,20 +1,28 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { productsCollection } from "@/lib/firestore/admin-collections";
+import { combosCollection, productsCollection } from "@/lib/firestore/admin-collections";
 import { recordSale } from "@/lib/server/recordSale";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
 
+const productItemSchema = z.object({
+  kind: z.literal("product"),
+  productId: z.string().min(1),
+  variantId: z.string().min(1),
+  qty: z.number().int().positive(),
+  giftWrap: z.boolean().default(false),
+});
+
+const comboItemSchema = z.object({
+  kind: z.literal("combo"),
+  comboId: z.string().min(1),
+  qty: z.number().int().positive(),
+  selections: z
+    .array(z.object({ productId: z.string().min(1), variantId: z.string().min(1) }))
+    .default([]),
+});
+
 const requestSchema = z.object({
-  items: z
-    .array(
-      z.object({
-        productId: z.string().min(1),
-        variantId: z.string().min(1),
-        qty: z.number().int().positive(),
-        giftWrap: z.boolean().default(false),
-      }),
-    )
-    .min(1, "Bill is empty"),
+  items: z.array(z.discriminatedUnion("kind", [productItemSchema, comboItemSchema])).min(1, "Bill is empty"),
   customerName: z.string().trim().optional().default(""),
   customerPhone: z.string().trim().optional().default(""),
   discount: z.object({
@@ -50,6 +58,7 @@ export async function POST(request: Request) {
   // actually in Firestore right now).
   const qtyByProductVariant = new Map<string, Map<string, number>>();
   for (const item of input.items) {
+    if (item.kind !== "product") continue;
     const perVariant =
       qtyByProductVariant.get(item.productId) ?? new Map<string, number>();
     perVariant.set(
@@ -89,22 +98,53 @@ export async function POST(request: Request) {
     }
   }
 
-  // Price from live product data (never trust client-supplied prices); built
-  // 1:1 from input.items (not the aggregated map above) so per-line gift-wrap
+  // Combo prices — always the live comboPriceInr, never a sum of components
+  // (and never trusted from the client).
+  const comboIds = [
+    ...new Set(input.items.filter((i) => i.kind === "combo").map((i) => i.comboId)),
+  ];
+  const comboSnaps = await Promise.all(
+    comboIds.map((id) => combosCollection().doc(id).get()),
+  );
+  const comboPriceById = new Map<string, number>();
+  for (const [idx, snap] of comboSnaps.entries()) {
+    const combo = snap.data();
+    if (!snap.exists || !combo) {
+      return NextResponse.json(
+        { error: "A combo in the bill no longer exists." },
+        { status: 409 },
+      );
+    }
+    comboPriceById.set(comboIds[idx], combo.comboPriceInr);
+  }
+
+  // Price from live data (never trust client-supplied prices); built 1:1
+  // from input.items (not the aggregated map above) so per-line gift-wrap
   // flags are preserved even if the same variant somehow appears twice.
   let subtotal = 0;
   const recordItems = input.items.map((item) => {
-    const price = priceByVariant.get(`${item.productId}:${item.variantId}`)!;
+    if (item.kind === "product") {
+      const price = priceByVariant.get(`${item.productId}:${item.variantId}`)!;
+      subtotal += price * item.qty;
+      return {
+        kind: "product" as const,
+        productId: item.productId,
+        variantId: item.variantId,
+        qty: item.qty,
+        isGift: item.giftWrap,
+        giftRecipientName: null,
+        giftMessage: null,
+        giftSenderName: null,
+        giftWrap: item.giftWrap,
+      };
+    }
+    const price = comboPriceById.get(item.comboId)!;
     subtotal += price * item.qty;
     return {
-      productId: item.productId,
-      variantId: item.variantId,
+      kind: "combo" as const,
+      comboId: item.comboId,
       qty: item.qty,
-      isGift: item.giftWrap,
-      giftRecipientName: null,
-      giftMessage: null,
-      giftSenderName: null,
-      giftWrap: item.giftWrap,
+      selections: item.selections,
     };
   });
 

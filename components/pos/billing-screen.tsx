@@ -7,9 +7,12 @@ import { LogOut, ShoppingBag, X } from "lucide-react";
 import { auth } from "@/lib/firebase/client";
 import { logout } from "@/lib/auth/session";
 import { useActiveProducts } from "@/lib/pos/useActiveProducts";
-import type { Product, ProductVariant } from "@/lib/firestore/types";
+import { useActiveCombos } from "@/lib/pos/useActiveCombos";
+import { isComboFulfillable } from "@/lib/combos";
+import type { Combo, Product, ProductVariant } from "@/lib/firestore/types";
 import type {
   BillLine,
+  ComboBillComponent,
   DiscountMode,
   PosPaymentMethod,
   ReceiptData,
@@ -17,6 +20,8 @@ import type {
 import { formatInr, maxAdditionalUnits } from "@/lib/pricing";
 import { ProductGrid } from "./product-grid";
 import { VariantPickerSheet } from "./variant-picker-sheet";
+import { ComboTile } from "./combo-tile";
+import { ComboPickerSheet } from "./combo-picker-sheet";
 import { BillPanel } from "./bill-panel";
 import { ReceiptScreen } from "./receipt-screen";
 
@@ -24,12 +29,23 @@ function lineKey(productId: string, variantId: string) {
   return `${productId}:${variantId}`;
 }
 
+/** Stable key for a choose-any pick set, so an identical repeat pick
+ * increments the same bill line while a different pick stays separate. */
+function hashSelections(components: ComboBillComponent[]): string {
+  return components
+    .map((c) => `${c.productId}:${c.variantId}:${c.qty}`)
+    .sort()
+    .join("|");
+}
+
 export function BillingScreen({ staffName }: { staffName: string }) {
   const router = useRouter();
   const { products, loading } = useActiveProducts();
+  const { combos } = useActiveCombos();
 
   const [lines, setLines] = useState<BillLine[]>([]);
   const [pickerProduct, setPickerProduct] = useState<Product | null>(null);
+  const [comboPicker, setComboPicker] = useState<Combo | null>(null);
   const [mobileBillOpen, setMobileBillOpen] = useState(false);
 
   const [customerName, setCustomerName] = useState("");
@@ -102,6 +118,61 @@ export function BillingScreen({ staffName }: { staffName: string }) {
       return next;
     });
     setPickerProduct(null);
+  }
+
+  function addComboLine(
+    combo: Combo,
+    components: ComboBillComponent[],
+    selections: { productId: string; variantId: string }[],
+  ) {
+    const variantKey = combo.type === "fixed" ? "combo" : `combo:${hashSelections(components)}`;
+    setLines((prev) => {
+      const key = lineKey(combo.id, variantKey);
+      const idx = prev.findIndex((l) => lineKey(l.productId, l.variantId) === key);
+      if (idx === -1) {
+        return [
+          ...prev,
+          {
+            productId: combo.id,
+            variantId: variantKey,
+            productName: combo.title,
+            type: "oil",
+            sizeMl: 0,
+            unitPrice: combo.comboPriceInr,
+            oilMlPerUnit: 0,
+            qty: 1,
+            combo: {
+              comboId: combo.id,
+              comboTitle: combo.title,
+              components,
+              selections,
+            },
+          },
+        ];
+      }
+      const next = [...prev];
+      next[idx] = { ...next[idx], qty: next[idx].qty + 1 };
+      return next;
+    });
+    setComboPicker(null);
+  }
+
+  function handleSelectCombo(combo: Combo) {
+    if (combo.type === "fixed") {
+      addComboLine(
+        combo,
+        combo.items.map((i) => ({
+          productId: i.productId,
+          variantId: i.variantId,
+          productName: i.productName,
+          variantLabel: i.variantLabel,
+          qty: i.qty,
+        })),
+        [],
+      );
+      return;
+    }
+    setComboPicker(combo);
   }
 
   function handleSelectProduct(product: Product) {
@@ -187,12 +258,22 @@ export function BillingScreen({ staffName }: { staffName: string }) {
           Authorization: `Bearer ${idToken}`,
         },
         body: JSON.stringify({
-          items: lines.map((l) => ({
-            productId: l.productId,
-            variantId: l.variantId,
-            qty: l.qty,
-            giftWrap: l.giftWrap ?? false,
-          })),
+          items: lines.map((l) =>
+            l.combo
+              ? {
+                  kind: "combo" as const,
+                  comboId: l.combo.comboId,
+                  qty: l.qty,
+                  selections: l.combo.selections,
+                }
+              : {
+                  kind: "product" as const,
+                  productId: l.productId,
+                  variantId: l.variantId,
+                  qty: l.qty,
+                  giftWrap: l.giftWrap ?? false,
+                },
+          ),
           customerName,
           customerPhone,
           discount: { mode: discountMode, value: discountValue },
@@ -279,12 +360,29 @@ export function BillingScreen({ staffName }: { staffName: string }) {
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <ProductGrid
-          products={products}
-          loading={loading}
-          onSelect={handleSelectProduct}
-          bottomPadding
-        />
+        <div className="flex flex-1 flex-col overflow-hidden">
+          {combos.length > 0 && (
+            <div className="shrink-0 overflow-x-auto border-b border-zinc-800 bg-zinc-950 p-3">
+              <div className="flex gap-3">
+                {combos.map((combo) => (
+                  <div key={combo.id} className="w-32 shrink-0">
+                    <ComboTile
+                      combo={combo}
+                      fulfillable={isComboFulfillable(combo, new Map(products.map((p) => [p.id, p])))}
+                      onTap={() => handleSelectCombo(combo)}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <ProductGrid
+            products={products}
+            loading={loading}
+            onSelect={handleSelectProduct}
+            bottomPadding
+          />
+        </div>
         <aside className="hidden w-[26rem] shrink-0 border-l border-zinc-800 lg:flex lg:flex-col">
           {billPanel}
         </aside>
@@ -348,6 +446,15 @@ export function BillingScreen({ staffName }: { staffName: string }) {
         }
         onSelect={addLine}
         onClose={() => setPickerProduct(null)}
+      />
+
+      <ComboPickerSheet
+        combo={comboPicker}
+        products={products}
+        onConfirm={(components, selections) =>
+          comboPicker && addComboLine(comboPicker, components, selections)
+        }
+        onClose={() => setComboPicker(null)}
       />
     </div>
   );

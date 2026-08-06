@@ -33,6 +33,50 @@ function useTabHidden() {
   return hidden;
 }
 
+const BUTTON_POSITION_CLASSES: Record<string, string> = {
+  "bottom-center":
+    "absolute inset-x-0 bottom-14 z-20 flex justify-center px-4 pointer-events-none sm:bottom-16",
+  "bottom-left":
+    "absolute inset-x-0 bottom-14 z-20 flex justify-start pl-4 pointer-events-none sm:bottom-16 sm:pl-6",
+  center: "absolute inset-0 z-20 flex items-center justify-center px-6 pointer-events-none",
+};
+
+function BannerCtaButton({ banner }: { banner: StoreBanner }) {
+  if (!banner.buttonEnabled || !banner.buttonLabel || !banner.buttonLink) return null;
+
+  const buttonClass =
+    "pointer-events-auto flex min-h-11 items-center justify-center rounded-full border border-kiswa-gold/50 bg-kiswa-void/55 px-6 py-3 text-sm font-medium tracking-wide text-kiswa-gold-soft backdrop-blur-md transition-colors hover:bg-kiswa-gold hover:text-kiswa-void";
+  const positionClass =
+    BUTTON_POSITION_CLASSES[banner.buttonPosition] ?? BUTTON_POSITION_CLASSES["bottom-center"];
+
+  // A sibling of the slide's own <Link>/<a> (never nested inside it), so a
+  // click here can never bubble into and double-trigger the slide's own
+  // link — stopPropagation below is defense-in-depth on top of that.
+  return (
+    <div className={positionClass}>
+      {banner.buttonLink.startsWith("/") ? (
+        <Link
+          href={banner.buttonLink}
+          className={buttonClass}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {banner.buttonLabel}
+        </Link>
+      ) : (
+        <a
+          href={banner.buttonLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={buttonClass}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {banner.buttonLabel}
+        </a>
+      )}
+    </div>
+  );
+}
+
 function BannerSlideImages({
   banner,
   priority,
@@ -169,6 +213,7 @@ export function BannerCarousel({ banners }: { banners: StoreBanner[] }) {
             ) : (
               slideContent
             )}
+            <BannerCtaButton banner={current} />
           </motion.div>
         </AnimatePresence>
 

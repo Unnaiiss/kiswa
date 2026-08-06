@@ -1,6 +1,6 @@
 "use client";
 
-import { Gift, Loader2, Minus, Plus, ShoppingBag, Trash2 } from "lucide-react";
+import { Gift, Loader2, Minus, Package, Plus, ShoppingBag, Trash2 } from "lucide-react";
 import type { BillLine, DiscountMode, PosPaymentMethod } from "@/lib/pos/types";
 import { formatInr, formatVariantLabel } from "@/lib/pricing";
 
@@ -84,13 +84,22 @@ export function BillPanel(props: BillPanelProps) {
               >
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <p className="font-medium text-zinc-50">
+                    <p className="flex items-center gap-1.5 font-medium text-zinc-50">
+                      {line.combo && <Package size={13} className="text-amber-400" />}
                       {line.productName}
                     </p>
-                    <p className="text-xs text-zinc-500">
-                      {formatVariantLabel(line.type, line.sizeMl)} ·{" "}
-                      {formatInr(line.unitPrice)} each
-                    </p>
+                    {line.combo ? (
+                      <p className="text-xs text-zinc-500">
+                        {line.combo.components.map((c) => `${c.variantLabel}${c.qty > 1 ? ` ×${c.qty}` : ""}`).join(", ")}
+                        {" · "}
+                        {formatInr(line.unitPrice)} each
+                      </p>
+                    ) : (
+                      <p className="text-xs text-zinc-500">
+                        {formatVariantLabel(line.type, line.sizeMl)} ·{" "}
+                        {formatInr(line.unitPrice)} each
+                      </p>
+                    )}
                     {line.giftWrap && (
                       <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-amber-400 uppercase">
                         <Gift size={10} />
@@ -99,18 +108,20 @@ export function BillPanel(props: BillPanelProps) {
                     )}
                   </div>
                   <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      aria-label={line.giftWrap ? "Remove gift wrap" : "Mark as gift wrap"}
-                      onClick={() => onToggleGiftWrap(line.productId, line.variantId)}
-                      className={`cursor-pointer p-1 ${
-                        line.giftWrap
-                          ? "text-amber-400"
-                          : "text-zinc-500 hover:text-amber-400"
-                      }`}
-                    >
-                      <Gift size={16} />
-                    </button>
+                    {!line.combo && (
+                      <button
+                        type="button"
+                        aria-label={line.giftWrap ? "Remove gift wrap" : "Mark as gift wrap"}
+                        onClick={() => onToggleGiftWrap(line.productId, line.variantId)}
+                        className={`cursor-pointer p-1 ${
+                          line.giftWrap
+                            ? "text-amber-400"
+                            : "text-zinc-500 hover:text-amber-400"
+                        }`}
+                      >
+                        <Gift size={16} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       aria-label="Remove item"

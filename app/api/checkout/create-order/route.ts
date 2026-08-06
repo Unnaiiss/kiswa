@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { FieldValue } from "firebase-admin/firestore";
-import { productsCollection, pendingOrdersCollection } from "@/lib/firestore/admin-collections";
+import {
+  combosCollection,
+  productsCollection,
+  pendingOrdersCollection,
+} from "@/lib/firestore/admin-collections";
+import type { ComboDoc, ProductDoc } from "@/lib/firestore/types";
 import { createRazorpayOrder, razorpayPublicKeyId } from "@/lib/server/razorpay";
 
 const shippingAddressSchema = z.object({
@@ -24,7 +29,8 @@ const giftShippingAddressSchema = shippingAddressSchema.extend({
     .regex(/^[6-9][0-9]{9}$/, "Enter a valid 10-digit Indian mobile number"),
 });
 
-const itemSchema = z.object({
+const productItemSchema = z.object({
+  kind: z.literal("product"),
   productId: z.string().min(1),
   variantId: z.string().min(1),
   qty: z.number().int().positive(),
@@ -34,6 +40,17 @@ const itemSchema = z.object({
   giftSenderName: z.string().trim().nullable().default(null),
   giftWrap: z.boolean().default(false),
 });
+
+const comboItemSchema = z.object({
+  kind: z.literal("combo"),
+  comboId: z.string().min(1),
+  qty: z.number().int().positive(),
+  selections: z
+    .array(z.object({ productId: z.string().min(1), variantId: z.string().min(1) }))
+    .default([]),
+});
+
+const itemSchema = z.discriminatedUnion("kind", [productItemSchema, comboItemSchema]);
 
 const requestSchema = z.object({
   items: z.array(itemSchema).min(1, "Your bag is empty"),
@@ -47,6 +64,40 @@ const requestSchema = z.object({
   hidePrices: z.boolean().default(false),
 });
 
+interface ComponentQty {
+  productId: string;
+  variantId: string;
+  qty: number;
+}
+
+function comboComponentsPerUnit(
+  combo: ComboDoc,
+  selections: { productId: string; variantId: string }[],
+): ComponentQty[] {
+  if (combo.type === "fixed") {
+    return combo.items.map((i) => ({
+      productId: i.productId,
+      variantId: i.variantId,
+      qty: i.qty,
+    }));
+  }
+  if (combo.chooseCount === null || selections.length !== combo.chooseCount) {
+    return [];
+  }
+  const eligibleKeys = new Set(
+    combo.eligibleVariants.map((v) => `${v.productId}:${v.variantId}`),
+  );
+  const grouped = new Map<string, ComponentQty>();
+  for (const sel of selections) {
+    const key = `${sel.productId}:${sel.variantId}`;
+    if (!eligibleKeys.has(key)) return [];
+    const existing = grouped.get(key);
+    if (existing) existing.qty += 1;
+    else grouped.set(key, { productId: sel.productId, variantId: sel.variantId, qty: 1 });
+  }
+  return [...grouped.values()];
+}
+
 export async function POST(request: Request) {
   const json = await request.json().catch(() => null);
   const parsed = requestSchema.safeParse(json);
@@ -58,22 +109,75 @@ export async function POST(request: Request) {
   }
   const input = parsed.data;
 
-  // Aggregate requested qty per (productId, variantId) purely to check stock
-  // sufficiency and look up current prices — gift status doesn't affect
-  // either, so it's fine to aggregate across gift/non-gift lines of the same
-  // variant here. The actual line items sent to Firestore below are built
-  // from input.items directly (one per cart line) so two lines of the same
-  // variant with different gift details don't collapse into one.
-  const qtyByProductVariant = new Map<string, Map<string, number>>();
-  for (const item of input.items) {
-    const perVariant =
-      qtyByProductVariant.get(item.productId) ?? new Map<string, number>();
-    perVariant.set(
-      item.variantId,
-      (perVariant.get(item.variantId) ?? 0) + item.qty,
-    );
-    qtyByProductVariant.set(item.productId, perVariant);
+  // Fetch every combo referenced up front — needed both to validate/expand
+  // choose-any selections and to price the line (always comboPriceInr, never
+  // the sum of components).
+  const comboIds = [
+    ...new Set(input.items.filter((i) => i.kind === "combo").map((i) => i.comboId)),
+  ];
+  const comboSnaps = await Promise.all(
+    comboIds.map((id) => combosCollection().doc(id).get()),
+  );
+  const comboMap = new Map<string, ComboDoc>();
+  for (const [idx, snap] of comboSnaps.entries()) {
+    const data = snap.data();
+    if (!snap.exists || !data) {
+      return NextResponse.json(
+        { error: `A combo in your bag is no longer available.` },
+        { status: 409 },
+      );
+    }
+    const now = new Date();
+    if (
+      !data.isActive ||
+      (data.validFrom && data.validFrom.toDate() > now) ||
+      (data.validUntil && data.validUntil.toDate() < now)
+    ) {
+      return NextResponse.json(
+        { error: `"${data.title}" is no longer available.` },
+        { status: 409 },
+      );
+    }
+    comboMap.set(comboIds[idx], data);
   }
+
+  // Expand combo lines into their components (per one combo unit) up front,
+  // and reject malformed choose-any selections before touching stock.
+  const comboComponentsByIndex = new Map<number, ComponentQty[]>();
+  for (const [idx, item] of input.items.entries()) {
+    if (item.kind !== "combo") continue;
+    const combo = comboMap.get(item.comboId)!;
+    const components = comboComponentsPerUnit(combo, item.selections);
+    if (components.length === 0 && combo.type === "choose-any") {
+      return NextResponse.json(
+        { error: `"${combo.title}" needs exactly ${combo.chooseCount ?? 0} selections.` },
+        { status: 400 },
+      );
+    }
+    comboComponentsByIndex.set(idx, components);
+  }
+
+  // Aggregate requested qty per (productId, variantId) — from direct product
+  // items AND every combo's expanded components × its line qty — purely to
+  // check stock sufficiency and look up current prices. The actual pending
+  // items written below are built from input.items directly (one per cart
+  // line) so lines never collapse into each other.
+  const qtyByProductVariant = new Map<string, Map<string, number>>();
+  function addDraw(productId: string, variantId: string, qty: number) {
+    const perVariant =
+      qtyByProductVariant.get(productId) ?? new Map<string, number>();
+    perVariant.set(variantId, (perVariant.get(variantId) ?? 0) + qty);
+    qtyByProductVariant.set(productId, perVariant);
+  }
+  input.items.forEach((item, idx) => {
+    if (item.kind === "product") {
+      addDraw(item.productId, item.variantId, item.qty);
+    } else {
+      for (const c of comboComponentsByIndex.get(idx) ?? []) {
+        addDraw(c.productId, c.variantId, c.qty * item.qty);
+      }
+    }
+  });
 
   const products = productsCollection();
   const productIds = [...qtyByProductVariant.keys()];
@@ -82,6 +186,7 @@ export async function POST(request: Request) {
   );
 
   const priceByVariant = new Map<string, number>();
+  const productMap = new Map<string, ProductDoc>();
 
   for (const [idx, snap] of productSnaps.entries()) {
     const productId = productIds[idx];
@@ -92,6 +197,7 @@ export async function POST(request: Request) {
         { status: 409 },
       );
     }
+    productMap.set(productId, product);
     const perVariant = qtyByProductVariant.get(productId)!;
     let mlNeeded = 0;
     for (const [variantId, qty] of perVariant) {
@@ -117,17 +223,28 @@ export async function POST(request: Request) {
 
   let subtotal = 0;
   const pendingItems = input.items.map((item) => {
-    const price = priceByVariant.get(`${item.productId}:${item.variantId}`)!;
-    subtotal += price * item.qty;
+    if (item.kind === "product") {
+      const price = priceByVariant.get(`${item.productId}:${item.variantId}`)!;
+      subtotal += price * item.qty;
+      return {
+        kind: "product" as const,
+        productId: item.productId,
+        variantId: item.variantId,
+        qty: item.qty,
+        isGift: item.isGift,
+        giftRecipientName: item.giftRecipientName,
+        giftMessage: item.giftMessage,
+        giftSenderName: item.giftSenderName,
+        giftWrap: item.giftWrap,
+      };
+    }
+    const combo = comboMap.get(item.comboId)!;
+    subtotal += combo.comboPriceInr * item.qty;
     return {
-      productId: item.productId,
-      variantId: item.variantId,
+      kind: "combo" as const,
+      comboId: item.comboId,
       qty: item.qty,
-      isGift: item.isGift,
-      giftRecipientName: item.giftRecipientName,
-      giftMessage: item.giftMessage,
-      giftSenderName: item.giftSenderName,
-      giftWrap: item.giftWrap,
+      selections: item.selections,
     };
   });
 
