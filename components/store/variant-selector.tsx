@@ -7,8 +7,10 @@ import type { VariantType } from "@/lib/firestore/types";
 import type { GiftDetails } from "@/lib/cart/types";
 import type { StoreProduct } from "@/lib/store/queries";
 import { formatInr, formatVariantLabel, maxAdditionalUnits } from "@/lib/pricing";
+import { buildProductOrderMessage, buildWhatsAppUrl, useSiteUrl } from "@/lib/whatsapp";
 import { useCart } from "./cart-provider";
 import { GiftDialog } from "./gift-dialog";
+import { WhatsAppIcon } from "./whatsapp-icon";
 
 const TYPE_META: Record<
   VariantType,
@@ -104,9 +106,21 @@ export function VariantSelector({
     setSelectedSizeMl(sizes[0]?.sizeMl);
   }
 
+  const siteUrl = useSiteUrl();
+
   if (!selectedVariant) return null;
 
   const outOfStock = maxQty <= 0;
+
+  const whatsappUrl = buildWhatsAppUrl(
+    buildProductOrderMessage({
+      productName: product.name,
+      variantLabel: formatVariantLabel(selectedVariant.type, selectedVariant.sizeMl),
+      qty,
+      unitPrice: selectedVariant.priceInr,
+      productUrl: `${siteUrl}/product/${product.slug}`,
+    }),
+  );
 
   function cartItemBase() {
     return {
@@ -323,6 +337,31 @@ export function VariantSelector({
             </button>
           </>
         )}
+      </div>
+
+      {/* WhatsApp order — a full-width fallback below Add to Bag / Buy Now,
+       * always reflecting the currently selected variant + quantity. */}
+      <div className="-mt-4 flex flex-col gap-1.5">
+        <a
+          href={outOfStock ? undefined : whatsappUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-disabled={outOfStock}
+          onClick={(e) => {
+            if (outOfStock) e.preventDefault();
+          }}
+          className={`flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-medium tracking-wide transition-colors ${
+            outOfStock
+              ? "cursor-not-allowed bg-kiswa-border text-kiswa-ink-muted"
+              : "cursor-pointer bg-[#25D366] text-white hover:bg-[#20bd5a]"
+          }`}
+        >
+          <WhatsAppIcon size={18} />
+          Order on WhatsApp
+        </a>
+        <p className="text-center text-xs text-kiswa-ink-muted">
+          We&apos;ll confirm your order and payment on WhatsApp.
+        </p>
       </div>
 
       <GiftDialog

@@ -6,7 +6,9 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Gift, Minus, Package, Plus, ShoppingBag, Trash2, X } from "lucide-react";
 import { useCart } from "./cart-provider";
 import { GiftDialog } from "./gift-dialog";
+import { WhatsAppIcon } from "./whatsapp-icon";
 import { formatInr } from "@/lib/pricing";
+import { buildCartOrderMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
 import type { CartItem } from "@/lib/cart/types";
 
 export function CartDrawer() {
@@ -189,6 +191,15 @@ export function CartDrawer() {
                   >
                     Checkout
                   </Link>
+                  <a
+                    href={buildWhatsAppUrl(buildCartOrderMessage(items, subtotal))}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5 text-xs text-kiswa-ink-muted underline underline-offset-2 hover:text-[#25D366]"
+                  >
+                    <WhatsAppIcon size={14} />
+                    Order this cart on WhatsApp
+                  </a>
                 </div>
               </>
             )}

@@ -3,6 +3,7 @@ import { CartProvider } from "@/components/store/cart-provider";
 import { CartDrawer } from "@/components/store/cart-drawer";
 import { StoreHeader } from "@/components/store/header";
 import { StoreFooter } from "@/components/store/footer";
+import { WhatsAppFloatButton } from "@/components/store/whatsapp-float-button";
 import { getActiveProducts } from "@/lib/store/queries";
 
 const playfair = Playfair_Display({
@@ -33,6 +34,7 @@ export default async function StoreLayout({
         <div className="flex flex-1 flex-col">{children}</div>
         <StoreFooter />
         <CartDrawer />
+        <WhatsAppFloatButton />
       </CartProvider>
     </div>
   );
