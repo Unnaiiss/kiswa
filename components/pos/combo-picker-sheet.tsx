@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Minus, Plus, X } from "lucide-react";
 import type { Combo, Product } from "@/lib/firestore/types";
-import { formatInr, maxAdditionalUnits } from "@/lib/pricing";
+import { formatInr } from "@/lib/pricing";
+import { remainingCapacity } from "@/lib/products";
 
 interface ComboPickerSheetProps {
   combo: Combo | null;
@@ -34,10 +35,7 @@ export function ComboPickerSheet({ combo, products, onConfirm, onClose }: ComboP
     return `${productId}:${variantId}`;
   }
   function capacityFor(productId: string, variantId: string): number {
-    const product = productsById.get(productId);
-    const variant = product?.variants.find((v) => v.variantId === variantId);
-    if (!product || !variant || !variant.isActive) return 0;
-    return maxAdditionalUnits(product.oilStockMl, variant.oilMlPerUnit);
+    return remainingCapacity(productsById.get(productId), variantId);
   }
   function adjust(productId: string, variantId: string, delta: number) {
     const key = keyOf(productId, variantId);

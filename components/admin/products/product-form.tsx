@@ -5,7 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { Modal } from "@/components/admin/modal";
 import { adminFetch } from "@/lib/admin/apiClient";
 import { defaultOilMlPerUnit } from "@/lib/pricing";
-import type { Product, VariantType } from "@/lib/firestore/types";
+import type { Product, ProductType, VariantType } from "@/lib/firestore/types";
 
 interface ProductFormProps {
   mode: "create" | "edit";
@@ -26,7 +26,8 @@ interface VariantEditState {
 }
 
 function buildInitialVariantState(product?: Product): VariantEditState[] {
-  return (product?.variants ?? []).map((v) => ({
+  if (!product || product.productType !== "attar") return [];
+  return product.variants.map((v) => ({
     key: v.variantId,
     originalVariantId: v.variantId,
     type: v.type,
@@ -57,6 +58,10 @@ const cellInputClass =
   "w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-50 outline-none focus:border-amber-400";
 
 export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProps) {
+  const [productType, setProductType] = useState<ProductType>(
+    product?.productType ?? "attar",
+  );
+
   const [name, setName] = useState(product?.name ?? "");
   const [description, setDescription] = useState(product?.description ?? "");
   const [notes, setNotes] = useState(product?.notes.join(", ") ?? "");
@@ -65,12 +70,31 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
     product?.imageUrls && product.imageUrls.length > 0 ? product.imageUrls : [""],
   );
   const [isActive, setIsActive] = useState(product?.isActive ?? true);
+
+  // Attar-only fields
   const [lowStockThresholdMl, setLowStockThresholdMl] = useState(
-    String(product?.lowStockThresholdMl ?? 10),
+    String(product?.productType === "attar" ? product.lowStockThresholdMl : 10),
   );
   const [basePrice, setBasePrice] = useState("0");
   const [variants, setVariants] = useState<VariantEditState[]>(
     buildInitialVariantState(product),
+  );
+
+  // Imported-only fields
+  const [priceInr, setPriceInr] = useState(
+    String(product?.productType === "imported" ? product.priceInr : ""),
+  );
+  const [mrpInr, setMrpInr] = useState(
+    String(product?.productType === "imported" ? product.mrpInr : ""),
+  );
+  const [sizeLabel, setSizeLabel] = useState(
+    product?.productType === "imported" ? product.sizeLabel : "",
+  );
+  const [brand, setBrand] = useState(
+    (product?.productType === "imported" ? product.brand : "") ?? "",
+  );
+  const [lowStockThresholdUnits, setLowStockThresholdUnits] = useState(
+    String(product?.productType === "imported" ? product.lowStockThresholdUnits : 2),
   );
 
   const [submitting, setSubmitting] = useState(false);
@@ -104,7 +128,17 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
       setError("Name is required");
       return;
     }
-    if (mode === "edit") {
+
+    if (productType === "imported") {
+      if (!sizeLabel.trim()) {
+        setError("Size label is required (e.g. \"100ml EDP\")");
+        return;
+      }
+      if (!Number(priceInr) || Number(priceInr) <= 0) {
+        setError("Price must be greater than 0");
+        return;
+      }
+    } else if (mode === "edit") {
       if (variants.length === 0) {
         setError("At least one variant is required.");
         return;
@@ -122,31 +156,56 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
     setSubmitting(true);
     const cleanedNotes = notes.split(",").map((n) => n.trim()).filter(Boolean);
     const cleanedImageUrls = imageUrls.map((u) => u.trim()).filter(Boolean);
+    const base = {
+      name: name.trim(),
+      description: description.trim(),
+      notes: cleanedNotes,
+      category: category.trim(),
+      imageUrls: cleanedImageUrls,
+      isActive,
+    };
 
     try {
       if (mode === "create") {
         await adminFetch("/api/admin/products", {
           method: "POST",
+          body: JSON.stringify(
+            productType === "imported"
+              ? {
+                  productType: "imported",
+                  ...base,
+                  priceInr: Number(priceInr) || 0,
+                  mrpInr: Number(mrpInr) || 0,
+                  sizeLabel: sizeLabel.trim(),
+                  brand: brand.trim() || null,
+                  lowStockThresholdUnits: Number(lowStockThresholdUnits) || 0,
+                }
+              : {
+                  productType: "attar",
+                  ...base,
+                  basePrice: Number(basePrice) || 0,
+                },
+          ),
+        });
+      } else if (productType === "imported") {
+        await adminFetch(`/api/admin/products/${product!.id}`, {
+          method: "PATCH",
           body: JSON.stringify({
-            name: name.trim(),
-            description: description.trim(),
-            notes: cleanedNotes,
-            category: category.trim(),
-            imageUrls: cleanedImageUrls,
-            isActive,
-            basePrice: Number(basePrice) || 0,
+            productType: "imported",
+            ...base,
+            priceInr: Number(priceInr) || 0,
+            mrpInr: Number(mrpInr) || 0,
+            sizeLabel: sizeLabel.trim(),
+            brand: brand.trim() || null,
+            lowStockThresholdUnits: Number(lowStockThresholdUnits) || 0,
           }),
         });
       } else {
         await adminFetch(`/api/admin/products/${product!.id}`, {
           method: "PATCH",
           body: JSON.stringify({
-            name: name.trim(),
-            description: description.trim(),
-            notes: cleanedNotes,
-            category: category.trim(),
-            imageUrls: cleanedImageUrls,
-            isActive,
+            productType: "attar",
+            ...base,
             lowStockThresholdMl: Number(lowStockThresholdMl) || 0,
             variants: variants.map((v) => ({
               originalVariantId: v.originalVariantId,
@@ -174,6 +233,39 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
       widthClassName="max-w-3xl"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+        {mode === "create" ? (
+          <div>
+            <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
+              Product type
+            </label>
+            <div className="flex gap-2 rounded-lg border border-zinc-800 p-1">
+              {(
+                [
+                  { value: "attar" as const, label: "Attar (oil-based, with variants)" },
+                  { value: "imported" as const, label: "Imported Perfume (single price)" },
+                ]
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setProductType(opt.value)}
+                  className={`flex-1 cursor-pointer rounded-md py-2.5 text-sm font-medium transition-colors ${
+                    productType === opt.value
+                      ? "bg-amber-400 text-zinc-950"
+                      : "text-zinc-400 hover:text-zinc-200"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="w-fit rounded-full bg-zinc-800 px-2.5 py-1 text-xs text-zinc-400">
+            {productType === "attar" ? "Attar (oil-based)" : "Imported Perfume"}
+          </p>
+        )}
+
         <div>
           <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
             Name
@@ -216,6 +308,33 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
             />
           </div>
         </div>
+
+        {productType === "imported" && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
+                Size label
+              </label>
+              <input
+                value={sizeLabel}
+                onChange={(e) => setSizeLabel(e.target.value)}
+                className={inputClass}
+                placeholder="100ml EDP"
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
+                Brand <span className="text-zinc-600">(optional)</span>
+              </label>
+              <input
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                className={inputClass}
+                placeholder="e.g. Lattafa"
+              />
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
@@ -260,7 +379,7 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
             Active (visible in shop &amp; POS)
           </label>
 
-          {mode === "edit" && (
+          {productType === "attar" && mode === "edit" && (
             <div>
               <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
                 Low stock threshold (ml)
@@ -275,9 +394,56 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
               />
             </div>
           )}
+
+          {productType === "imported" && (
+            <div>
+              <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
+                Low stock threshold (units)
+              </label>
+              <input
+                value={lowStockThresholdUnits}
+                onChange={(e) =>
+                  setLowStockThresholdUnits(e.target.value.replace(/\D/g, ""))
+                }
+                inputMode="numeric"
+                className={inputClass}
+              />
+            </div>
+          )}
         </div>
 
-        {mode === "create" ? (
+        {productType === "imported" ? (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
+                Price (₹)
+              </label>
+              <input
+                value={priceInr}
+                onChange={(e) => setPriceInr(e.target.value.replace(/[^0-9.]/g, ""))}
+                inputMode="decimal"
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
+                MRP (₹) <span className="text-zinc-600">(optional, for strike-through)</span>
+              </label>
+              <input
+                value={mrpInr}
+                onChange={(e) => setMrpInr(e.target.value.replace(/[^0-9.]/g, ""))}
+                inputMode="decimal"
+                className={inputClass}
+              />
+            </div>
+            {mode === "create" && (
+              <p className="col-span-2 text-xs text-zinc-500">
+                Stock starts at 0 — add real bottle counts afterward via
+                Admin &gt; Stock &gt; Stock In, same as attar products.
+              </p>
+            )}
+          </div>
+        ) : mode === "create" ? (
           <div>
             <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
               Starting price (Oil 3ml, ₹) — the standard six sizes auto-price

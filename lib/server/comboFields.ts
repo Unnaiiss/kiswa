@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { productsCollection } from "@/lib/firestore/admin-collections";
 import { computeOriginalPriceInr } from "@/lib/combos";
+import { IMPORTED_VARIANT_ID } from "@/lib/products";
 import { formatVariantLabel } from "@/lib/pricing";
 import type {
   ComboEligibleVariant,
@@ -115,30 +116,39 @@ export async function resolveComboFields(
 
   function resolveVariant(productId: string, variantId: string) {
     const product = productMap.get(productId);
-    const variant = product?.variants.find((v) => v.variantId === variantId);
-    if (!product || !variant) {
+    if (!product) {
       throw new ComboValidationError("A selected product/variant no longer exists");
     }
-    return { product, variant };
+    if (product.productType === "imported") {
+      if (variantId !== IMPORTED_VARIANT_ID) {
+        throw new ComboValidationError("A selected product/variant no longer exists");
+      }
+      return { product, variantLabel: product.sizeLabel };
+    }
+    const variant = product.variants.find((v) => v.variantId === variantId);
+    if (!variant) {
+      throw new ComboValidationError("A selected product/variant no longer exists");
+    }
+    return { product, variantLabel: formatVariantLabel(variant.type, variant.sizeMl) };
   }
 
   const items: ComboFixedItem[] = itemsParsed.data.map((i) => {
-    const { product, variant } = resolveVariant(i.productId, i.variantId);
+    const { product, variantLabel } = resolveVariant(i.productId, i.variantId);
     return {
       productId: i.productId,
       variantId: i.variantId,
       productName: product.name,
-      variantLabel: formatVariantLabel(variant.type, variant.sizeMl),
+      variantLabel,
       qty: i.qty,
     };
   });
   const eligibleVariants: ComboEligibleVariant[] = eligibleParsed.data.map((i) => {
-    const { product, variant } = resolveVariant(i.productId, i.variantId);
+    const { product, variantLabel } = resolveVariant(i.productId, i.variantId);
     return {
       productId: i.productId,
       variantId: i.variantId,
       productName: product.name,
-      variantLabel: formatVariantLabel(variant.type, variant.sizeMl),
+      variantLabel,
     };
   });
 

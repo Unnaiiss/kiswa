@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { StoreProduct } from "@/lib/store/queries";
-import { formatInr, getStartingPrice } from "@/lib/pricing";
+import { formatInr } from "@/lib/pricing";
+import { productDisplayPrice } from "@/lib/products";
 import { ProductImage } from "./product-image";
 import {
   Command,
@@ -103,7 +104,9 @@ export function NavSearch({
                   <div className="flex flex-1 flex-col overflow-hidden">
                     <span className="truncate">{product.name}</span>
                     <span className="text-xs text-kiswa-gold-soft">
-                      From {formatInr(getStartingPrice(product.variants))}
+                      {product.productType === "imported"
+                        ? formatInr(productDisplayPrice(product))
+                        : `From ${formatInr(productDisplayPrice(product))}`}
                     </span>
                   </div>
                 </CommandItem>

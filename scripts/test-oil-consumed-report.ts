@@ -31,6 +31,7 @@ async function main() {
   const products = productsCollection();
 
   await products.doc(TEST_PRODUCT_ID).set({
+    productType: "attar",
     name: "Test Oil Report Product",
     slug: TEST_PRODUCT_ID,
     description: "Ephemeral product used only by the oil-report test.",
@@ -103,8 +104,10 @@ async function main() {
 
   const productAfter = (await products.doc(TEST_PRODUCT_ID).get()).data()!;
   check(
-    productAfter.oilStockMl === 91,
-    `Product oilStockMl reduced by 9, from 100 to 91 (was ${productAfter.oilStockMl})`,
+    productAfter.productType === "attar" && productAfter.oilStockMl === 91,
+    `Product oilStockMl reduced by 9, from 100 to 91 (was ${
+      productAfter.productType === "attar" ? productAfter.oilStockMl : "N/A"
+    })`,
   );
 
   console.log("\n2. Reports aggregation over this single sale");

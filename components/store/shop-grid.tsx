@@ -6,6 +6,11 @@ import type { VariantType } from "@/lib/firestore/types";
 import { ProductCard } from "./product-card";
 import { StaggerGrid, StaggerItem } from "./reveal";
 
+/** "imported" is a pseudo-type filter alongside the real oil/spray variant
+ * types — selects products whose productType is "imported" rather than
+ * filtering by variant. */
+export type ShopTypeFilter = VariantType | "imported";
+
 export function ShopGrid({
   products,
   categories,
@@ -15,7 +20,7 @@ export function ShopGrid({
   products: StoreProduct[];
   categories: string[];
   initialCategory?: string;
-  initialType?: VariantType;
+  initialType?: ShopTypeFilter;
 }) {
   const [active, setActive] = useState<string>(
     initialCategory && categories.includes(initialCategory)
@@ -27,8 +32,13 @@ export function ShopGrid({
     const byCategory =
       active === "All" ? products : products.filter((p) => p.category === active);
     if (!initialType) return byCategory;
-    return byCategory.filter((p) =>
-      p.variants.some((v) => v.isActive && v.type === initialType),
+    if (initialType === "imported") {
+      return byCategory.filter((p) => p.productType === "imported");
+    }
+    return byCategory.filter(
+      (p) =>
+        p.productType === "attar" &&
+        p.variants.some((v) => v.isActive && v.type === initialType),
     );
   }, [products, active, initialType]);
 

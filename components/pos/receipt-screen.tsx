@@ -26,9 +26,12 @@ function formatDateTime(date: Date): string {
 }
 
 function itemVariantText(item: ReceiptData["items"][number]): string {
-  return item.combo
-    ? item.combo.components.map((c) => `${c.variantLabel}${c.qty > 1 ? ` x${c.qty}` : ""}`).join(", ")
-    : formatVariantLabel(item.type, item.sizeMl);
+  if (item.combo) {
+    return item.combo.components
+      .map((c) => `${c.variantLabel}${c.qty > 1 ? ` x${c.qty}` : ""}`)
+      .join(", ");
+  }
+  return item.sizeLabel ?? formatVariantLabel(item.type, item.sizeMl);
 }
 
 function buildWhatsAppMessage(receipt: ReceiptData): string {

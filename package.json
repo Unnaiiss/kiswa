@@ -10,6 +10,7 @@
     "print:pricing": "tsx scripts/print-pricing-table.ts",
     "seed": "tsx --env-file=.env.local scripts/seed.ts",
     "migrate:bulk-oil": "tsx --env-file=.env.local scripts/migrate-to-bulk-oil.ts",
+    "migrate:product-type": "tsx --env-file=.env.local scripts/migrate-add-product-type.ts",
     "backfill:sale-oil-used": "tsx --env-file=.env.local scripts/backfill-sale-oil-used.ts",
     "set-role": "tsx --env-file=.env.local scripts/set-role.ts",
     "test:oversell": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-oversell.ts\"",

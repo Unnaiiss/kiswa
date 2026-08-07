@@ -14,8 +14,11 @@ interface AdjustmentFormProps {
 const inputClass =
   "w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-zinc-50 placeholder:text-zinc-600 outline-none focus:border-amber-400";
 
-function sanitizeDecimal(value: string): string {
-  const cleaned = value.replace(/[^0-9.]/g, "");
+function sanitizeDecimal(value: string, wholeNumbersOnly: boolean): string {
+  const cleaned = wholeNumbersOnly
+    ? value.replace(/\D/g, "")
+    : value.replace(/[^0-9.]/g, "");
+  if (wholeNumbersOnly) return cleaned;
   const firstDot = cleaned.indexOf(".");
   if (firstDot === -1) return cleaned;
   return (
@@ -31,6 +34,14 @@ export function AdjustmentForm({ products, onClose, onSaved }: AdjustmentFormPro
   );
   const [productId, setProductId] = useState(sortedProducts[0]?.id ?? "");
   const product = sortedProducts.find((p) => p.id === productId);
+  const isImported = product?.productType === "imported";
+  const unitLabel = isImported ? "unit(s)" : "ml";
+  const currentAmount = product
+    ? product.productType === "imported"
+      ? product.unitStock
+      : product.oilStockMl
+    : 0;
+
   const [sign, setSign] = useState<1 | -1>(-1);
   const [magnitude, setMagnitude] = useState("");
   const [note, setNote] = useState("");
@@ -42,7 +53,11 @@ export function AdjustmentForm({ products, onClose, onSaved }: AdjustmentFormPro
     setError(null);
     const magNum = Number(magnitude);
     if (!productId || !magnitude || !(magNum > 0)) {
-      setError("Choose a product and a non-zero ml quantity.");
+      setError(`Choose a product and a non-zero ${unitLabel} quantity.`);
+      return;
+    }
+    if (isImported && !Number.isInteger(magNum)) {
+      setError("Imported products are adjusted in whole units.");
       return;
     }
     if (!note.trim()) {
@@ -56,7 +71,7 @@ export function AdjustmentForm({ products, onClose, onSaved }: AdjustmentFormPro
         method: "POST",
         body: JSON.stringify({
           productId,
-          mlChange: sign * magNum,
+          amountChange: sign * magNum,
           note: note.trim(),
         }),
       });
@@ -76,12 +91,18 @@ export function AdjustmentForm({ products, onClose, onSaved }: AdjustmentFormPro
           </label>
           <select
             value={productId}
-            onChange={(e) => setProductId(e.target.value)}
+            onChange={(e) => {
+              setProductId(e.target.value);
+              setMagnitude("");
+            }}
             className={inputClass}
           >
             {sortedProducts.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name} — {p.oilStockMl} ml in stock
+                {p.name} —{" "}
+                {p.productType === "imported"
+                  ? `${p.unitStock} unit${p.unitStock === 1 ? "" : "s"} in stock`
+                  : `${p.oilStockMl} ml in stock`}
               </option>
             ))}
           </select>
@@ -89,7 +110,7 @@ export function AdjustmentForm({ products, onClose, onSaved }: AdjustmentFormPro
 
         <div>
           <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
-            Adjustment (ml)
+            Adjustment ({unitLabel})
           </label>
           <div className="flex gap-2">
             <div className="flex overflow-hidden rounded-lg border border-zinc-800">
@@ -116,21 +137,21 @@ export function AdjustmentForm({ products, onClose, onSaved }: AdjustmentFormPro
             </div>
             <input
               value={magnitude}
-              onChange={(e) => setMagnitude(sanitizeDecimal(e.target.value))}
-              inputMode="decimal"
+              onChange={(e) => setMagnitude(sanitizeDecimal(e.target.value, isImported))}
+              inputMode={isImported ? "numeric" : "decimal"}
               className={`${inputClass} flex-1`}
-              placeholder="Quantity (ml)"
+              placeholder={`Quantity (${unitLabel})`}
             />
           </div>
         </div>
 
         {product && magnitude && (
           <p className="text-xs text-zinc-500">
-            {product.name} will go from {product.oilStockMl} ml to{" "}
-            {Math.round(
-              (product.oilStockMl + sign * (Number(magnitude) || 0)) * 100,
-            ) / 100}{" "}
-            ml.
+            {product.name} will go from {currentAmount} {unitLabel} to{" "}
+            {isImported
+              ? currentAmount + sign * (Number(magnitude) || 0)
+              : Math.round((currentAmount + sign * (Number(magnitude) || 0)) * 100) / 100}{" "}
+            {unitLabel}.
           </p>
         )}
 

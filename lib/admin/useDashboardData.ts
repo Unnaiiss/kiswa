@@ -22,8 +22,11 @@ import type { Product } from "@/lib/firestore/types";
 export interface LowStockAlert {
   productId: string;
   productName: string;
-  stockMl: number;
-  thresholdMl: number;
+  kind: "attar" | "imported";
+  /** oilStockMl (attar) or unitStock (imported). */
+  amount: number;
+  /** lowStockThresholdMl (attar) or lowStockThresholdUnits (imported). */
+  threshold: number;
 }
 
 export interface DashboardData {
@@ -104,14 +107,27 @@ function buildLowStockAlerts(products: Product[]): LowStockAlert[] {
   const alerts: LowStockAlert[] = [];
   for (const product of products) {
     if (!product.isActive) continue;
+    if (product.productType === "imported") {
+      if (product.unitStock <= product.lowStockThresholdUnits) {
+        alerts.push({
+          productId: product.id,
+          productName: product.name,
+          kind: "imported",
+          amount: product.unitStock,
+          threshold: product.lowStockThresholdUnits,
+        });
+      }
+      continue;
+    }
     if (product.oilStockMl <= product.lowStockThresholdMl) {
       alerts.push({
         productId: product.id,
         productName: product.name,
-        stockMl: product.oilStockMl,
-        thresholdMl: product.lowStockThresholdMl,
+        kind: "attar",
+        amount: product.oilStockMl,
+        threshold: product.lowStockThresholdMl,
       });
     }
   }
-  return alerts.sort((a, b) => a.stockMl - b.stockMl);
+  return alerts.sort((a, b) => a.amount - b.amount);
 }

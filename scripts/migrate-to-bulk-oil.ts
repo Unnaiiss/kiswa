@@ -15,6 +15,7 @@ async function main() {
 
   for (const doc of snap.docs) {
     const product = doc.data();
+    if (product.productType !== "attar") continue;
 
     const nextVariants = product.variants.map((v) => {
       const legacy = v as unknown as Record<string, unknown>;

@@ -6,7 +6,9 @@ import type { Product, ProductVariant } from "@/lib/firestore/types";
 import { formatInr, formatVariantLabel, maxAdditionalUnits } from "@/lib/pricing";
 
 interface VariantPickerSheetProps {
-  product: Product | null;
+  /** Always an attar product — imported products bypass this sheet entirely
+   * (BillingScreen adds them straight to the bill, no variant to pick). */
+  product: (Product & { productType: "attar" }) | null;
   /** Oil (ml) left in this product's pool right now, after netting out
    * everything already on the current bill. */
   remainingMl: number;

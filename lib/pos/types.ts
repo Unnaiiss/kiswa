@@ -31,8 +31,14 @@ export interface BillLine {
   /** ml of attar oil one unit of this variant consumes — lets the bill
    * compute remaining availability without re-reading product data. Unused
    * (0) for combo lines — combo stock capping isn't replicated in the bill
-   * UI, only authoritatively enforced by recordSale at Complete Bill. */
+   * UI, only authoritatively enforced by recordSale at Complete Bill. Also
+   * 0 for imported-product lines, which are capped by unit count instead
+   * (see BillingScreen's remainingUnitsForProduct). */
   oilMlPerUnit: number;
+  /** Imported-product lines only — snapshot of the product's sizeLabel
+   * (e.g. "100ml EDP"), shown in place of formatVariantLabel(type, sizeMl)
+   * since these lines have no real variant/size. */
+  sizeLabel?: string;
   qty: number;
   /** Walk-in gift wrap toggle — no recipient/message/address at the counter,
    * just flags the line as a gift and asks for wrapping. */

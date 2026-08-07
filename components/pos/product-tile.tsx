@@ -2,7 +2,8 @@
 
 import { ProductImage } from "@/components/store/product-image";
 import type { Product } from "@/lib/firestore/types";
-import { formatInr, getStartingPrice } from "@/lib/pricing";
+import { formatInr } from "@/lib/pricing";
+import { productDisplayPrice } from "@/lib/products";
 
 interface ProductTileProps {
   product: Product;
@@ -10,10 +11,11 @@ interface ProductTileProps {
 }
 
 export function ProductTile({ product, onTap }: ProductTileProps) {
-  const sellable = product.variants.some(
-    (v) => v.isActive && v.oilMlPerUnit <= product.oilStockMl,
-  );
-  const startingPrice = getStartingPrice(product.variants);
+  const isImported = product.productType === "imported";
+  const sellable = isImported
+    ? product.unitStock > 0
+    : product.variants.some((v) => v.isActive && v.oilMlPerUnit <= product.oilStockMl);
+  const price = productDisplayPrice(product);
 
   return (
     <button
@@ -45,8 +47,11 @@ export function ProductTile({ product, onTap }: ProductTileProps) {
           {product.name}
         </p>
         <p className="text-sm font-semibold text-amber-400">
-          From {formatInr(startingPrice)}
+          {isImported ? formatInr(price) : `From ${formatInr(price)}`}
         </p>
+        {isImported && sellable && (
+          <p className="text-xs text-zinc-500">{product.unitStock} in stock</p>
+        )}
       </div>
     </button>
   );

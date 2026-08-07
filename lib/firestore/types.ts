@@ -20,8 +20,9 @@ export interface ProductVariant {
   isActive: boolean;
 }
 
-/** Shape as stored in Firestore (no doc id). */
-export interface ProductDoc {
+export type ProductType = "attar" | "imported";
+
+interface ProductBaseDoc {
   name: string;
   slug: string;
   description: string;
@@ -29,18 +30,44 @@ export interface ProductDoc {
   category: string;
   imageUrls: string[];
   isActive: boolean;
+  createdAt: TimestampLike;
+}
+
+/** Our own attar/perfume line, bottled to order from a shared bulk-oil pool —
+ * every variant of a fragrance (every oil size AND every spray size) draws
+ * from ONE oilStockMl, never its own independent count. */
+export interface AttarProductDoc extends ProductBaseDoc {
+  productType: "attar";
   variants: ProductVariant[];
   /** Bulk attar oil on hand for this fragrance, in ml (decimals allowed).
    * Every variant (oil or spray) is bottled from this single pool. */
   oilStockMl: number;
   lowStockThresholdMl: number;
-  createdAt: TimestampLike;
 }
 
-/** Hydrated with its Firestore document id, for app-wide use. */
-export interface Product extends ProductDoc {
-  id: string;
+/** A ready-made bottle bought in and resold as-is — ONE price, ONE size, no
+ * attar oil pool at all. Stock is tracked in whole bottles (unitStock), via
+ * the same stockIn/stockAdjust/recordSale transactions as attar products,
+ * just unit-based instead of ml-based. */
+export interface ImportedProductDoc extends ProductBaseDoc {
+  productType: "imported";
+  priceInr: number;
+  mrpInr: number;
+  /** Free text, e.g. "100ml EDP" — imported products have no oil/spray type
+   * or admin-editable size list, just a label. */
+  sizeLabel: string;
+  brand: string | null;
+  /** Whole bottles on hand. May ONLY be changed inside the
+   * recordSale/stockIn/stockAdjust transactions, like oilStockMl. */
+  unitStock: number;
+  lowStockThresholdUnits: number;
 }
+
+/** Shape as stored in Firestore (no doc id). */
+export type ProductDoc = AttarProductDoc | ImportedProductDoc;
+
+/** Hydrated with its Firestore document id, for app-wide use. */
+export type Product = ProductDoc & { id: string };
 
 export type StockMovementReason =
   | "opening_stock"
@@ -50,15 +77,26 @@ export type StockMovementReason =
   | "adjustment"
   | "return";
 
+/** Whether a movement's mlChange is ml of attar oil (attar products) or
+ * whole bottles (imported products). Missing on movements recorded before
+ * this field existed — those are always "ml" (imported products didn't
+ * exist yet), so callers should treat an absent unit as "ml". */
+export type StockUnit = "ml" | "unit";
+
 export interface StockMovementDoc {
   productId: string;
   productName: string;
-  /** Set only for sale-driven line items (which variant consumed the oil);
-   * null for product-level Stock In / Adjustment / Set exact stock. */
+  /** Set only for sale-driven line items of an ATTAR product (which variant
+   * consumed the oil); null for product-level Stock In / Adjustment / Set
+   * exact stock, and always null for imported products (which have no
+   * variant entity — variantLabel carries the product's sizeLabel instead,
+   * for context in the audit trail). */
   variantId: string | null;
   variantLabel: string | null;
-  /** ml of attar oil, +/- (e.g. -9 for a sale, +250 for a delivery). */
+  /** +/- quantity change, in `unit` (ml of attar oil, or whole imported
+   * bottles) — e.g. -9 for a sale, +250 for a delivery. */
   mlChange: number;
+  unit: StockUnit;
   reason: StockMovementReason;
   referenceId: string | null;
   note: string | null;
@@ -94,6 +132,12 @@ export interface ComboSaleComponent {
   sizeMl: number;
   qty: number;
   oilMlUsed: number;
+  /** Snapshotted from the component's product — lets oil-usage reports skip
+   * imported components (always oilMlUsed 0, but still worth excluding from
+   * the "oil consumed by product" table rather than showing a noisy 0ml
+   * row). Absent on combos sold before this field existed (treat as attar,
+   * since imported products didn't exist yet). */
+  productType?: ProductType;
 }
 
 export interface SaleItem {
@@ -107,8 +151,20 @@ export interface SaleItem {
   /** oilMlPerUnit * qty, snapshotted at sale time — oilMlPerUnit is editable
    * per variant, so historical reports must not rely on its current value.
    * Optional because sales recorded before the bulk-oil model shipped have
-   * no such field; treat those as unknown (not zero-consumption) ml. */
+   * no such field; treat those as unknown (not zero-consumption) ml. Always
+   * 0 for imported-product lines (they don't touch the oil pool at all), so
+   * oil-usage reports stay attar-only without needing to filter this field
+   * specially — it just never contributes. */
   oilMlUsed?: number;
+  /** Snapshotted from the product at sale time — absent on sales recorded
+   * before this field existed, which were always attar (treat missing as
+   * "attar"). Combo lines leave this unset (a combo isn't itself one type;
+   * see comboComponents for its per-fragrance breakdown). */
+  productType?: ProductType;
+  /** Imported-product lines only — snapshot of the product's sizeLabel
+   * (e.g. "100ml EDP"), since variantId is just the "unit" placeholder and
+   * sizeMl is 0 for these lines, unlike attar's real variant/size. */
+  sizeLabel?: string | null;
   /** Gifting has no effect on stock/oil logic — these are purely
    * presentation/packing metadata carried alongside the line. */
   isGift?: boolean;

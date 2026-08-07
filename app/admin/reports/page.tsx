@@ -14,6 +14,7 @@ import {
   mlConsumedByChannel,
   oilSprayRevenueSplit,
   oilUsageBreakdown,
+  revenueByProductType,
   totalItemsSold,
   totalMlConsumed,
   totalRevenue,
@@ -60,6 +61,7 @@ export default function AdminReportsPage() {
   const giftOrders = useMemo(() => giftOrdersCount(sales), [sales]);
   const comboRev = useMemo(() => comboRevenue(sales), [sales]);
   const comboRows = useMemo(() => comboUnitsSold(sales), [sales]);
+  const typeStats = useMemo(() => revenueByProductType(sales), [sales]);
 
   function handleExport() {
     const csv = salesToCsv(sales);
@@ -206,6 +208,42 @@ export default function AdminReportsPage() {
                 </table>
               </div>
             )}
+          </div>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+            <h2 className="mb-4 text-sm font-semibold text-zinc-50">
+              Revenue by product type
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-800 text-left text-xs uppercase tracking-wide text-zinc-500">
+                    <th className="py-2 pr-3 font-medium">Type</th>
+                    <th className="py-2 pr-3 text-right font-medium">Units sold</th>
+                    <th className="py-2 text-right font-medium">Revenue</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/60">
+                  {(
+                    [
+                      ["attar", "Attar"],
+                      ["imported", "Imported"],
+                      ["combo", "Combo"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <tr key={key}>
+                      <td className="py-2 pr-3 text-zinc-300">{label}</td>
+                      <td className="py-2 pr-3 text-right text-zinc-300">
+                        {typeStats[key].unitsSold}
+                      </td>
+                      <td className="py-2 text-right font-medium text-zinc-50">
+                        {formatInr(typeStats[key].revenue)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">

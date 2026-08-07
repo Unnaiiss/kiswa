@@ -7,23 +7,41 @@ import type { Product } from "@/lib/firestore/types";
 export interface StockRow {
   productId: string;
   productName: string;
-  oilStockMl: number;
-  lowStockThresholdMl: number;
+  kind: "attar" | "imported";
+  /** oilStockMl (attar) or unitStock (imported). */
+  amount: number;
+  /** lowStockThresholdMl (attar) or lowStockThresholdUnits (imported). */
+  threshold: number;
   isActive: boolean;
 }
 
 function buildRows(products: Product[]): StockRow[] {
-  return products.map((product) => ({
-    productId: product.id,
-    productName: product.name,
-    oilStockMl: product.oilStockMl,
-    lowStockThresholdMl: product.lowStockThresholdMl,
-    isActive: product.isActive,
-  }));
+  return products.map((product) =>
+    product.productType === "imported"
+      ? {
+          productId: product.id,
+          productName: product.name,
+          kind: "imported",
+          amount: product.unitStock,
+          threshold: product.lowStockThresholdUnits,
+          isActive: product.isActive,
+        }
+      : {
+          productId: product.id,
+          productName: product.name,
+          kind: "attar",
+          amount: product.oilStockMl,
+          threshold: product.lowStockThresholdMl,
+          isActive: product.isActive,
+        },
+  );
 }
 
-function formatMl(ml: number): string {
-  return `${Number(ml.toFixed(1)).toString()} ml`;
+function formatAmount(row: Pick<StockRow, "kind" | "amount">): string {
+  if (row.kind === "imported") {
+    return `${row.amount} unit${row.amount === 1 ? "" : "s"}`;
+  }
+  return `${Number(row.amount.toFixed(1))} ml`;
 }
 
 interface StockTableProps {
@@ -42,7 +60,7 @@ export function StockTable({ products, loading, onStocktake }: StockTableProps) 
     const q = search.trim().toLowerCase();
     return rows.filter((row) => {
       if (q && !row.productName.toLowerCase().includes(q)) return false;
-      if (lowStockOnly && row.oilStockMl > row.lowStockThresholdMl) return false;
+      if (lowStockOnly && row.amount > row.threshold) return false;
       return true;
     });
   }, [rows, search, lowStockOnly]);
@@ -83,7 +101,7 @@ export function StockTable({ products, loading, onStocktake }: StockTableProps) 
             <thead className="sticky top-0 border-b border-zinc-800 bg-zinc-900 text-xs tracking-wide text-zinc-500 uppercase">
               <tr>
                 <th className="px-4 py-3">Product</th>
-                <th className="px-4 py-3">Oil stock</th>
+                <th className="px-4 py-3">Stock</th>
                 <th className="px-4 py-3">Threshold</th>
                 <th className="px-4 py-3">Status</th>
                 <th className="px-4 py-3" />
@@ -91,7 +109,7 @@ export function StockTable({ products, loading, onStocktake }: StockTableProps) 
             </thead>
             <tbody>
               {filtered.map((row) => {
-                const low = row.oilStockMl <= row.lowStockThresholdMl;
+                const low = row.amount <= row.threshold;
                 return (
                   <tr
                     key={row.productId}
@@ -103,10 +121,10 @@ export function StockTable({ products, loading, onStocktake }: StockTableProps) 
                     <td
                       className={`px-4 py-2.5 font-semibold ${low ? "text-red-400" : "text-zinc-300"}`}
                     >
-                      {formatMl(row.oilStockMl)}
+                      {formatAmount(row)}
                     </td>
                     <td className="px-4 py-2.5 text-zinc-500">
-                      {formatMl(row.lowStockThresholdMl)}
+                      {formatAmount({ kind: row.kind, amount: row.threshold })}
                     </td>
                     <td className="px-4 py-2.5">
                       {!row.isActive ? (

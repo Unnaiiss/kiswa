@@ -17,11 +17,17 @@ import type {
   ProductDoc,
 } from "@/lib/firestore/types";
 
+// Plain Omit<Union, K> collapses a discriminated union down to only its
+// shared keys (Product is now attar | imported) — this distributes Omit
+// over each union member first, so the productType discriminant keeps
+// narrowing StoreProduct correctly downstream.
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
 // Storefront pages pass products straight into Client Components (product
 // cards, variant selector), so the shape must be plain-serializable — a
 // Firestore Timestamp instance in `createdAt` breaks that boundary and isn't
 // needed by any storefront UI, so it's dropped here.
-export type StoreProduct = Omit<Product, "createdAt">;
+export type StoreProduct = DistributiveOmit<Product, "createdAt">;
 
 function toStoreProduct(id: string, data: ProductDoc): StoreProduct {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

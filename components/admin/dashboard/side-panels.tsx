@@ -65,7 +65,7 @@ export function LowStockPanel({ alerts }: { alerts: LowStockAlert[] }) {
             >
               <span className="text-zinc-300">{alert.productName}</span>
               <span className="shrink-0 font-semibold text-red-400">
-                {alert.stockMl} ml left
+                {alert.amount} {alert.kind === "imported" ? "left" : "ml left"}
               </span>
             </li>
           ))}

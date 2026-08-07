@@ -9,6 +9,7 @@ import {
   stockMovementsCollection,
 } from "@/lib/firestore/admin-collections";
 import { formatVariantLabel } from "@/lib/pricing";
+import { IMPORTED_VARIANT_ID, aggregateProductNeeds } from "@/lib/server/productLookup";
 import type { ComboDoc, ComboSaleComponent, ProductDoc, SaleItem } from "@/lib/firestore/types";
 
 const productSaleItemInputSchema = z.object({
@@ -221,15 +222,10 @@ export async function recordSale(
       // per direct product item, N entries per combo line (its expanded
       // components × the line's own qty). Aggregating them all into one map
       // (rather than per-source) means a fragrance bought both directly and
-      // via a combo in the same sale nets against its one shared oil pool.
+      // via a combo in the same sale nets against its one shared pool —
+      // oilStockMl for attar, unitStock for imported.
       const qtyByProductVariant = new Map<string, Map<string, number>>();
       function addDraw(productId: string, variantId: string, qty: number) {
-        const product = productMap.get(productId);
-        if (!product) throw new Error(`Product ${productId} not found`);
-        const variant = product.variants.find((v) => v.variantId === variantId);
-        if (!variant) {
-          throw new Error(`Variant ${variantId} not found on product ${productId}`);
-        }
         const perVariant =
           qtyByProductVariant.get(productId) ?? new Map<string, number>();
         perVariant.set(variantId, (perVariant.get(variantId) ?? 0) + qty);
@@ -245,32 +241,12 @@ export async function recordSale(
         }
       });
 
-      // Validate: every variant drawn must be active, and each product's
-      // total ml need — summed across every draw of that product in this
-      // sale, direct or combo-sourced, since all its variants are bottled
-      // from one oil pool — must not exceed what's left in stock.
-      const mlNeededByProduct = new Map<string, number>();
-      for (const [productId, perVariant] of qtyByProductVariant) {
-        const product = productMap.get(productId)!;
-        let mlNeeded = 0;
-        for (const [variantId, qty] of perVariant) {
-          const variant = product.variants.find(
-            (v) => v.variantId === variantId,
-          )!;
-          if (!variant.isActive) {
-            throw new Error(
-              `${product.name} (${variant.type} ${variant.sizeMl}ml) is not available for sale`,
-            );
-          }
-          mlNeeded += qty * variant.oilMlPerUnit;
-        }
-        if (product.oilStockMl < mlNeeded) {
-          throw new Error(
-            `Insufficient oil stock for ${product.name}: have ${product.oilStockMl}ml, need ${mlNeeded}ml`,
-          );
-        }
-        mlNeededByProduct.set(productId, mlNeeded);
-      }
+      // Validates every product/variant drawn is active with enough stock,
+      // and returns how much of each product's pool this sale needs — ml for
+      // attar, whole units for imported. Overselling must be impossible for
+      // both, and a combo whose components can't be made rejects the whole
+      // sale (its draws are already merged into the map above).
+      const needsByProduct = aggregateProductNeeds(productMap, qtyByProductVariant);
 
       // ---- BUILD SALE ITEMS + STOCK-MOVEMENT DRAWS ----
       // One SaleItem per input line (product or combo — a combo never
@@ -282,15 +258,48 @@ export async function recordSale(
       const movementDraws: {
         productId: string;
         productName: string;
-        variantId: string;
-        variantLabel: string;
+        variantId: string | null;
+        variantLabel: string | null;
         mlChange: number;
+        unit: "ml" | "unit";
         note: string | null;
       }[] = [];
 
       input.items.forEach((item, idx) => {
         if (item.kind === "product") {
           const product = productMap.get(item.productId)!;
+
+          if (product.productType === "imported") {
+            const lineTotal = product.priceInr * item.qty;
+            saleItems.push({
+              productId: item.productId,
+              productName: product.name,
+              variantId: IMPORTED_VARIANT_ID,
+              sizeMl: 0,
+              unitPrice: product.priceInr,
+              qty: item.qty,
+              lineTotal,
+              oilMlUsed: 0,
+              productType: "imported",
+              sizeLabel: product.sizeLabel,
+              isGift: item.isGift,
+              giftRecipientName: item.giftRecipientName,
+              giftMessage: item.giftMessage,
+              giftSenderName: item.giftSenderName,
+              giftWrap: item.giftWrap,
+            });
+            movementDraws.push({
+              productId: item.productId,
+              productName: product.name,
+              variantId: null,
+              variantLabel: product.sizeLabel,
+              mlChange: -item.qty,
+              unit: "unit",
+              note: null,
+            });
+            return;
+          }
+
           const variant = product.variants.find(
             (v) => v.variantId === item.variantId,
           )!;
@@ -304,6 +313,7 @@ export async function recordSale(
             qty: item.qty,
             lineTotal: variant.priceInr * item.qty,
             oilMlUsed,
+            productType: "attar",
             isGift: item.isGift,
             giftRecipientName: item.giftRecipientName,
             giftMessage: item.giftMessage,
@@ -316,6 +326,7 @@ export async function recordSale(
             variantId: variant.variantId,
             variantLabel: formatVariantLabel(variant.type, variant.sizeMl),
             mlChange: -oilMlUsed,
+            unit: "ml",
             note: null,
           });
           return;
@@ -325,8 +336,31 @@ export async function recordSale(
         const componentsPerUnit = comboExpansions.get(idx)!;
         const comboComponents: ComboSaleComponent[] = componentsPerUnit.map((c) => {
           const product = productMap.get(c.productId)!;
-          const variant = product.variants.find((v) => v.variantId === c.variantId)!;
           const totalQty = c.qty * item.qty;
+
+          if (product.productType === "imported") {
+            movementDraws.push({
+              productId: c.productId,
+              productName: product.name,
+              variantId: null,
+              variantLabel: product.sizeLabel,
+              mlChange: -totalQty,
+              unit: "unit",
+              note: `Combo: ${combo.title}`,
+            });
+            return {
+              productId: c.productId,
+              productName: product.name,
+              variantId: IMPORTED_VARIANT_ID,
+              variantLabel: product.sizeLabel,
+              sizeMl: 0,
+              qty: totalQty,
+              oilMlUsed: 0,
+              productType: "imported" as const,
+            };
+          }
+
+          const variant = product.variants.find((v) => v.variantId === c.variantId)!;
           const oilMlUsed = variant.oilMlPerUnit * totalQty;
           movementDraws.push({
             productId: c.productId,
@@ -334,6 +368,7 @@ export async function recordSale(
             variantId: variant.variantId,
             variantLabel: formatVariantLabel(variant.type, variant.sizeMl),
             mlChange: -oilMlUsed,
+            unit: "ml",
             note: `Combo: ${combo.title}`,
           });
           return {
@@ -344,6 +379,7 @@ export async function recordSale(
             sizeMl: variant.sizeMl,
             qty: totalQty,
             oilMlUsed,
+            productType: "attar" as const,
           };
         });
         const totalOilMlUsed = comboComponents.reduce(
@@ -380,11 +416,17 @@ export async function recordSale(
       const invoiceNo = formatInvoiceNo(year, seq);
 
       // ---- ALL WRITES FROM HERE ----
-      for (const [productId, mlNeeded] of mlNeededByProduct) {
+      for (const [productId, need] of needsByProduct) {
         const product = productMap.get(productId)!;
-        tx.update(products.doc(productId), {
-          oilStockMl: product.oilStockMl - mlNeeded,
-        });
+        if (need.kind === "imported" && product.productType === "imported") {
+          tx.update(products.doc(productId), {
+            unitStock: product.unitStock - need.amountNeeded,
+          });
+        } else if (product.productType === "attar") {
+          tx.update(products.doc(productId), {
+            oilStockMl: product.oilStockMl - need.amountNeeded,
+          });
+        }
       }
 
       const saleReason =
@@ -396,6 +438,7 @@ export async function recordSale(
           variantId: draw.variantId,
           variantLabel: draw.variantLabel,
           mlChange: draw.mlChange,
+          unit: draw.unit,
           reason: saleReason,
           referenceId: saleRef.id,
           note: draw.note,

@@ -83,9 +83,10 @@ async function main() {
         fromMlMovement++;
       } else {
         const product = await getProduct(item.productId);
-        const variant = product?.variants.find(
-          (v) => v.variantId === item.variantId,
-        );
+        const variant =
+          product?.productType === "attar"
+            ? product.variants.find((v) => v.variantId === item.variantId)
+            : undefined;
         const oilMlPerUnit =
           variant?.oilMlPerUnit ??
           defaultOilMlPerUnit(parseVariantType(item.variantId), item.sizeMl);

@@ -14,8 +14,11 @@ interface StocktakeFormProps {
   onSaved: () => void;
 }
 
-function sanitizeDecimal(value: string): string {
-  const cleaned = value.replace(/[^0-9.]/g, "");
+function sanitizeDecimal(value: string, wholeNumbersOnly: boolean): string {
+  const cleaned = wholeNumbersOnly
+    ? value.replace(/\D/g, "")
+    : value.replace(/[^0-9.]/g, "");
+  if (wholeNumbersOnly) return cleaned;
   const firstDot = cleaned.indexOf(".");
   if (firstDot === -1) return cleaned;
   return (
@@ -25,26 +28,32 @@ function sanitizeDecimal(value: string): string {
 }
 
 export function StocktakeForm({ row, onClose, onSaved }: StocktakeFormProps) {
-  const [counted, setCounted] = useState(String(row.oilStockMl));
+  const isImported = row.kind === "imported";
+  const unitLabel = isImported ? "unit(s)" : "ml";
+  const [counted, setCounted] = useState(String(row.amount));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const countedNum = counted === "" ? null : Number(counted);
   const diff =
-    countedNum === null ? 0 : Math.round((countedNum - row.oilStockMl) * 100) / 100;
+    countedNum === null ? 0 : Math.round((countedNum - row.amount) * 100) / 100;
 
   const diffLabel = useMemo(() => {
     if (countedNum === null) return null;
     if (diff === 0) return "No change — stock already matches the count.";
-    return diff > 0 ? `Adjustment: +${diff} ml` : `Adjustment: ${diff} ml`;
-  }, [countedNum, diff]);
+    return diff > 0 ? `Adjustment: +${diff} ${unitLabel}` : `Adjustment: ${diff} ${unitLabel}`;
+  }, [countedNum, diff, unitLabel]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
 
     if (countedNum === null || countedNum < 0 || Number.isNaN(countedNum)) {
-      setError("Enter the counted quantity in ml (0 or more).");
+      setError(`Enter the counted quantity in ${unitLabel} (0 or more).`);
+      return;
+    }
+    if (isImported && !Number.isInteger(countedNum)) {
+      setError("Imported products are counted in whole units.");
       return;
     }
     if (diff === 0) {
@@ -58,7 +67,7 @@ export function StocktakeForm({ row, onClose, onSaved }: StocktakeFormProps) {
         method: "POST",
         body: JSON.stringify({
           productId: row.productId,
-          mlChange: diff,
+          amountChange: diff,
           note: "stocktake",
         }),
       });
@@ -76,18 +85,20 @@ export function StocktakeForm({ row, onClose, onSaved }: StocktakeFormProps) {
           <p className="text-zinc-50">{row.productName}</p>
           <p className="mt-2 text-zinc-500">
             Current system stock:{" "}
-            <span className="text-zinc-300">{row.oilStockMl} ml</span>
+            <span className="text-zinc-300">
+              {row.amount} {unitLabel}
+            </span>
           </p>
         </div>
 
         <div>
           <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
-            Counted quantity (ml)
+            Counted quantity ({unitLabel})
           </label>
           <input
             value={counted}
-            onChange={(e) => setCounted(sanitizeDecimal(e.target.value))}
-            inputMode="decimal"
+            onChange={(e) => setCounted(sanitizeDecimal(e.target.value, isImported))}
+            inputMode={isImported ? "numeric" : "decimal"}
             autoFocus
             className={inputClass}
             placeholder="e.g. 25"

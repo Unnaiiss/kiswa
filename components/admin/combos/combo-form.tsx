@@ -6,6 +6,7 @@ import { Modal } from "@/components/admin/modal";
 import { adminFetchFormData } from "@/lib/admin/apiClient";
 import { useAllProducts } from "@/lib/admin/useAllProducts";
 import { computeOriginalPriceInr, comboSavings } from "@/lib/combos";
+import { IMPORTED_VARIANT_ID } from "@/lib/products";
 import { formatInr, formatVariantLabel } from "@/lib/pricing";
 import type { Combo, ComboType, Product } from "@/lib/firestore/types";
 
@@ -48,6 +49,9 @@ function randKey() {
 }
 
 function productLabel(p: Product, variantId: string) {
+  if (p.productType === "imported") {
+    return `${p.name} — ${p.sizeLabel} (${formatInr(p.priceInr)})`;
+  }
   const v = p.variants.find((x) => x.variantId === variantId);
   return v ? `${p.name} — ${formatVariantLabel(v.type, v.sizeMl)} (${formatInr(v.priceInr)})` : p.name;
 }
@@ -66,7 +70,11 @@ function ProductVariantPicker({
   const [qty, setQty] = useState("1");
 
   const product = products.find((p) => p.id === productId);
-  const variants = (product?.variants ?? []).filter((v) => v.isActive);
+  const isImported = product?.productType === "imported";
+  const variants =
+    product?.productType === "attar" ? product.variants.filter((v) => v.isActive) : [];
+  const effectiveVariantId = isImported ? IMPORTED_VARIANT_ID : variantId;
+  const canAdd = isImported ? !!productId : !!productId && !!variantId;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -88,17 +96,25 @@ function ProductVariantPicker({
       </select>
       <select
         aria-label="Select size"
-        value={variantId}
+        value={isImported ? IMPORTED_VARIANT_ID : variantId}
         onChange={(e) => setVariantId(e.target.value)}
-        disabled={!product}
+        disabled={!product || isImported}
         className="min-w-[9rem] flex-1 cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-sm text-zinc-50 outline-none focus:border-amber-400 disabled:opacity-40"
       >
-        <option value="">Select size…</option>
-        {variants.map((v) => (
-          <option key={v.variantId} value={v.variantId}>
-            {formatVariantLabel(v.type, v.sizeMl)} — {formatInr(v.priceInr)}
+        {isImported ? (
+          <option value={IMPORTED_VARIANT_ID}>
+            {product.sizeLabel} — {formatInr(product.priceInr)}
           </option>
-        ))}
+        ) : (
+          <>
+            <option value="">Select size…</option>
+            {variants.map((v) => (
+              <option key={v.variantId} value={v.variantId}>
+                {formatVariantLabel(v.type, v.sizeMl)} — {formatInr(v.priceInr)}
+              </option>
+            ))}
+          </>
+        )}
       </select>
       {showQty && (
         <input
@@ -110,9 +126,9 @@ function ProductVariantPicker({
       )}
       <button
         type="button"
-        disabled={!productId || !variantId}
+        disabled={!canAdd}
         onClick={() => {
-          onAdd(productId, variantId, Number(qty) || 1);
+          onAdd(productId, effectiveVariantId, Number(qty) || 1);
           setProductId("");
           setVariantId("");
           setQty("1");

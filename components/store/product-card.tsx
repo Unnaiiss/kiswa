@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import type { StoreProduct } from "@/lib/store/queries";
-import { formatInr, getStartingPrice } from "@/lib/pricing";
+import { formatInr } from "@/lib/pricing";
+import { productDisplayPrice } from "@/lib/products";
 import { ProductImage } from "./product-image";
 import { TiltCard } from "@/components/ui/tilt-card";
 
@@ -15,7 +16,8 @@ export function ProductCard({
   /** Links to the product page pre-flagged for the gift flow (see /gift). */
   giftMode?: boolean;
 }) {
-  const startingPrice = getStartingPrice(product.variants);
+  const isImported = product.productType === "imported";
+  const price = productDisplayPrice(product);
   const href = giftMode
     ? `/product/${product.slug}?gift=1`
     : `/product/${product.slug}`;
@@ -54,7 +56,7 @@ export function ProductCard({
               </p>
             )}
             <p className="text-sm text-kiswa-gold">
-              From {formatInr(startingPrice)}
+              {isImported ? formatInr(price) : `From ${formatInr(price)}`}
             </p>
           </div>
         </Link>

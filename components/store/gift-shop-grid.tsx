@@ -3,17 +3,18 @@
 import { useMemo, useState } from "react";
 import type { StoreProduct } from "@/lib/store/queries";
 import type { VariantType } from "@/lib/firestore/types";
-import { getStartingPrice } from "@/lib/pricing";
+import { productDisplayPrice } from "@/lib/products";
 import { ProductCard } from "./product-card";
 import { StaggerGrid, StaggerItem } from "./reveal";
 
-type TypeFilter = "all" | VariantType;
+type TypeFilter = "all" | VariantType | "imported";
 type SortOption = "featured" | "price-asc" | "price-desc";
 
 const TYPE_TABS: { value: TypeFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "oil", label: "Perfume Oils" },
   { value: "spray", label: "Perfume Sprays" },
+  { value: "imported", label: "Imported Perfumes" },
 ];
 
 const SORT_OPTIONS: { value: SortOption; label: string }[] = [
@@ -30,14 +31,18 @@ export function GiftShopGrid({ products }: { products: StoreProduct[] }) {
     const byType =
       typeFilter === "all"
         ? products
-        : products.filter((p) =>
-            p.variants.some((v) => v.isActive && v.type === typeFilter),
-          );
+        : typeFilter === "imported"
+          ? products.filter((p) => p.productType === "imported")
+          : products.filter(
+              (p) =>
+                p.productType === "attar" &&
+                p.variants.some((v) => v.isActive && v.type === typeFilter),
+            );
 
     if (sort === "featured") return byType;
     const withPrice = byType.map((p) => ({
       product: p,
-      price: getStartingPrice(p.variants),
+      price: productDisplayPrice(p),
     }));
     withPrice.sort((a, b) =>
       sort === "price-asc" ? a.price - b.price : b.price - a.price,

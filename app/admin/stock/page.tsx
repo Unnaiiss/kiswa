@@ -20,7 +20,7 @@ export default function AdminStockPage() {
         <div>
           <h1 className="text-2xl font-semibold text-zinc-50">Stock</h1>
           <p className="mt-1 text-sm text-zinc-500">
-            Current stock per variant, with a full audit trail.
+            Current stock per product — ml for attar, units for imported — with a full audit trail.
           </p>
         </div>
         <div className="flex gap-3">

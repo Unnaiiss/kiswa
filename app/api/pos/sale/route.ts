@@ -3,6 +3,7 @@ import { z } from "zod";
 import { combosCollection, productsCollection } from "@/lib/firestore/admin-collections";
 import { recordSale } from "@/lib/server/recordSale";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
+import { livePriceForVariant } from "@/lib/server/productLookup";
 
 const productItemSchema = z.object({
   kind: z.literal("product"),
@@ -87,14 +88,14 @@ export async function POST(request: Request) {
     }
     const perVariant = qtyByProductVariant.get(productId)!;
     for (const variantId of perVariant.keys()) {
-      const variant = product.variants.find((v) => v.variantId === variantId);
-      if (!variant) {
+      const price = livePriceForVariant(product, variantId);
+      if (price === null) {
         return NextResponse.json(
           { error: "A variant in the bill no longer exists." },
           { status: 409 },
         );
       }
-      priceByVariant.set(`${productId}:${variantId}`, variant.priceInr);
+      priceByVariant.set(`${productId}:${variantId}`, price);
     }
   }
 

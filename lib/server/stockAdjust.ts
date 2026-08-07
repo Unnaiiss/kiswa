@@ -8,7 +8,9 @@ import {
 
 export const stockAdjustInputSchema = z.object({
   productId: z.string().min(1),
-  mlChange: z.number().refine((n) => n !== 0, "mlChange must be nonzero"),
+  /** +/- ml (attar) or whole bottles (imported — validated as an integer
+   * once the product's type is known inside the transaction). */
+  amountChange: z.number().refine((n) => n !== 0, "amountChange must be nonzero"),
   note: z.string().min(1),
 });
 
@@ -28,10 +30,39 @@ export async function stockAdjust(rawInput: StockAdjustInput): Promise<void> {
       throw new Error(`Product ${input.productId} not found`);
     }
 
-    const newStock = product.oilStockMl + input.mlChange;
+    if (product.productType === "imported") {
+      if (!Number.isInteger(input.amountChange)) {
+        throw new Error(`${product.name} is sold as whole bottles — enter a whole number.`);
+      }
+      const newStock = product.unitStock + input.amountChange;
+      if (newStock < 0) {
+        throw new Error(
+          `Adjustment would result in negative stock for ${product.name}: have ${product.unitStock}, change ${input.amountChange}`,
+        );
+      }
+
+      // ---- WRITE ----
+      tx.update(productRef, { unitStock: newStock });
+
+      tx.set(movements.doc(), {
+        productId: input.productId,
+        productName: product.name,
+        variantId: null,
+        variantLabel: product.sizeLabel,
+        mlChange: input.amountChange,
+        unit: "unit",
+        reason: "adjustment",
+        referenceId: null,
+        note: input.note,
+        createdAt: FieldValue.serverTimestamp(),
+      });
+      return;
+    }
+
+    const newStock = product.oilStockMl + input.amountChange;
     if (newStock < 0) {
       throw new Error(
-        `Adjustment would result in negative oil stock for ${product.name}: have ${product.oilStockMl}ml, change ${input.mlChange}ml`,
+        `Adjustment would result in negative oil stock for ${product.name}: have ${product.oilStockMl}ml, change ${input.amountChange}ml`,
       );
     }
 
@@ -43,7 +74,8 @@ export async function stockAdjust(rawInput: StockAdjustInput): Promise<void> {
       productName: product.name,
       variantId: null,
       variantLabel: null,
-      mlChange: input.mlChange,
+      mlChange: input.amountChange,
+      unit: "ml",
       reason: "adjustment",
       referenceId: null,
       note: input.note,

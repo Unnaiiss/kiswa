@@ -5,13 +5,18 @@ import { formatVariantLabel } from "@/lib/pricing";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
 import type { ProductVariant } from "@/lib/firestore/types";
 
-const updateProductSchema = z.object({
+const baseFields = {
   name: z.string().trim().min(1, "Name is required"),
   description: z.string().trim().default(""),
   notes: z.array(z.string().trim().min(1)).default([]),
   category: z.string().trim().min(1, "Category is required"),
   imageUrls: z.array(z.string().trim().url()).default([]),
   isActive: z.boolean(),
+};
+
+const updateAttarSchema = z.object({
+  productType: z.literal("attar"),
+  ...baseFields,
   lowStockThresholdMl: z.number().nonnegative(),
   variants: z
     .array(
@@ -29,6 +34,21 @@ const updateProductSchema = z.object({
     )
     .min(1, "At least one variant is required"),
 });
+
+const updateImportedSchema = z.object({
+  productType: z.literal("imported"),
+  ...baseFields,
+  priceInr: z.number().nonnegative(),
+  mrpInr: z.number().nonnegative(),
+  sizeLabel: z.string().trim().min(1, "Size label is required"),
+  brand: z.string().trim().nullable().default(null),
+  lowStockThresholdUnits: z.number().int().nonnegative(),
+});
+
+const updateProductSchema = z.discriminatedUnion("productType", [
+  updateAttarSchema,
+  updateImportedSchema,
+]);
 
 export async function PATCH(
   request: Request,
@@ -60,6 +80,30 @@ export async function PATCH(
   const current = snap.data();
   if (!snap.exists || !current) {
     return NextResponse.json({ error: "Product not found" }, { status: 404 });
+  }
+
+  if (current.productType !== input.productType) {
+    return NextResponse.json(
+      { error: "A product's type can't be changed after creation." },
+      { status: 400 },
+    );
+  }
+
+  if (input.productType === "imported") {
+    await ref.update({
+      name: input.name,
+      description: input.description,
+      notes: input.notes,
+      category: input.category,
+      imageUrls: input.imageUrls,
+      isActive: input.isActive,
+      priceInr: input.priceInr,
+      mrpInr: input.mrpInr,
+      sizeLabel: input.sizeLabel,
+      brand: input.brand,
+      lowStockThresholdUnits: input.lowStockThresholdUnits,
+    });
+    return NextResponse.json({ ok: true });
   }
 
   const rowsWithDerivedId = input.variants.map((row) => ({

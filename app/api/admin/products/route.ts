@@ -8,15 +8,35 @@ import { slugify } from "@/lib/slugify";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
 import type { ProductVariant } from "@/lib/firestore/types";
 
-const createProductSchema = z.object({
+const baseFields = {
   name: z.string().trim().min(1, "Name is required"),
   description: z.string().trim().default(""),
   notes: z.array(z.string().trim().min(1)).default([]),
   category: z.string().trim().min(1, "Category is required"),
   imageUrls: z.array(z.string().trim().url()).default([]),
   isActive: z.boolean().default(true),
+};
+
+const createAttarSchema = z.object({
+  productType: z.literal("attar"),
+  ...baseFields,
   basePrice: z.number().nonnegative(),
 });
+
+const createImportedSchema = z.object({
+  productType: z.literal("imported"),
+  ...baseFields,
+  priceInr: z.number().nonnegative(),
+  mrpInr: z.number().nonnegative(),
+  sizeLabel: z.string().trim().min(1, "Size label is required"),
+  brand: z.string().trim().nullable().default(null),
+  lowStockThresholdUnits: z.number().int().nonnegative().default(2),
+});
+
+const createProductSchema = z.discriminatedUnion("productType", [
+  createAttarSchema,
+  createImportedSchema,
+]);
 
 export async function POST(request: Request) {
   try {
@@ -46,17 +66,6 @@ export async function POST(request: Request) {
     );
   }
 
-  const computed = computeVariantPrices(input.basePrice);
-  const variants: ProductVariant[] = computed.map((c) => ({
-    variantId: c.variantId,
-    type: c.type,
-    sizeMl: c.sizeMl,
-    priceInr: c.priceInr,
-    mrpInr: c.mrpInr,
-    oilMlPerUnit: c.oilMlPerUnit,
-    isActive: input.isActive,
-  }));
-
   const ref = productsCollection().doc(slug);
 
   try {
@@ -65,7 +74,41 @@ export async function POST(request: Request) {
       if (snap.exists) {
         throw new Error("DUPLICATE_SLUG");
       }
+
+      if (input.productType === "imported") {
+        tx.set(ref, {
+          productType: "imported",
+          name: input.name,
+          slug,
+          description: input.description,
+          notes: input.notes,
+          category: input.category,
+          imageUrls: input.imageUrls,
+          isActive: input.isActive,
+          priceInr: input.priceInr,
+          mrpInr: input.mrpInr,
+          sizeLabel: input.sizeLabel,
+          brand: input.brand,
+          unitStock: 0,
+          lowStockThresholdUnits: input.lowStockThresholdUnits,
+          createdAt: FieldValue.serverTimestamp(),
+        });
+        return;
+      }
+
+      const computed = computeVariantPrices(input.basePrice);
+      const variants: ProductVariant[] = computed.map((c) => ({
+        variantId: c.variantId,
+        type: c.type,
+        sizeMl: c.sizeMl,
+        priceInr: c.priceInr,
+        mrpInr: c.mrpInr,
+        oilMlPerUnit: c.oilMlPerUnit,
+        isActive: input.isActive,
+      }));
+
       tx.set(ref, {
+        productType: "attar",
         name: input.name,
         slug,
         description: input.description,

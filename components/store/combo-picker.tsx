@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, Minus, Package, Plus } from "lucide-react";
 import { useCart } from "./cart-provider";
-import { maxAdditionalUnits } from "@/lib/pricing";
+import { remainingCapacity } from "@/lib/products";
 import type { StoreCombo, StoreProduct } from "@/lib/store/queries";
 
 export function ComboPicker({
@@ -23,10 +23,7 @@ export function ComboPicker({
   const complete = totalPicked === chooseCount;
 
   function capacityFor(productId: string, variantId: string): number {
-    const product = productsById.get(productId);
-    const variant = product?.variants.find((v) => v.variantId === variantId);
-    if (!product || !variant || !product.isActive || !variant.isActive) return 0;
-    return maxAdditionalUnits(product.oilStockMl, variant.oilMlPerUnit);
+    return remainingCapacity(productsById.get(productId), variantId);
   }
 
   function keyOf(productId: string, variantId: string) {

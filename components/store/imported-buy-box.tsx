@@ -2,124 +2,59 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Droplet, Gift, Minus, Plus, SprayCan } from "lucide-react";
-import type { VariantType } from "@/lib/firestore/types";
+import { Gift, Minus, Plus } from "lucide-react";
 import type { GiftDetails } from "@/lib/cart/types";
 import type { StoreProduct } from "@/lib/store/queries";
-import { formatInr, formatVariantLabel, maxAdditionalUnits } from "@/lib/pricing";
+import { formatInr } from "@/lib/pricing";
+import { IMPORTED_VARIANT_ID } from "@/lib/products";
 import { buildProductOrderMessage, buildWhatsAppUrl, useSiteUrl } from "@/lib/whatsapp";
 import { useCart } from "./cart-provider";
 import { GiftDialog } from "./gift-dialog";
 import { WhatsAppIcon } from "./whatsapp-icon";
 
-const TYPE_META: Record<
-  VariantType,
-  { label: string; caption: string; icon: typeof Droplet }
-> = {
-  oil: {
-    label: "Perfume Oil",
-    caption: "Concentrated attar, worn direct on skin",
-    icon: Droplet,
-  },
-  spray: {
-    label: "Perfume Spray",
-    caption: "A fine mist, lightened for everyday wear",
-    icon: SprayCan,
-  },
-};
-
-export function VariantSelector({
+/** Product-page buy box for an imported perfume — one price, one size, so
+ * unlike VariantSelector there's no oil/spray toggle or size picker, just a
+ * quantity stepper and the Add to Bag / Send as Gift / WhatsApp actions. */
+export function ImportedBuyBox({
   product,
   giftMode = false,
 }: {
-  /** Always an attar product — the product page renders ImportedBuyBox
-   * instead for imported products, which have no variants to select. */
-  product: StoreProduct & { productType: "attar" };
-  /** True when navigated here from /gift — makes "Send as Gift" the primary
-   * CTA instead of "Add to Bag" (both stay available either way). */
+  product: StoreProduct & { productType: "imported" };
   giftMode?: boolean;
 }) {
   const { items, addItem, open } = useCart();
 
-  // Every variant of this product is bottled from the same oil pool, so oil
-  // already committed to OTHER lines of this product in the cart (any
-  // variant, including this one) reduces what's left to add right now.
-  const mlCommittedInCart = useMemo(
+  // Units already committed to other lines of this product in the cart
+  // reduce what's left to add right now (same product can't have more than
+  // one non-gift line, but gift lines are separate).
+  const unitsCommittedInCart = useMemo(
     () =>
       items
         .filter((line) => line.productId === product.id)
-        .reduce((sum, line) => sum + line.qty * line.oilMlPerUnit, 0),
+        .reduce((sum, line) => sum + line.qty, 0),
     [items, product.id],
   );
-  const remainingMl = product.oilStockMl - mlCommittedInCart;
-  const lowStock = product.oilStockMl <= product.lowStockThresholdMl;
-
-  const activeVariants = useMemo(
-    () => product.variants.filter((v) => v.isActive),
-    [product.variants],
-  );
-
-  const types = useMemo(
-    () => [...new Set(activeVariants.map((v) => v.type))],
-    [activeVariants],
-  );
-
-  const [selectedType, setSelectedType] = useState<VariantType>(types[0]);
-
-  const sizesForType = useMemo(
-    () =>
-      activeVariants
-        .filter((v) => v.type === selectedType)
-        .sort((a, b) => a.sizeMl - b.sizeMl),
-    [activeVariants, selectedType],
-  );
-
-  const [selectedSizeMl, setSelectedSizeMl] = useState<number>(
-    sizesForType[0]?.sizeMl,
-  );
-
-  const selectedVariant =
-    activeVariants.find(
-      (v) => v.type === selectedType && v.sizeMl === selectedSizeMl,
-    ) ?? sizesForType[0];
+  const remainingUnits = product.unitStock - unitsCommittedInCart;
+  const lowStock = product.unitStock <= product.lowStockThresholdUnits;
+  const maxQty = Math.max(0, remainingUnits);
+  const outOfStock = maxQty <= 0;
 
   const [qty, setQty] = useState(1);
   const [justAdded, setJustAdded] = useState(false);
   const [giftDialogOpen, setGiftDialogOpen] = useState(false);
 
-  const maxQty = maxAdditionalUnits(
-    remainingMl,
-    selectedVariant?.oilMlPerUnit ?? 0,
-  );
-
-  useEffect(() => {
-    setQty(1);
-  }, [selectedVariant?.variantId]);
-
   useEffect(() => {
     setQty((q) => Math.min(q, Math.max(1, maxQty)));
   }, [maxQty]);
 
-  function handleTypeChange(type: VariantType) {
-    setSelectedType(type);
-    const sizes = activeVariants
-      .filter((v) => v.type === type)
-      .sort((a, b) => a.sizeMl - b.sizeMl);
-    setSelectedSizeMl(sizes[0]?.sizeMl);
-  }
-
   const siteUrl = useSiteUrl();
-
-  if (!selectedVariant) return null;
-
-  const outOfStock = maxQty <= 0;
 
   const whatsappUrl = buildWhatsAppUrl(
     buildProductOrderMessage({
       productName: product.name,
-      variantLabel: formatVariantLabel(selectedVariant.type, selectedVariant.sizeMl),
+      variantLabel: product.sizeLabel,
       qty,
-      unitPrice: selectedVariant.priceInr,
+      unitPrice: product.priceInr,
       productUrl: `${siteUrl}/product/${product.slug}`,
     }),
   );
@@ -127,22 +62,19 @@ export function VariantSelector({
   function cartItemBase() {
     return {
       productId: product.id,
-      variantId: selectedVariant.variantId,
+      variantId: IMPORTED_VARIANT_ID,
       productName: product.name,
       slug: product.slug,
-      variantLabel: formatVariantLabel(
-        selectedVariant.type,
-        selectedVariant.sizeMl,
-      ),
-      type: selectedVariant.type,
-      sizeMl: selectedVariant.sizeMl,
-      unitPrice: selectedVariant.priceInr,
-      oilMlPerUnit: selectedVariant.oilMlPerUnit,
+      variantLabel: product.sizeLabel,
+      type: "oil" as const,
+      sizeMl: 0,
+      unitPrice: product.priceInr,
+      oilMlPerUnit: 0,
     };
   }
 
   function handleAddToCart() {
-    if (!selectedVariant || outOfStock) return;
+    if (outOfStock) return;
     addItem(cartItemBase(), qty);
     setJustAdded(true);
     open();
@@ -150,7 +82,7 @@ export function VariantSelector({
   }
 
   function handleGiftConfirm(details: GiftDetails) {
-    if (!selectedVariant || outOfStock) return;
+    if (outOfStock) return;
     addItem(cartItemBase(), qty, details);
     setGiftDialogOpen(false);
     open();
@@ -158,84 +90,18 @@ export function VariantSelector({
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Step 1: type */}
       <div>
-        <p className="mb-3 text-xs uppercase tracking-[0.3em] text-kiswa-ink-muted">
-          Choose your ritual
-        </p>
-        <div className="grid grid-cols-2 gap-4">
-          {types.map((type) => {
-            const meta = TYPE_META[type];
-            const Icon = meta.icon;
-            const active = selectedType === type;
-            return (
-              <button
-                key={type}
-                type="button"
-                onClick={() => handleTypeChange(type)}
-                className={`relative cursor-pointer rounded-lg border p-5 text-left transition-colors ${
-                  active
-                    ? "border-kiswa-gold bg-kiswa-surface-2"
-                    : "border-kiswa-border bg-kiswa-surface hover:border-kiswa-gold/40"
-                }`}
-              >
-                {active && (
-                  <motion.div
-                    layoutId="variant-type-highlight"
-                    className="absolute inset-0 rounded-lg ring-1 ring-kiswa-gold"
-                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                  />
-                )}
-                <Icon
-                  size={22}
-                  className={active ? "text-kiswa-gold" : "text-kiswa-ink-muted"}
-                />
-                <p
-                  className={`mt-3 font-display text-lg ${active ? "text-kiswa-gold" : "text-kiswa-ink"}`}
-                >
-                  {meta.label}
-                </p>
-                <p className="mt-1 text-xs text-kiswa-ink-muted">
-                  {meta.caption}
-                </p>
-              </button>
-            );
-          })}
-        </div>
+        {product.brand && (
+          <p className="mb-1 text-xs uppercase tracking-[0.3em] text-kiswa-gold-soft">
+            {product.brand}
+          </p>
+        )}
+        <p className="text-sm text-kiswa-ink-muted">{product.sizeLabel}</p>
       </div>
 
-      {/* Step 2: size */}
-      {sizesForType.length > 1 && (
-        <div>
-          <p className="mb-3 text-xs uppercase tracking-[0.3em] text-kiswa-ink-muted">
-            Size
-          </p>
-          <div className="flex flex-wrap gap-3">
-            {sizesForType.map((v) => {
-              const active = v.sizeMl === selectedSizeMl;
-              return (
-                <button
-                  key={v.variantId}
-                  type="button"
-                  onClick={() => setSelectedSizeMl(v.sizeMl)}
-                  className={`cursor-pointer rounded-full border px-5 py-2 text-sm tracking-wide transition-colors ${
-                    active
-                      ? "border-kiswa-gold bg-kiswa-gold text-kiswa-void"
-                      : "border-kiswa-border text-kiswa-ink-muted hover:border-kiswa-gold/50 hover:text-kiswa-gold"
-                  }`}
-                >
-                  {v.sizeMl}ml
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Price + stock */}
       <AnimatePresence mode="wait">
         <motion.div
-          key={selectedVariant.variantId}
+          key="imported-price"
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -6 }}
@@ -244,18 +110,18 @@ export function VariantSelector({
         >
           <div className="flex items-baseline gap-3">
             <span className="font-display text-3xl text-kiswa-ink">
-              {formatInr(selectedVariant.priceInr)}
+              {formatInr(product.priceInr)}
             </span>
-            {selectedVariant.mrpInr > selectedVariant.priceInr && (
+            {product.mrpInr > product.priceInr && (
               <span className="text-sm text-kiswa-ink-muted line-through">
-                {formatInr(selectedVariant.mrpInr)}
+                {formatInr(product.mrpInr)}
               </span>
             )}
           </div>
           {outOfStock ? (
             <span className="text-sm text-red-400">Out of stock</span>
           ) : lowStock ? (
-            <span className="text-sm text-kiswa-gold-soft">Low stock</span>
+            <span className="text-sm text-kiswa-gold-soft">Only {product.unitStock} left</span>
           ) : (
             <span className="text-sm text-kiswa-ink-muted">In stock</span>
           )}
@@ -269,7 +135,6 @@ export function VariantSelector({
         </p>
       )}
 
-      {/* Quantity + add to cart */}
       <div className="flex items-center gap-4">
         <div className="flex items-center rounded-full border border-kiswa-border">
           <button
@@ -281,9 +146,7 @@ export function VariantSelector({
           >
             <Minus size={14} />
           </button>
-          <span className="min-w-[2rem] text-center text-sm text-kiswa-ink">
-            {qty}
-          </span>
+          <span className="min-w-[2rem] text-center text-sm text-kiswa-ink">{qty}</span>
           <button
             type="button"
             aria-label="Increase quantity"
@@ -341,8 +204,6 @@ export function VariantSelector({
         )}
       </div>
 
-      {/* WhatsApp order — a full-width fallback below Add to Bag / Buy Now,
-       * always reflecting the currently selected variant + quantity. */}
       <div className="-mt-4 flex flex-col gap-1.5">
         <a
           href={outOfStock ? undefined : whatsappUrl}
@@ -370,7 +231,7 @@ export function VariantSelector({
         open={giftDialogOpen}
         onClose={() => setGiftDialogOpen(false)}
         onConfirm={handleGiftConfirm}
-        itemLabel={`${product.name} — ${formatVariantLabel(selectedVariant.type, selectedVariant.sizeMl)}`}
+        itemLabel={`${product.name} — ${product.sizeLabel}`}
       />
     </div>
   );

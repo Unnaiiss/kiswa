@@ -13,6 +13,7 @@ async function main() {
 
   for (const doc of snap.docs) {
     const product = doc.data();
+    if (product.productType !== "attar") continue;
     const needsPatch = product.variants.some(
       (v) => (v as { isActive?: boolean }).isActive === undefined,
     );

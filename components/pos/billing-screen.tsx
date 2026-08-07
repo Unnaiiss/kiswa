@@ -9,6 +9,7 @@ import { logout } from "@/lib/auth/session";
 import { useActiveProducts } from "@/lib/pos/useActiveProducts";
 import { useActiveCombos } from "@/lib/pos/useActiveCombos";
 import { isComboFulfillable } from "@/lib/combos";
+import { IMPORTED_VARIANT_ID } from "@/lib/products";
 import type { Combo, Product, ProductVariant } from "@/lib/firestore/types";
 import type {
   BillLine,
@@ -44,7 +45,9 @@ export function BillingScreen({ staffName }: { staffName: string }) {
   const { combos } = useActiveCombos();
 
   const [lines, setLines] = useState<BillLine[]>([]);
-  const [pickerProduct, setPickerProduct] = useState<Product | null>(null);
+  const [pickerProduct, setPickerProduct] = useState<
+    (Product & { productType: "attar" }) | null
+  >(null);
   const [comboPicker, setComboPicker] = useState<Combo | null>(null);
   const [mobileBillOpen, setMobileBillOpen] = useState(false);
 
@@ -60,7 +63,17 @@ export function BillingScreen({ staffName }: { staffName: string }) {
 
   const productOilStockMap = useMemo(() => {
     const map = new Map<string, number>();
-    for (const product of products) map.set(product.id, product.oilStockMl);
+    for (const product of products) {
+      if (product.productType === "attar") map.set(product.id, product.oilStockMl);
+    }
+    return map;
+  }, [products]);
+
+  const productUnitStockMap = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const product of products) {
+      if (product.productType === "imported") map.set(product.id, product.unitStock);
+    }
     return map;
   }, [products]);
 
@@ -74,6 +87,18 @@ export function BillingScreen({ staffName }: { staffName: string }) {
       return (productOilStockMap.get(productId) ?? 0) - committed;
     },
     [productOilStockMap],
+  );
+
+  // Whole bottles left of an imported product right now, after netting out
+  // every line already on this bill for that product.
+  const remainingUnitsForProduct = useCallback(
+    (currentLines: BillLine[], productId: string) => {
+      const committed = currentLines
+        .filter((l) => l.productId === productId)
+        .reduce((sum, l) => sum + l.qty, 0);
+      return (productUnitStockMap.get(productId) ?? 0) - committed;
+    },
+    [productUnitStockMap],
   );
 
   const subtotal = useMemo(
@@ -118,6 +143,35 @@ export function BillingScreen({ staffName }: { staffName: string }) {
       return next;
     });
     setPickerProduct(null);
+  }
+
+  function addImportedLine(product: Product & { productType: "imported" }) {
+    setLines((prev) => {
+      const remaining = remainingUnitsForProduct(prev, product.id);
+      if (remaining < 1) return prev;
+
+      const key = lineKey(product.id, IMPORTED_VARIANT_ID);
+      const idx = prev.findIndex((l) => lineKey(l.productId, l.variantId) === key);
+      if (idx === -1) {
+        return [
+          ...prev,
+          {
+            productId: product.id,
+            variantId: IMPORTED_VARIANT_ID,
+            productName: product.name,
+            type: "oil",
+            sizeMl: 0,
+            unitPrice: product.priceInr,
+            oilMlPerUnit: 0,
+            sizeLabel: product.sizeLabel,
+            qty: 1,
+          },
+        ];
+      }
+      const next = [...prev];
+      next[idx] = { ...next[idx], qty: next[idx].qty + 1 };
+      return next;
+    });
   }
 
   function addComboLine(
@@ -176,6 +230,10 @@ export function BillingScreen({ staffName }: { staffName: string }) {
   }
 
   function handleSelectProduct(product: Product) {
+    if (product.productType === "imported") {
+      addImportedLine(product);
+      return;
+    }
     const remaining = remainingMlForProduct(lines, product.id);
     const sellable = product.variants.filter(
       (v) => v.isActive && maxAdditionalUnits(remaining, v.oilMlPerUnit) > 0,
@@ -192,6 +250,12 @@ export function BillingScreen({ staffName }: { staffName: string }) {
     setLines((prev) =>
       prev.map((l) => {
         if (l.productId !== productId || l.variantId !== variantId) return l;
+        if (l.combo) return { ...l, qty: l.qty + 1 };
+        if (productUnitStockMap.has(productId)) {
+          const remaining = remainingUnitsForProduct(prev, productId);
+          if (remaining < 1) return l;
+          return { ...l, qty: l.qty + 1 };
+        }
         const remaining = remainingMlForProduct(prev, productId);
         if (remaining < l.oilMlPerUnit) return l;
         return { ...l, qty: l.qty + 1 };

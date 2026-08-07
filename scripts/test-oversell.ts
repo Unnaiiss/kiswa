@@ -16,6 +16,7 @@ async function main() {
 
   // ---- Arrange: a product with 5ml of oil left, shared by two variants ----
   await products.doc(TEST_PRODUCT_ID).set({
+    productType: "attar",
     name: "Test Oversell Product",
     slug: TEST_PRODUCT_ID,
     description: "Ephemeral product used only by the oversell test.",
@@ -134,8 +135,10 @@ async function main() {
   const finalSnap = await products.doc(TEST_PRODUCT_ID).get();
   const finalProduct = finalSnap.data()!;
   check(
-    finalProduct.oilStockMl === 2,
-    `oilStockMl is 2 (5 - 3 from the one successful sale, was ${finalProduct.oilStockMl})`,
+    finalProduct.productType === "attar" && finalProduct.oilStockMl === 2,
+    `oilStockMl is 2 (5 - 3 from the one successful sale, was ${
+      finalProduct.productType === "attar" ? finalProduct.oilStockMl : "N/A"
+    })`,
   );
 
   // ---- cleanup ----

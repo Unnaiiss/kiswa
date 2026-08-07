@@ -56,7 +56,7 @@ export function MovementHistory({ products }: { products: Product[] }) {
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Product</th>
                 <th className="px-4 py-3">Variant</th>
-                <th className="px-4 py-3">Ml</th>
+                <th className="px-4 py-3">Qty</th>
                 <th className="px-4 py-3">Reason</th>
                 <th className="px-4 py-3">Note</th>
               </tr>
@@ -86,7 +86,8 @@ export function MovementHistory({ products }: { products: Product[] }) {
                       m.mlChange >= 0 ? "text-green-400" : "text-red-400"
                     }`}
                   >
-                    {m.mlChange >= 0 ? `+${m.mlChange}` : m.mlChange} ml
+                    {m.mlChange >= 0 ? `+${m.mlChange}` : m.mlChange}{" "}
+                    {(m.unit ?? "ml") === "unit" ? "unit(s)" : "ml"}
                   </td>
                   <td className="px-4 py-2.5 text-zinc-400">
                     {REASON_LABEL[m.reason]}

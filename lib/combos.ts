@@ -3,36 +3,37 @@ import type {
   ComboEligibleVariant,
   ComboFixedItem,
   ComboType,
-  ProductDoc,
 } from "@/lib/firestore/types";
-import { maxAdditionalUnits } from "@/lib/pricing";
-
-/** Only the fields these helpers actually need — both the server's
- * ProductDoc and the storefront's createdAt-stripped StoreProduct satisfy
- * this structurally, so callers on either side of the RSC boundary can pass
- * their own product map straight through. */
-type ProductStockShape = Pick<ProductDoc, "isActive" | "oilStockMl" | "variants">;
+import { IMPORTED_VARIANT_ID, type ProductStockShape, livePriceForVariant, remainingCapacity } from "@/lib/products";
 
 /** True if every fixed component's product/variant is active and there's
- * enough oil for this combo's own bundle (aggregated per product, since two
- * components can share one product's pool). */
+ * enough stock for this combo's own bundle — ml aggregated per attar
+ * product (since two components can share one product's pool), units
+ * aggregated per imported product. */
 export function isFixedComboFulfillable(
   items: ComboFixedItem[],
   productsById: Map<string, ProductStockShape>,
 ): boolean {
-  const mlNeededByProduct = new Map<string, number>();
+  const neededByProduct = new Map<string, number>();
   for (const item of items) {
     const product = productsById.get(item.productId);
     if (!product || !product.isActive) return false;
+    if (product.productType === "imported") {
+      if (item.variantId !== IMPORTED_VARIANT_ID) return false;
+      neededByProduct.set(item.productId, (neededByProduct.get(item.productId) ?? 0) + item.qty);
+      continue;
+    }
     const variant = product.variants.find((v) => v.variantId === item.variantId);
     if (!variant || !variant.isActive) return false;
-    mlNeededByProduct.set(
+    neededByProduct.set(
       item.productId,
-      (mlNeededByProduct.get(item.productId) ?? 0) + item.qty * variant.oilMlPerUnit,
+      (neededByProduct.get(item.productId) ?? 0) + item.qty * variant.oilMlPerUnit,
     );
   }
-  for (const [productId, mlNeeded] of mlNeededByProduct) {
-    if (productsById.get(productId)!.oilStockMl < mlNeeded) return false;
+  for (const [productId, needed] of neededByProduct) {
+    const product = productsById.get(productId)!;
+    const available = product.productType === "imported" ? product.unitStock : product.oilStockMl;
+    if (available < needed) return false;
   }
   return true;
 }
@@ -51,11 +52,7 @@ export function isChooseAnyComboFulfillable(
 ): boolean {
   let capacity = 0;
   for (const ev of eligibleVariants) {
-    const product = productsById.get(ev.productId);
-    if (!product || !product.isActive) continue;
-    const variant = product.variants.find((v) => v.variantId === ev.variantId);
-    if (!variant || !variant.isActive) continue;
-    capacity += maxAdditionalUnits(product.oilStockMl, variant.oilMlPerUnit);
+    capacity += remainingCapacity(productsById.get(ev.productId), ev.variantId);
     if (capacity >= chooseCount) return true;
   }
   return capacity >= chooseCount;
@@ -88,10 +85,7 @@ export function computeOriginalPriceInr(
   productsById: Map<string, ProductStockShape>,
 ): number {
   function priceOf(productId: string, variantId: string): number {
-    const variant = productsById
-      .get(productId)
-      ?.variants.find((v) => v.variantId === variantId);
-    return variant?.priceInr ?? 0;
+    return livePriceForVariant(productsById.get(productId), variantId) ?? 0;
   }
   if (type === "fixed") {
     return items.reduce((sum, i) => sum + priceOf(i.productId, i.variantId) * i.qty, 0);

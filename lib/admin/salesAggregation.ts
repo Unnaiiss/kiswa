@@ -13,6 +13,9 @@ export function parseVariantType(variantId: string): VariantType {
 }
 
 export function itemVariantLabel(item: SaleItem): string {
+  if (item.productType === "imported") {
+    return item.sizeLabel ?? "Imported";
+  }
   return formatVariantLabel(parseVariantType(item.variantId), item.sizeMl);
 }
 
@@ -84,12 +87,15 @@ export interface TopVariantEntry {
 
 /** Combo lines aren't a single variant, so they're excluded here (their
  * component oil usage still shows up via oilUsageBreakdown below) — see
- * comboUnitsSold for the combo-specific equivalent of this table. */
+ * comboUnitsSold for the combo-specific equivalent of this table. Imported
+ * lines are also excluded — parseVariantType only makes sense for attar
+ * variantIds, and "top variants" is inherently an attar concept (imported
+ * has one size, so it'd just repeat the product itself). */
 export function topVariants(sales: Sale[], topN = 5): TopVariantEntry[] {
   const byLabel = new Map<string, TopVariantEntry>();
   for (const sale of sales) {
     for (const item of sale.items) {
-      if (item.comboId) continue;
+      if (item.comboId || item.productType === "imported") continue;
       const label = `${item.productName} — ${itemVariantLabel(item)}`;
       const entry = byLabel.get(label) ?? { label, qty: 0, revenue: 0 };
       entry.qty += item.qty;
@@ -118,16 +124,45 @@ export function channelSplit(sales: Sale[]): Record<"online" | "offline", Channe
 }
 
 /** Combo revenue isn't split here since a bundle can mix oil and spray
- * components — see comboRevenue for its own total instead. */
+ * components — see comboRevenue for its own total instead. Imported revenue
+ * isn't oil/spray at all — see revenueByProductType for its own split. */
 export function oilSprayRevenueSplit(sales: Sale[]): { oil: number; spray: number } {
   const split = { oil: 0, spray: 0 };
   for (const sale of sales) {
     for (const item of sale.items) {
-      if (item.comboId) continue;
+      if (item.comboId || item.productType === "imported") continue;
       split[parseVariantType(item.variantId)] += item.lineTotal;
     }
   }
   return split;
+}
+
+export interface ProductTypeStats {
+  revenue: number;
+  unitsSold: number;
+}
+
+/** Revenue and units sold split three ways: attar, imported, and combo
+ * (a combo can mix either/both underlying types, so it gets its own
+ * bucket rather than being force-fit into one). Sales recorded before
+ * productType existed are always attar (imported products didn't exist
+ * yet). */
+export function revenueByProductType(
+  sales: Sale[],
+): Record<"attar" | "imported" | "combo", ProductTypeStats> {
+  const stats: Record<"attar" | "imported" | "combo", ProductTypeStats> = {
+    attar: { revenue: 0, unitsSold: 0 },
+    imported: { revenue: 0, unitsSold: 0 },
+    combo: { revenue: 0, unitsSold: 0 },
+  };
+  for (const sale of sales) {
+    for (const item of sale.items) {
+      const bucket = item.comboId ? "combo" : item.productType === "imported" ? "imported" : "attar";
+      stats[bucket].revenue += item.lineTotal;
+      stats[bucket].unitsSold += item.qty;
+    }
+  }
+  return stats;
 }
 
 export function totalItemsSold(sales: Sale[]): number {
@@ -218,16 +253,21 @@ function effectiveOilLines(
   if (saleHasOilSnapshot(sale)) {
     // Combo lines expand into their components — each fragrance's oil usage
     // is attributed to that fragrance, not lumped under the combo's own
-    // "productName" (which isn't a real product).
+    // "productName" (which isn't a real product). Imported lines/components
+    // are skipped entirely — they never touch the oil pool (always 0ml),
+    // and a 0ml row would just be noise in an oil-usage table.
     return sale.items.flatMap((item) => {
       if (item.comboComponents && item.comboComponents.length > 0) {
-        return item.comboComponents.map((c) => ({
-          productName: c.productName,
-          variantLabel: c.variantLabel,
-          qty: c.qty,
-          oilMl: c.oilMlUsed,
-        }));
+        return item.comboComponents
+          .filter((c) => c.productType !== "imported")
+          .map((c) => ({
+            productName: c.productName,
+            variantLabel: c.variantLabel,
+            qty: c.qty,
+            oilMl: c.oilMlUsed,
+          }));
       }
+      if (item.productType === "imported") return [];
       return [
         {
           productName: item.productName,

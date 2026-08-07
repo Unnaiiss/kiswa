@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getProductBySlug } from "@/lib/store/queries";
 import { ProductGallery } from "@/components/store/product-gallery";
 import { VariantSelector } from "@/components/store/variant-selector";
+import { ImportedBuyBox } from "@/components/store/imported-buy-box";
 import { FragranceNotes } from "@/components/store/fragrance-notes";
 
 interface ProductPageProps {
@@ -54,7 +55,11 @@ export default async function ProductPage({
 
           <div className="h-px w-full bg-kiswa-border" />
 
-          <VariantSelector product={product} giftMode={gift === "1"} />
+          {product.productType === "imported" ? (
+            <ImportedBuyBox product={product} giftMode={gift === "1"} />
+          ) : (
+            <VariantSelector product={product} giftMode={gift === "1"} />
+          )}
         </div>
       </div>
     </main>

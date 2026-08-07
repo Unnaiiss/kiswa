@@ -96,7 +96,7 @@ export function BillPanel(props: BillPanelProps) {
                       </p>
                     ) : (
                       <p className="text-xs text-zinc-500">
-                        {formatVariantLabel(line.type, line.sizeMl)} ·{" "}
+                        {line.sizeLabel ?? formatVariantLabel(line.type, line.sizeMl)} ·{" "}
                         {formatInr(line.unitPrice)} each
                       </p>
                     )}

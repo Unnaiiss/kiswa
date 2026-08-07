@@ -8,6 +8,11 @@ import {
 } from "@/lib/firestore/admin-collections";
 import type { ComboDoc, ProductDoc } from "@/lib/firestore/types";
 import { createRazorpayOrder, razorpayPublicKeyId } from "@/lib/server/razorpay";
+import {
+  InsufficientStockError,
+  aggregateProductNeeds,
+  livePriceForVariant,
+} from "@/lib/server/productLookup";
 
 const shippingAddressSchema = z.object({
   line1: z.string().trim().min(1, "Address line 1 is required"),
@@ -185,9 +190,7 @@ export async function POST(request: Request) {
     productIds.map((id) => products.doc(id).get()),
   );
 
-  const priceByVariant = new Map<string, number>();
   const productMap = new Map<string, ProductDoc>();
-
   for (const [idx, snap] of productSnaps.entries()) {
     const productId = productIds[idx];
     const product = snap.data();
@@ -198,27 +201,38 @@ export async function POST(request: Request) {
       );
     }
     productMap.set(productId, product);
-    const perVariant = qtyByProductVariant.get(productId)!;
-    let mlNeeded = 0;
-    for (const [variantId, qty] of perVariant) {
-      const variant = product.variants.find((v) => v.variantId === variantId);
-      if (!variant || !variant.isActive) {
+  }
+
+  const priceByVariant = new Map<string, number>();
+  for (const [productId, perVariant] of qtyByProductVariant) {
+    const product = productMap.get(productId)!;
+    for (const variantId of perVariant.keys()) {
+      const price = livePriceForVariant(product, variantId);
+      if (price === null) {
         return NextResponse.json(
           { error: `A variant in your bag is no longer available.` },
           { status: 409 },
         );
       }
-      mlNeeded += qty * variant.oilMlPerUnit;
-      priceByVariant.set(`${productId}:${variantId}`, variant.priceInr);
+      priceByVariant.set(`${productId}:${variantId}`, price);
     }
-    if (product.oilStockMl < mlNeeded) {
+  }
+
+  // Pre-check stock sufficiency for a fast, friendly failure before a
+  // Razorpay order is even created — recordSale's own transaction (run at
+  // payment-confirmation time) is still the actual authority regardless.
+  try {
+    aggregateProductNeeds(productMap, qtyByProductVariant);
+  } catch (err) {
+    if (err instanceof InsufficientStockError) {
       return NextResponse.json(
         {
-          error: `Not enough ${product.name} in stock to make everything in your bag. Please update the quantity.`,
+          error: `Not enough stock to make everything in your bag. Please update the quantity.`,
         },
         { status: 409 },
       );
     }
+    throw err;
   }
 
   let subtotal = 0;

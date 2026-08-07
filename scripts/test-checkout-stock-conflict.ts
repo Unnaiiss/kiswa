@@ -42,6 +42,7 @@ async function main() {
   // Only 3ml in the shared pool — exactly enough for the pending order's
   // oil-3ml unit, and nothing else.
   await products.doc(TEST_PRODUCT_ID).set({
+    productType: "attar",
     name: "Test Checkout Product",
     slug: TEST_PRODUCT_ID,
     description: "Ephemeral product used only by the checkout test.",
@@ -136,8 +137,10 @@ async function main() {
     await products.doc(TEST_PRODUCT_ID).get()
   ).data()!;
   check(
-    productAfterConflict.oilStockMl === 0,
-    `oilStockMl stayed at 0, not decremented a second time (was ${productAfterConflict.oilStockMl})`,
+    productAfterConflict.productType === "attar" && productAfterConflict.oilStockMl === 0,
+    `oilStockMl stayed at 0, not decremented a second time (was ${
+      productAfterConflict.productType === "attar" ? productAfterConflict.oilStockMl : "N/A"
+    })`,
   );
 
   const onlineSalesForConflict = await salesCollection()
@@ -188,8 +191,10 @@ async function main() {
 
   const productAfterOk = (await products.doc(TEST_PRODUCT_ID).get()).data()!;
   check(
-    productAfterOk.oilStockMl === 0,
-    `oilStockMl decremented exactly once (12 - 12 = 0, was ${productAfterOk.oilStockMl})`,
+    productAfterOk.productType === "attar" && productAfterOk.oilStockMl === 0,
+    `oilStockMl decremented exactly once (12 - 12 = 0, was ${
+      productAfterOk.productType === "attar" ? productAfterOk.oilStockMl : "N/A"
+    })`,
   );
 
   const onlineSalesForOk = await salesCollection()

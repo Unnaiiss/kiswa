@@ -14,8 +14,11 @@ interface StockInFormProps {
 const inputClass =
   "w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-zinc-50 placeholder:text-zinc-600 outline-none focus:border-amber-400";
 
-function sanitizeDecimal(value: string): string {
-  const cleaned = value.replace(/[^0-9.]/g, "");
+function sanitizeDecimal(value: string, wholeNumbersOnly: boolean): string {
+  const cleaned = wholeNumbersOnly
+    ? value.replace(/\D/g, "")
+    : value.replace(/[^0-9.]/g, "");
+  if (wholeNumbersOnly) return cleaned;
   const firstDot = cleaned.indexOf(".");
   if (firstDot === -1) return cleaned;
   return (
@@ -31,7 +34,15 @@ export function StockInForm({ products, onClose, onSaved }: StockInFormProps) {
   );
   const [productId, setProductId] = useState(sortedProducts[0]?.id ?? "");
   const product = sortedProducts.find((p) => p.id === productId);
-  const [ml, setMl] = useState("");
+  const isImported = product?.productType === "imported";
+  const unitLabel = isImported ? "unit(s)" : "ml";
+  const currentAmount = product
+    ? product.productType === "imported"
+      ? product.unitStock
+      : product.oilStockMl
+    : 0;
+
+  const [amount, setAmount] = useState("");
   const [reason, setReason] = useState<"opening_stock" | "purchase" | "return">(
     "purchase",
   );
@@ -42,9 +53,13 @@ export function StockInForm({ products, onClose, onSaved }: StockInFormProps) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const mlNum = Number(ml);
-    if (!productId || !ml || !(mlNum > 0)) {
-      setError("Choose a product and a positive ml quantity.");
+    const amountNum = Number(amount);
+    if (!productId || !amount || !(amountNum > 0)) {
+      setError(`Choose a product and a positive ${unitLabel} quantity.`);
+      return;
+    }
+    if (isImported && !Number.isInteger(amountNum)) {
+      setError("Imported products are stocked in whole units.");
       return;
     }
 
@@ -54,7 +69,7 @@ export function StockInForm({ products, onClose, onSaved }: StockInFormProps) {
         method: "POST",
         body: JSON.stringify({
           productId,
-          ml: mlNum,
+          amount: amountNum,
           reason,
           note: note.trim() || null,
         }),
@@ -75,12 +90,18 @@ export function StockInForm({ products, onClose, onSaved }: StockInFormProps) {
           </label>
           <select
             value={productId}
-            onChange={(e) => setProductId(e.target.value)}
+            onChange={(e) => {
+              setProductId(e.target.value);
+              setAmount("");
+            }}
             className={inputClass}
           >
             {sortedProducts.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name} — {p.oilStockMl} ml in stock
+                {p.name} —{" "}
+                {p.productType === "imported"
+                  ? `${p.unitStock} unit${p.unitStock === 1 ? "" : "s"} in stock`
+                  : `${p.oilStockMl} ml in stock`}
               </option>
             ))}
           </select>
@@ -89,14 +110,14 @@ export function StockInForm({ products, onClose, onSaved }: StockInFormProps) {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
-              Oil quantity (ml)
+              Quantity ({unitLabel})
             </label>
             <input
-              value={ml}
-              onChange={(e) => setMl(sanitizeDecimal(e.target.value))}
-              inputMode="decimal"
+              value={amount}
+              onChange={(e) => setAmount(sanitizeDecimal(e.target.value, isImported))}
+              inputMode={isImported ? "numeric" : "decimal"}
               className={inputClass}
-              placeholder="e.g. 250"
+              placeholder={isImported ? "e.g. 10" : "e.g. 250"}
             />
           </div>
           <div>
@@ -117,9 +138,11 @@ export function StockInForm({ products, onClose, onSaved }: StockInFormProps) {
 
         {product && (
           <p className="text-xs text-zinc-500">
-            {product.name} will go from {product.oilStockMl} ml to{" "}
-            {Math.round((product.oilStockMl + (Number(ml) || 0)) * 100) / 100}{" "}
-            ml.
+            {product.name} will go from {currentAmount} {unitLabel} to{" "}
+            {isImported
+              ? currentAmount + (Number(amount) || 0)
+              : Math.round((currentAmount + (Number(amount) || 0)) * 100) / 100}{" "}
+            {unitLabel}.
           </p>
         )}
 

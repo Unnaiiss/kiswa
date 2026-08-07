@@ -13,6 +13,7 @@ async function main() {
 
   for (const product of products) {
     await productsRef.doc(product.slug).set({
+      productType: "attar",
       name: product.name,
       slug: product.slug,
       description: product.description,
@@ -32,7 +33,7 @@ async function main() {
     if (product.isActive) {
       await stockIn({
         productId: product.slug,
-        ml: SEED_OIL_ML,
+        amount: SEED_OIL_ML,
         reason: "opening_stock",
         note: "initial seed",
       });

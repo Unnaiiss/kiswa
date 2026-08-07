@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { getActiveProducts } from "@/lib/store/queries";
 import { getCategories } from "@/lib/store/categories";
-import { ShopGrid } from "@/components/store/shop-grid";
+import { ShopGrid, type ShopTypeFilter } from "@/components/store/shop-grid";
 import { Reveal } from "@/components/store/reveal";
 
 export const revalidate = 60;
@@ -22,7 +22,10 @@ export default async function ShopPage({
     searchParams,
   ]);
   const categories = getCategories(products);
-  const initialType = params.type === "oil" || params.type === "spray" ? params.type : undefined;
+  const initialType: ShopTypeFilter | undefined =
+    params.type === "oil" || params.type === "spray" || params.type === "imported"
+      ? params.type
+      : undefined;
 
   return (
     <main className="flex-1 px-6 py-20 sm:py-28">
