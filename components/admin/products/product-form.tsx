@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { Modal } from "@/components/admin/modal";
+import { ImageUploader } from "@/components/admin/products/image-uploader";
 import { adminFetch } from "@/lib/admin/apiClient";
 import { defaultOilMlPerUnit } from "@/lib/pricing";
 import type { Product, ProductType, VariantType } from "@/lib/firestore/types";
@@ -66,9 +67,7 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
   const [description, setDescription] = useState(product?.description ?? "");
   const [notes, setNotes] = useState(product?.notes.join(", ") ?? "");
   const [category, setCategory] = useState(product?.category ?? "Fragrance");
-  const [imageUrls, setImageUrls] = useState<string[]>(
-    product?.imageUrls && product.imageUrls.length > 0 ? product.imageUrls : [""],
-  );
+  const [imageUrls, setImageUrls] = useState<string[]>(product?.imageUrls ?? []);
   const [isActive, setIsActive] = useState(product?.isActive ?? true);
 
   // Attar-only fields
@@ -108,16 +107,6 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
   }
   function removeVariantRow(key: string) {
     setVariants((prev) => prev.filter((v) => v.key !== key));
-  }
-
-  function updateImageUrl(index: number, value: string) {
-    setImageUrls((prev) => prev.map((u, i) => (i === index ? value : u)));
-  }
-  function addImageUrlRow() {
-    setImageUrls((prev) => [...prev, ""]);
-  }
-  function removeImageUrlRow(index: number) {
-    setImageUrls((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -338,34 +327,13 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
 
         <div>
           <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
-            Image URLs
+            Images
           </label>
-          <div className="flex flex-col gap-2">
-            {imageUrls.map((url, idx) => (
-              <div key={idx} className="flex gap-2">
-                <input
-                  value={url}
-                  onChange={(e) => updateImageUrl(idx, e.target.value)}
-                  className={inputClass}
-                  placeholder="https://…"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeImageUrlRow(idx)}
-                  className="cursor-pointer rounded-lg border border-zinc-800 px-3 text-zinc-400 hover:text-red-400"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              onClick={addImageUrlRow}
-              className="flex w-fit cursor-pointer items-center gap-1.5 text-sm text-amber-400 hover:text-amber-300"
-            >
-              <Plus size={14} /> Add image URL
-            </button>
-          </div>
+          <ImageUploader
+            images={imageUrls}
+            onChange={setImageUrls}
+            uploadEndpoint="/api/admin/products/upload-image"
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-4">

@@ -8,12 +8,24 @@ import { slugify } from "@/lib/slugify";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
 import type { ProductVariant } from "@/lib/firestore/types";
 
+// Uploaded images resolve to a local path (e.g. "/products/<uuid>.jpg"),
+// not an absolute URL — z.string().url() alone would reject those, so
+// accept either an absolute https:// URL (pasted supplier links) or an
+// internal path starting with /.
+const imageUrlSchema = z
+  .string()
+  .trim()
+  .refine(
+    (v) => v.startsWith("/") || /^https?:\/\//i.test(v),
+    "Enter a valid image URL",
+  );
+
 const baseFields = {
   name: z.string().trim().min(1, "Name is required"),
   description: z.string().trim().default(""),
   notes: z.array(z.string().trim().min(1)).default([]),
   category: z.string().trim().min(1, "Category is required"),
-  imageUrls: z.array(z.string().trim().url()).default([]),
+  imageUrls: z.array(imageUrlSchema).default([]),
   isActive: z.boolean().default(true),
 };
 

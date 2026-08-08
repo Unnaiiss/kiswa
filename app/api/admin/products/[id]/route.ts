@@ -3,14 +3,27 @@ import { z } from "zod";
 import { productsCollection } from "@/lib/firestore/admin-collections";
 import { formatVariantLabel } from "@/lib/pricing";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
+import { deleteProductImage } from "@/lib/server/productImages";
 import type { ProductVariant } from "@/lib/firestore/types";
+
+// Uploaded images resolve to a local path (e.g. "/products/<uuid>.jpg"),
+// not an absolute URL — z.string().url() alone would reject those, so
+// accept either an absolute https:// URL (pasted supplier links) or an
+// internal path starting with /.
+const imageUrlSchema = z
+  .string()
+  .trim()
+  .refine(
+    (v) => v.startsWith("/") || /^https?:\/\//i.test(v),
+    "Enter a valid image URL",
+  );
 
 const baseFields = {
   name: z.string().trim().min(1, "Name is required"),
   description: z.string().trim().default(""),
   notes: z.array(z.string().trim().min(1)).default([]),
   category: z.string().trim().min(1, "Category is required"),
-  imageUrls: z.array(z.string().trim().url()).default([]),
+  imageUrls: z.array(imageUrlSchema).default([]),
   isActive: z.boolean(),
 };
 
@@ -89,6 +102,12 @@ export async function PATCH(
     );
   }
 
+  // Any image the edit dropped that we uploaded ourselves (deleteProductImage
+  // no-ops on pasted external URLs) is now orphaned — best-effort cleanup,
+  // never blocks the save.
+  const keptImageUrls = new Set(input.imageUrls);
+  const removedImageUrls = current.imageUrls.filter((url) => !keptImageUrls.has(url));
+
   if (input.productType === "imported") {
     await ref.update({
       name: input.name,
@@ -103,6 +122,7 @@ export async function PATCH(
       brand: input.brand,
       lowStockThresholdUnits: input.lowStockThresholdUnits,
     });
+    await Promise.all(removedImageUrls.map((url) => deleteProductImage(url)));
     return NextResponse.json({ ok: true });
   }
 
@@ -147,6 +167,7 @@ export async function PATCH(
     lowStockThresholdMl: input.lowStockThresholdMl,
     variants: nextVariants,
   });
+  await Promise.all(removedImageUrls.map((url) => deleteProductImage(url)));
 
   return NextResponse.json({ ok: true });
 }
