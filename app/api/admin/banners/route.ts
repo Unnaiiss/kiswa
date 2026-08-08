@@ -1,22 +1,40 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { FieldValue } from "firebase-admin/firestore";
-import { bannersCollection } from "@/lib/firestore/admin-collections";
+import { bannersCollection, combosCollection } from "@/lib/firestore/admin-collections";
 import { saveBannerImage } from "@/lib/server/bannerImages";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
 
-const fieldsSchema = z.object({
-  altText: z.string().trim().min(1, "Alt text is required"),
-  linkUrl: z.string().trim().optional(),
+const commonFields = {
   order: z.coerce.number().int().nonnegative(),
   isActive: z.enum(["true", "false"]),
+};
+
+const imageFieldsSchema = z.object({
+  bannerType: z.literal("image"),
+  altText: z.string().trim().min(1, "Alt text is required"),
+  linkUrl: z.string().trim().optional(),
   buttonEnabled: z.enum(["true", "false"]).default("false"),
   buttonLabel: z.string().trim().optional(),
   buttonLink: z.string().trim().optional(),
   buttonPosition: z
     .enum(["bottom-center", "bottom-left", "center"])
     .default("bottom-center"),
+  ...commonFields,
 });
+
+const comboFieldsSchema = z.object({
+  bannerType: z.literal("combo"),
+  comboId: z.string().trim().min(1, "Select a combo"),
+  headlineOverride: z.string().trim().optional(),
+  buttonLabelOverride: z.string().trim().optional(),
+  ...commonFields,
+});
+
+const fieldsSchema = z.discriminatedUnion("bannerType", [
+  imageFieldsSchema,
+  comboFieldsSchema,
+]);
 
 function isValidLinkUrl(value: string) {
   return /^\//.test(value) || /^https?:\/\//i.test(value);
@@ -38,14 +56,18 @@ export async function POST(request: Request) {
   }
 
   const parsed = fieldsSchema.safeParse({
-    altText: formData.get("altText"),
-    linkUrl: formData.get("linkUrl") ?? undefined,
+    bannerType: formData.get("bannerType") ?? "image",
     order: formData.get("order"),
     isActive: formData.get("isActive"),
+    altText: formData.get("altText") ?? undefined,
+    linkUrl: formData.get("linkUrl") ?? undefined,
     buttonEnabled: formData.get("buttonEnabled") ?? undefined,
     buttonLabel: formData.get("buttonLabel") ?? undefined,
     buttonLink: formData.get("buttonLink") ?? undefined,
     buttonPosition: formData.get("buttonPosition") ?? undefined,
+    comboId: formData.get("comboId") ?? undefined,
+    headlineOverride: formData.get("headlineOverride") ?? undefined,
+    buttonLabelOverride: formData.get("buttonLabelOverride") ?? undefined,
   });
   if (!parsed.success) {
     return NextResponse.json(
@@ -54,6 +76,26 @@ export async function POST(request: Request) {
     );
   }
   const input = parsed.data;
+
+  if (input.bannerType === "combo") {
+    const comboSnap = await combosCollection().doc(input.comboId).get();
+    if (!comboSnap.exists) {
+      return NextResponse.json({ error: "Selected combo not found" }, { status: 400 });
+    }
+
+    const ref = await bannersCollection().add({
+      bannerType: "combo",
+      comboId: input.comboId,
+      headlineOverride: input.headlineOverride?.trim() || null,
+      buttonLabelOverride: input.buttonLabelOverride?.trim() || null,
+      order: input.order,
+      isActive: input.isActive === "true",
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    return NextResponse.json({ id: ref.id });
+  }
 
   const linkUrl = input.linkUrl?.trim() || null;
   if (linkUrl && !isValidLinkUrl(linkUrl)) {
@@ -94,6 +136,7 @@ export async function POST(request: Request) {
       : null;
 
   const ref = await bannersCollection().add({
+    bannerType: "image",
     imageUrl,
     imageUrlMobile,
     altText: input.altText,

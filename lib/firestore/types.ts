@@ -331,15 +331,26 @@ export interface RefundFlag extends RefundFlagDoc {
 
 export type BannerButtonPosition = "bottom-center" | "bottom-left" | "center";
 
-/** Admin-managed homepage poster carousel slide. */
-export interface BannerDoc {
+export type BannerType = "image" | "combo";
+
+interface BannerBaseDoc {
+  order: number;
+  isActive: boolean;
+  createdAt: TimestampLike;
+  updatedAt: TimestampLike;
+}
+
+/** The original poster-upload slide — a full-bleed image with an optional
+ * clickable link and an optional CTA button overlay. Banners saved before
+ * bannerType existed have no such field in Firestore; every read site
+ * treats a missing/non-"combo" bannerType as "image". */
+export interface ImageBannerDoc extends BannerBaseDoc {
+  bannerType: "image";
   imageUrl: string;
   imageUrlMobile: string | null;
   altText: string;
   /** Internal path (e.g. "/shop") or full external URL. Null = not clickable. */
   linkUrl: string | null;
-  order: number;
-  isActive: boolean;
   /** A CTA button overlaid on the slide — independent of linkUrl (the whole
    * slide can link somewhere while the button points elsewhere, e.g. a combo
    * poster where the slide links to its own promo page but the button jumps
@@ -348,13 +359,28 @@ export interface BannerDoc {
   buttonLabel: string | null;
   buttonLink: string | null;
   buttonPosition: BannerButtonPosition;
-  createdAt: TimestampLike;
-  updatedAt: TimestampLike;
 }
 
-export interface Banner extends BannerDoc {
-  id: string;
+/** A slide generated live from an existing combo's own data — no image
+ * upload, no stored price; title/description/image/price/badge are all read
+ * fresh from the combo doc at render time, so editing the combo in admin
+ * updates the banner with no re-save. Hidden automatically (never rendered)
+ * if the combo is inactive, outside its validFrom/validUntil window,
+ * deleted, or currently unfulfillable from stock — see getActiveBanners. */
+export interface ComboBannerDoc extends BannerBaseDoc {
+  bannerType: "combo";
+  comboId: string;
+  /** Overrides the slide's headline; falls back to the combo's title when null. */
+  headlineOverride: string | null;
+  /** Overrides the CTA button label; falls back to "Shop This Combo" when null. */
+  buttonLabelOverride: string | null;
 }
+
+/** Shape as stored in Firestore (no doc id). */
+export type BannerDoc = ImageBannerDoc | ComboBannerDoc;
+
+/** Hydrated with its Firestore document id, for app-wide use. */
+export type Banner = BannerDoc & { id: string };
 
 /**
  * Admin-editable homepage content blocks, keyed by a fixed doc id per

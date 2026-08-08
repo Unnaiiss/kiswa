@@ -5,13 +5,13 @@ import {
   ourStorySectionDocRef,
   productsCollection,
 } from "@/lib/firestore/admin-collections";
-import { isComboCurrentlyValid } from "@/lib/combos";
+import { isComboCurrentlyValid, isComboFulfillable } from "@/lib/combos";
 import type {
-  Banner,
-  BannerDoc,
   Combo,
+  ComboBannerDoc,
   ComboDoc,
   GiftSection,
+  ImageBannerDoc,
   OurStorySection,
   Product,
   ProductDoc,
@@ -56,20 +56,74 @@ export async function getProductBySlug(
 
 // Same createdAt/updatedAt-stripping rationale as StoreProduct above — the
 // homepage carousel is a Client Component and can't receive raw Timestamps.
-export type StoreBanner = Omit<Banner, "createdAt" | "updatedAt">;
+// A combo slide additionally carries the live combo snapshot it was resolved
+// against (see getActiveBanners) — the carousel never touches Firestore itself.
+export type StoreBanner =
+  | (Omit<ImageBannerDoc, "createdAt" | "updatedAt"> & { id: string })
+  | (Omit<ComboBannerDoc, "createdAt" | "updatedAt"> & {
+      id: string;
+      combo: {
+        slug: string;
+        title: string;
+        description: string;
+        imageUrl: string | null;
+        imageUrlMobile: string | null;
+        comboPriceInr: number;
+        originalPriceInr: number;
+        badgeText: string | null;
+      };
+    });
 
-function toStoreBanner(id: string, data: BannerDoc): StoreBanner {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { createdAt, updatedAt, ...rest } = data;
-  return { id, ...rest };
-}
-
+/** Resolves the carousel's live list: image banners pass through as-is;
+ * combo banners are expanded against a live combo doc and dropped entirely
+ * (never rendered as a broken/dangling slide) if that combo is deleted,
+ * inactive, outside its date window (both covered by getActiveCombos), or
+ * currently unfulfillable from stock. */
 export async function getActiveBanners(): Promise<StoreBanner[]> {
   const snap = await bannersCollection()
     .where("isActive", "==", true)
     .orderBy("order", "asc")
     .get();
-  return snap.docs.map((doc) => toStoreBanner(doc.id, doc.data()));
+  const raw = snap.docs.map((doc) => ({ id: doc.id, data: doc.data() }));
+
+  const hasComboBanner = raw.some(({ data }) => data.bannerType === "combo");
+  const [combos, products] = hasComboBanner
+    ? await Promise.all([getActiveCombos(), getActiveProducts()])
+    : [[] as StoreCombo[], [] as StoreProduct[]];
+  const combosById = new Map(combos.map((c) => [c.id, c]));
+  const productsById = new Map(products.map((p) => [p.id, p]));
+
+  const result: StoreBanner[] = [];
+  for (const { id, data } of raw) {
+    if (data.bannerType !== "combo") {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { createdAt, updatedAt, ...rest } = data;
+      result.push({ id, ...rest, bannerType: "image" });
+      continue;
+    }
+    const combo = combosById.get(data.comboId);
+    if (!combo || !isComboFulfillable(combo, productsById)) continue;
+    result.push({
+      id,
+      bannerType: "combo",
+      comboId: data.comboId,
+      headlineOverride: data.headlineOverride ?? null,
+      buttonLabelOverride: data.buttonLabelOverride ?? null,
+      order: data.order,
+      isActive: data.isActive,
+      combo: {
+        slug: combo.slug,
+        title: combo.title,
+        description: combo.description,
+        imageUrl: combo.imageUrl,
+        imageUrlMobile: combo.imageUrlMobile,
+        comboPriceInr: combo.comboPriceInr,
+        originalPriceInr: combo.originalPriceInr,
+        badgeText: combo.badgeText,
+      },
+    });
+  }
+  return result;
 }
 
 // updatedAt-stripping for the same Timestamp-can't-cross-the-RSC-boundary

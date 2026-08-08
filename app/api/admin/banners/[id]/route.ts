@@ -1,15 +1,19 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { FieldValue } from "firebase-admin/firestore";
-import { bannersCollection } from "@/lib/firestore/admin-collections";
+import { bannersCollection, combosCollection } from "@/lib/firestore/admin-collections";
 import { deleteBannerImage, saveBannerImage } from "@/lib/server/bannerImages";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
 
-const fieldsSchema = z.object({
-  altText: z.string().trim().min(1, "Alt text is required"),
-  linkUrl: z.string().trim().optional(),
+const commonFields = {
   order: z.coerce.number().int().nonnegative(),
   isActive: z.enum(["true", "false"]),
+};
+
+const imageFieldsSchema = z.object({
+  bannerType: z.literal("image"),
+  altText: z.string().trim().min(1, "Alt text is required"),
+  linkUrl: z.string().trim().optional(),
   removeMobileImage: z.enum(["true", "false"]).optional(),
   // Optional (not defaulted) — absent means "leave as-is" (e.g. the
   // active-toggle quick action in the admin table only submits
@@ -18,7 +22,21 @@ const fieldsSchema = z.object({
   buttonLabel: z.string().trim().optional(),
   buttonLink: z.string().trim().optional(),
   buttonPosition: z.enum(["bottom-center", "bottom-left", "center"]).optional(),
+  ...commonFields,
 });
+
+const comboFieldsSchema = z.object({
+  bannerType: z.literal("combo"),
+  comboId: z.string().trim().min(1, "Select a combo"),
+  headlineOverride: z.string().trim().optional(),
+  buttonLabelOverride: z.string().trim().optional(),
+  ...commonFields,
+});
+
+const fieldsSchema = z.discriminatedUnion("bannerType", [
+  imageFieldsSchema,
+  comboFieldsSchema,
+]);
 
 function isValidLinkUrl(value: string) {
   return /^\//.test(value) || /^https?:\/\//i.test(value);
@@ -44,6 +62,9 @@ export async function PATCH(
   if (!snap.exists || !current) {
     return NextResponse.json({ error: "Banner not found" }, { status: 404 });
   }
+  // Missing on banners saved before bannerType existed — same
+  // treat-missing-as-"image" rule as every other read site.
+  const currentBannerType = current.bannerType === "combo" ? "combo" : "image";
 
   const formData = await request.formData().catch(() => null);
   if (!formData) {
@@ -51,15 +72,19 @@ export async function PATCH(
   }
 
   const parsed = fieldsSchema.safeParse({
-    altText: formData.get("altText"),
-    linkUrl: formData.get("linkUrl") ?? undefined,
+    bannerType: formData.get("bannerType") ?? "image",
     order: formData.get("order"),
     isActive: formData.get("isActive"),
+    altText: formData.get("altText") ?? undefined,
+    linkUrl: formData.get("linkUrl") ?? undefined,
     removeMobileImage: formData.get("removeMobileImage") ?? undefined,
     buttonEnabled: formData.get("buttonEnabled") ?? undefined,
     buttonLabel: formData.get("buttonLabel") ?? undefined,
     buttonLink: formData.get("buttonLink") ?? undefined,
     buttonPosition: formData.get("buttonPosition") ?? undefined,
+    comboId: formData.get("comboId") ?? undefined,
+    headlineOverride: formData.get("headlineOverride") ?? undefined,
+    buttonLabelOverride: formData.get("buttonLabelOverride") ?? undefined,
   });
   if (!parsed.success) {
     return NextResponse.json(
@@ -68,6 +93,37 @@ export async function PATCH(
     );
   }
   const input = parsed.data;
+
+  if (input.bannerType !== currentBannerType) {
+    return NextResponse.json(
+      { error: "A banner's type can't be changed after creation." },
+      { status: 400 },
+    );
+  }
+
+  if (input.bannerType === "combo") {
+    const comboSnap = await combosCollection().doc(input.comboId).get();
+    if (!comboSnap.exists) {
+      return NextResponse.json({ error: "Selected combo not found" }, { status: 400 });
+    }
+
+    await ref.update({
+      comboId: input.comboId,
+      headlineOverride: input.headlineOverride?.trim() || null,
+      buttonLabelOverride: input.buttonLabelOverride?.trim() || null,
+      order: input.order,
+      isActive: input.isActive === "true",
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+
+    return NextResponse.json({ ok: true });
+  }
+
+  // Below this point current/input are both the "image" banner shape —
+  // current is narrowed at runtime (currentBannerType === "image"), but its
+  // static type is still the full BannerDoc union, so field access on
+  // image-only properties (imageUrl, buttonEnabled, ...) needs the cast.
+  const currentImage = current as Extract<typeof current, { bannerType: "image" }>;
 
   const linkUrl = input.linkUrl?.trim() || null;
   if (linkUrl && !isValidLinkUrl(linkUrl)) {
@@ -80,12 +136,12 @@ export async function PATCH(
   const buttonEnabled =
     input.buttonEnabled !== undefined
       ? input.buttonEnabled === "true"
-      : current.buttonEnabled;
+      : currentImage.buttonEnabled;
   const buttonLabel =
-    input.buttonLabel !== undefined ? input.buttonLabel.trim() || null : current.buttonLabel;
+    input.buttonLabel !== undefined ? input.buttonLabel.trim() || null : currentImage.buttonLabel;
   const buttonLink =
-    input.buttonLink !== undefined ? input.buttonLink.trim() || null : current.buttonLink;
-  const buttonPosition = input.buttonPosition ?? current.buttonPosition ?? "bottom-center";
+    input.buttonLink !== undefined ? input.buttonLink.trim() || null : currentImage.buttonLink;
+  const buttonPosition = input.buttonPosition ?? currentImage.buttonPosition ?? "bottom-center";
   if (buttonEnabled) {
     if (!buttonLabel) {
       return NextResponse.json(
@@ -102,23 +158,24 @@ export async function PATCH(
   }
 
   const desktopImage = formData.get("desktopImage");
-  let imageUrl = current.imageUrl;
+  let imageUrl = currentImage.imageUrl;
   if (desktopImage instanceof File && desktopImage.size > 0) {
     imageUrl = await saveBannerImage(desktopImage);
-    await deleteBannerImage(current.imageUrl);
+    await deleteBannerImage(currentImage.imageUrl);
   }
 
   const mobileImage = formData.get("mobileImage");
-  let imageUrlMobile = current.imageUrlMobile;
+  let imageUrlMobile = currentImage.imageUrlMobile;
   if (mobileImage instanceof File && mobileImage.size > 0) {
     imageUrlMobile = await saveBannerImage(mobileImage);
-    await deleteBannerImage(current.imageUrlMobile);
+    await deleteBannerImage(currentImage.imageUrlMobile);
   } else if (input.removeMobileImage === "true") {
-    await deleteBannerImage(current.imageUrlMobile);
+    await deleteBannerImage(currentImage.imageUrlMobile);
     imageUrlMobile = null;
   }
 
   await ref.update({
+    bannerType: "image",
     imageUrl,
     imageUrlMobile,
     altText: input.altText,
@@ -157,8 +214,10 @@ export async function DELETE(
   }
 
   await ref.delete();
-  await deleteBannerImage(current.imageUrl);
-  await deleteBannerImage(current.imageUrlMobile);
+  if (current.bannerType !== "combo") {
+    await deleteBannerImage(current.imageUrl);
+    await deleteBannerImage(current.imageUrlMobile);
+  }
 
   return NextResponse.json({ ok: true });
 }
