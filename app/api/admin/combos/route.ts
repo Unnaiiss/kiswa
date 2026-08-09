@@ -4,6 +4,7 @@ import { combosCollection } from "@/lib/firestore/admin-collections";
 import { ComboValidationError, comboFieldsSchema, resolveComboFields } from "@/lib/server/comboFields";
 import { saveBannerImage } from "@/lib/server/bannerImages";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
+import { InvalidImageUploadError } from "@/lib/server/localImageStorage";
 
 export async function POST(request: Request) {
   try {
@@ -58,15 +59,24 @@ export async function POST(request: Request) {
   }
 
   const desktopImage = formData.get("desktopImage");
-  const imageUrl =
-    desktopImage instanceof File && desktopImage.size > 0
-      ? await saveBannerImage(desktopImage)
-      : null;
   const mobileImage = formData.get("mobileImage");
-  const imageUrlMobile =
-    mobileImage instanceof File && mobileImage.size > 0
-      ? await saveBannerImage(mobileImage)
-      : null;
+  let imageUrl: string | null;
+  let imageUrlMobile: string | null;
+  try {
+    imageUrl =
+      desktopImage instanceof File && desktopImage.size > 0
+        ? await saveBannerImage(desktopImage)
+        : null;
+    imageUrlMobile =
+      mobileImage instanceof File && mobileImage.size > 0
+        ? await saveBannerImage(mobileImage)
+        : null;
+  } catch (err) {
+    if (err instanceof InvalidImageUploadError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    throw err;
+  }
 
   const ref = await combosCollection().add({
     ...fields,

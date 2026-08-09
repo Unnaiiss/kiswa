@@ -4,6 +4,7 @@ import { combosCollection } from "@/lib/firestore/admin-collections";
 import { ComboValidationError, comboFieldsSchema, resolveComboFields } from "@/lib/server/comboFields";
 import { deleteBannerImage, saveBannerImage } from "@/lib/server/bannerImages";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
+import { InvalidImageUploadError } from "@/lib/server/localImageStorage";
 
 export async function PATCH(
   request: Request,
@@ -71,23 +72,30 @@ export async function PATCH(
   }
 
   const desktopImage = formData.get("desktopImage");
-  let imageUrl = current.imageUrl;
-  if (desktopImage instanceof File && desktopImage.size > 0) {
-    imageUrl = await saveBannerImage(desktopImage);
-    await deleteBannerImage(current.imageUrl);
-  } else if (formData.get("removeDesktopImage") === "true") {
-    await deleteBannerImage(current.imageUrl);
-    imageUrl = null;
-  }
-
   const mobileImage = formData.get("mobileImage");
+  let imageUrl = current.imageUrl;
   let imageUrlMobile = current.imageUrlMobile;
-  if (mobileImage instanceof File && mobileImage.size > 0) {
-    imageUrlMobile = await saveBannerImage(mobileImage);
-    await deleteBannerImage(current.imageUrlMobile);
-  } else if (formData.get("removeMobileImage") === "true") {
-    await deleteBannerImage(current.imageUrlMobile);
-    imageUrlMobile = null;
+  try {
+    if (desktopImage instanceof File && desktopImage.size > 0) {
+      imageUrl = await saveBannerImage(desktopImage);
+      await deleteBannerImage(current.imageUrl);
+    } else if (formData.get("removeDesktopImage") === "true") {
+      await deleteBannerImage(current.imageUrl);
+      imageUrl = null;
+    }
+
+    if (mobileImage instanceof File && mobileImage.size > 0) {
+      imageUrlMobile = await saveBannerImage(mobileImage);
+      await deleteBannerImage(current.imageUrlMobile);
+    } else if (formData.get("removeMobileImage") === "true") {
+      await deleteBannerImage(current.imageUrlMobile);
+      imageUrlMobile = null;
+    }
+  } catch (err) {
+    if (err instanceof InvalidImageUploadError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    throw err;
   }
 
   await ref.update({

@@ -4,6 +4,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { bannersCollection, combosCollection } from "@/lib/firestore/admin-collections";
 import { saveBannerImage } from "@/lib/server/bannerImages";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
+import { InvalidImageUploadError } from "@/lib/server/localImageStorage";
 
 const commonFields = {
   order: z.coerce.number().int().nonnegative(),
@@ -129,11 +130,20 @@ export async function POST(request: Request) {
   }
   const mobileImage = formData.get("mobileImage");
 
-  const imageUrl = await saveBannerImage(desktopImage);
-  const imageUrlMobile =
-    mobileImage instanceof File && mobileImage.size > 0
-      ? await saveBannerImage(mobileImage)
-      : null;
+  let imageUrl: string;
+  let imageUrlMobile: string | null;
+  try {
+    imageUrl = await saveBannerImage(desktopImage);
+    imageUrlMobile =
+      mobileImage instanceof File && mobileImage.size > 0
+        ? await saveBannerImage(mobileImage)
+        : null;
+  } catch (err) {
+    if (err instanceof InvalidImageUploadError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    throw err;
+  }
 
   const ref = await bannersCollection().add({
     bannerType: "image",
