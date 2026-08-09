@@ -4,7 +4,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { bannersCollection, combosCollection } from "@/lib/firestore/admin-collections";
 import { saveBannerImage } from "@/lib/server/bannerImages";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
-import { InvalidImageUploadError } from "@/lib/server/localImageStorage";
+import { InvalidImageUploadError } from "@/lib/server/imageStorage";
 import { rateLimit } from "@/lib/server/rateLimit";
 
 const commonFields = {

@@ -4,7 +4,7 @@ import { combosCollection } from "@/lib/firestore/admin-collections";
 import { ComboValidationError, comboFieldsSchema, resolveComboFields } from "@/lib/server/comboFields";
 import { deleteBannerImage, saveBannerImage } from "@/lib/server/bannerImages";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
-import { InvalidImageUploadError } from "@/lib/server/localImageStorage";
+import { InvalidImageUploadError } from "@/lib/server/imageStorage";
 import { rateLimit } from "@/lib/server/rateLimit";
 
 export async function PATCH(

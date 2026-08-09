@@ -1,6 +1,6 @@
-import { deleteUploadedImage, saveUploadedImage } from "./localImageStorage";
+import { deleteUploadedImage, saveUploadedImage } from "./imageStorage";
 
-/** Banner/combo images — see lib/server/localImageStorage.ts for the shared
+/** Banner/combo images — see lib/server/imageStorage.ts for the shared
  * upload mechanism these delegate to (one code path for every admin image
  * upload feature). */
 export async function saveBannerImage(file: File): Promise<string> {

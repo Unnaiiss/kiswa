@@ -24,15 +24,17 @@ export function ProductImage({
   const src = imageUrls[index];
 
   if (src) {
-    // Only our own uploaded images (same-origin "/products/..." paths) go
-    // through next/image's optimizer. A supplier-pasted external URL isn't
-    // allowlisted in next.config.ts's images.remotePatterns, and
-    // deliberately stays that way — allowlisting arbitrary external hosts
-    // would let the image optimizer fetch any URL an admin pastes in, an
-    // SSRF-adjacent surface with no real benefit over just linking the
-    // original file directly. This caller (parent has position:relative
-    // and a defined size — see each call site) makes `fill` mode correct.
-    if (src.startsWith("/")) {
+    // Only our own uploaded images go through next/image's optimizer — same-
+    // origin "/products/..." paths (legacy local-filesystem uploads, if any
+    // remain) or our own Firebase Storage bucket's download-URL prefix (see
+    // lib/server/imageStorage.ts), which is the only external host
+    // allowlisted in next.config.ts's images.remotePatterns. A supplier-
+    // pasted external URL is never allowlisted — that would let the image
+    // optimizer fetch any URL an admin pastes in, an SSRF-adjacent surface
+    // with no real benefit over just linking the original file directly.
+    // This caller (parent has position:relative and a defined size — see
+    // each call site) makes `fill` mode correct.
+    if (src.startsWith("/") || src.startsWith("https://firebasestorage.googleapis.com/")) {
       return (
         <Image
           src={src}

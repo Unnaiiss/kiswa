@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "kiswa-edda5"
-  }
+  },
+  "targets": {
+    "kiswa-edda5": {
+      "storage": {
+        "rules": [
+          "kiswa-edda5.firebasestorage.app"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

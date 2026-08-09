@@ -6,12 +6,13 @@ interface Bucket {
 }
 
 /**
- * Fixed-window per-key counters, in-process memory. This app runs as a
- * single traditional Node server (see lib/server/localImageStorage.ts's own
- * comment on why — local-filesystem uploads require it), so this isn't
- * shared across instances/regions; if that ever changes, swap this for a
- * shared store (Redis/Upstash) instead. Good enough to blunt casual abuse
- * and accidental retry storms, not a substitute for a CDN/WAF for real DDoS.
+ * Fixed-window per-key counters, in-process memory. On a single
+ * long-lived Node server this is one shared counter for the whole app; on
+ * serverless (e.g. Vercel) each function instance gets its own memory, so
+ * this becomes a weaker PER-INSTANCE limit rather than a global one — still
+ * enough to blunt a casual/scripted retry storm hitting one warm instance,
+ * but not a hard global cap. If that gap matters, swap this for a shared
+ * store (Redis/Upstash) instead. Not a substitute for a CDN/WAF for real DDoS.
  */
 const buckets = new Map<string, Bucket>();
 

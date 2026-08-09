@@ -25,3 +25,6 @@ const adminApp: App =
 
 export const adminAuth: Auth = getAuth(adminApp);
 export const adminDb: Firestore = getFirestore(adminApp);
+// Exported for lib/server/imageStorage.ts, which needs the App instance
+// itself to call firebase-admin/storage's getStorage(app).
+export { adminApp };
