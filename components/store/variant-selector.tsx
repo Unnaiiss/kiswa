@@ -272,9 +272,24 @@ export function VariantSelector({
         </p>
       )}
 
-      {/* Quantity + add to cart */}
-      <div className="flex items-center gap-4">
-        <div className="flex items-center rounded-full border border-kiswa-border">
+      {/* Quantity + add to cart. Gift mode stacks vertically on mobile (the
+       * qty stepper, the full-width "Add as Gift" pill, and the "or add
+       * without gift wrapping" link all need their own row — squeezing all
+       * three into one flex row at narrow widths is what caused the button
+       * to collapse into an overflowing circle) and only becomes a row from
+       * sm: up; the plain "Add to Bag" row never had that problem (its
+       * secondary button already falls back to icon-only on mobile) so it
+       * keeps the simpler always-row layout. */}
+      <div
+        className={
+          giftMode
+            ? "flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4"
+            : "flex items-center gap-4"
+        }
+      >
+        <div
+          className={`flex items-center rounded-full border border-kiswa-border ${giftMode ? "self-start sm:self-auto" : ""}`}
+        >
           <button
             type="button"
             aria-label="Decrease quantity"
@@ -299,26 +314,16 @@ export function VariantSelector({
         </div>
 
         {giftMode ? (
-          <>
-            <motion.button
-              type="button"
-              disabled={outOfStock}
-              onClick={() => setGiftDialogOpen(true)}
-              whileTap={{ scale: 0.97 }}
-              className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-full bg-kiswa-gold py-3 text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft disabled:cursor-not-allowed disabled:bg-kiswa-border disabled:text-kiswa-ink-muted"
-            >
-              <Gift size={16} />
-              {outOfStock ? "Out of Stock" : "Add as Gift"}
-            </motion.button>
-            <button
-              type="button"
-              disabled={outOfStock}
-              onClick={handleAddToCart}
-              className="cursor-pointer text-xs text-kiswa-ink-muted underline underline-offset-2 hover:text-kiswa-ink disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {justAdded ? "Added ✓" : "or add without gift wrapping"}
-            </button>
-          </>
+          <motion.button
+            type="button"
+            disabled={outOfStock}
+            onClick={() => setGiftDialogOpen(true)}
+            whileTap={{ scale: 0.97 }}
+            className="flex w-full cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full bg-kiswa-gold py-3 text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft disabled:cursor-not-allowed disabled:bg-kiswa-border disabled:text-kiswa-ink-muted sm:flex-1"
+          >
+            <Gift size={16} />
+            {outOfStock ? "Out of Stock" : "Add as Gift"}
+          </motion.button>
         ) : (
           <>
             <motion.button
@@ -344,9 +349,22 @@ export function VariantSelector({
         )}
       </div>
 
+      {giftMode && (
+        <button
+          type="button"
+          disabled={outOfStock}
+          onClick={handleAddToCart}
+          className="-mt-2 cursor-pointer py-2 text-center text-xs text-kiswa-ink-muted underline underline-offset-2 hover:text-kiswa-ink disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {justAdded ? "Added ✓" : "or add without gift wrapping"}
+        </button>
+      )}
+
       {/* WhatsApp order — a full-width fallback below Add to Bag / Buy Now,
-       * always reflecting the currently selected variant + quantity. */}
-      <div className="-mt-4 flex flex-col gap-1.5">
+       * always reflecting the currently selected variant + quantity. Extra
+       * bottom padding on mobile keeps it clear of the fixed floating
+       * WhatsApp button, which otherwise sits right on top of it. */}
+      <div className="-mt-4 flex flex-col gap-1.5 pb-20 sm:pb-0">
         <a
           href={outOfStock ? undefined : whatsappUrl}
           target="_blank"
