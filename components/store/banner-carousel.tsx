@@ -11,7 +11,7 @@ import type { StoreBanner } from "@/lib/store/queries";
 type StoreComboBanner = Extract<StoreBanner, { bannerType: "combo" }>;
 type StoreImageBanner = Extract<StoreBanner, { bannerType: "image" }>;
 
-const AUTO_ADVANCE_MS = 2000;
+const AUTO_ADVANCE_MS = 5000;
 const SLIDE_TRANSITION_S = 0.45;
 const SWIPE_THRESHOLD_PX = 50;
 
