@@ -59,25 +59,52 @@ export function buildProductOrderMessage(params: {
 
 const CART_MESSAGE_MAX_LINES = 10;
 
+/** Shown near every WhatsApp ordering CTA once online payments are off — the
+ * single wording for "this is how you'll actually pay/receive it" reassurance. */
+export const WHATSAPP_REASSURANCE_LINE =
+  "Order on WhatsApp — we'll confirm availability, payment and delivery with you directly.";
+
+/**
+ * One line per cart line, complete enough to bill from without opening the
+ * site: fragrance/combo name, variant label, qty, and price. Combo lines add
+ * an indented row per component (not just the combo's own title) and gift
+ * lines add the recipient/message/wrap choice — this is the message staff
+ * use to manually record the order in the WhatsApp Orders screen.
+ */
 export function buildCartOrderMessage(items: CartItem[], subtotal: number): string {
   const shown = items.slice(0, CART_MESSAGE_MAX_LINES);
   const remaining = items.length - shown.length;
 
-  const lines = shown.map((line) => {
+  const blocks = shown.map((line) => {
     const label = line.combo
       ? line.combo.comboTitle
       : `${line.productName} — ${line.variantLabel}`;
-    return `*${label}* × ${line.qty} = ${formatInr(line.unitPrice * line.qty)}`;
+    const rows = [`*${label}* × ${line.qty} = ${formatInr(line.unitPrice * line.qty)}`];
+
+    if (line.combo) {
+      for (const c of line.combo.components) {
+        rows.push(`   • ${c.productName} — ${c.variantLabel}${c.qty > 1 ? ` ×${c.qty}` : ""}`);
+      }
+    }
+
+    if (line.gift) {
+      rows.push(
+        `   🎁 Gift for ${line.gift.recipientName}${line.gift.giftWrap ? " (gift-wrapped)" : ""}`,
+      );
+      if (line.gift.message) rows.push(`   "${line.gift.message}"`);
+    }
+
+    return rows.join("\n");
   });
 
   if (remaining > 0) {
-    lines.push(`…and ${remaining} more item${remaining === 1 ? "" : "s"}`);
+    blocks.push(`…and ${remaining} more item${remaining === 1 ? "" : "s"}`);
   }
 
   return [
     "Hi KISWA, I'd like to order:",
     "",
-    ...lines,
+    ...blocks,
     "",
     `Order total: ${formatInr(subtotal)}`,
     "",

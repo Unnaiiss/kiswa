@@ -7,8 +7,14 @@ import type { GiftDetails } from "@/lib/cart/types";
 import type { StoreProduct } from "@/lib/store/queries";
 import { formatInr } from "@/lib/pricing";
 import { IMPORTED_VARIANT_ID } from "@/lib/products";
-import { buildProductOrderMessage, buildWhatsAppUrl, useSiteUrl } from "@/lib/whatsapp";
+import {
+  WHATSAPP_REASSURANCE_LINE,
+  buildProductOrderMessage,
+  buildWhatsAppUrl,
+  useSiteUrl,
+} from "@/lib/whatsapp";
 import { useSiteSettings } from "@/lib/store/site-settings-context";
+import { ONLINE_PAYMENTS_ENABLED } from "@/lib/config/featureFlags";
 import { useCart } from "./cart-provider";
 import { GiftDialog } from "./gift-dialog";
 import { WhatsAppIcon } from "./whatsapp-icon";
@@ -246,7 +252,9 @@ export function ImportedBuyBox({
           Order on WhatsApp
         </a>
         <p className="text-center text-xs text-kiswa-ink-muted">
-          We&apos;ll confirm your order and payment on WhatsApp.
+          {ONLINE_PAYMENTS_ENABLED
+            ? "We'll confirm your order and payment on WhatsApp."
+            : WHATSAPP_REASSURANCE_LINE}
         </p>
       </div>
 

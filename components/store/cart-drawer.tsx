@@ -8,8 +8,9 @@ import { useCart } from "./cart-provider";
 import { GiftDialog } from "./gift-dialog";
 import { WhatsAppIcon } from "./whatsapp-icon";
 import { formatInr } from "@/lib/pricing";
-import { buildCartOrderMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
+import { WHATSAPP_REASSURANCE_LINE, buildCartOrderMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
 import { useSiteSettings } from "@/lib/store/site-settings-context";
+import { ONLINE_PAYMENTS_ENABLED } from "@/lib/config/featureFlags";
 import type { CartItem } from "@/lib/cart/types";
 
 export function CartDrawer() {
@@ -186,22 +187,42 @@ export function CartDrawer() {
                       {formatInr(subtotal)}
                     </span>
                   </div>
-                  <Link
-                    href="/checkout"
-                    onClick={close}
-                    className="block w-full cursor-pointer rounded-full bg-kiswa-gold py-3 text-center text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft"
-                  >
-                    Checkout
-                  </Link>
-                  <a
-                    href={buildWhatsAppUrl(buildCartOrderMessage(items, subtotal), whatsappNumber)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5 text-xs text-kiswa-ink-muted underline underline-offset-2 hover:text-[#25D366]"
-                  >
-                    <WhatsAppIcon size={14} />
-                    Order this cart on WhatsApp
-                  </a>
+                  {ONLINE_PAYMENTS_ENABLED ? (
+                    <>
+                      <Link
+                        href="/checkout"
+                        onClick={close}
+                        className="block w-full cursor-pointer rounded-full bg-kiswa-gold py-3 text-center text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft"
+                      >
+                        Checkout
+                      </Link>
+                      <a
+                        href={buildWhatsAppUrl(buildCartOrderMessage(items, subtotal), whatsappNumber)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5 text-xs text-kiswa-ink-muted underline underline-offset-2 hover:text-[#25D366]"
+                      >
+                        <WhatsAppIcon size={14} />
+                        Order this cart on WhatsApp
+                      </a>
+                    </>
+                  ) : (
+                    <>
+                      <a
+                        href={buildWhatsAppUrl(buildCartOrderMessage(items, subtotal), whatsappNumber)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={close}
+                        className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#25D366] py-3 text-center text-sm font-medium tracking-wide text-white transition-colors hover:bg-[#20bd5a]"
+                      >
+                        <WhatsAppIcon size={16} />
+                        Order on WhatsApp
+                      </a>
+                      <p className="mt-2 text-center text-xs text-kiswa-ink-muted">
+                        {WHATSAPP_REASSURANCE_LINE}
+                      </p>
+                    </>
+                  )}
                 </div>
               </>
             )}
