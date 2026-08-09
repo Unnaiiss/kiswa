@@ -62,8 +62,8 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Admin-editable homepage content blocks (currently just the gift
-    // section banner) — non-sensitive marketing copy, freely public-
+    // Admin-editable homepage content blocks (giftSection, ourStory,
+    // announcementBar) — non-sensitive marketing copy, freely public-
     // readable. Writes go through /api/admin/site-content/* (admin-only).
     match /siteContent/{docId} {
       allow read: if true;

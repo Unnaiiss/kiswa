@@ -1,34 +1,34 @@
-import { ANNOUNCEMENT_TEXT } from "@/lib/store/announcement";
+import Link from "next/link";
+import { AnnouncementBarVisual } from "./announcement-bar-visual";
+import type { StoreAnnouncementBar } from "@/lib/store/queries";
 
-const REPEAT_COUNT = 8;
+/** Renders nothing at all (no empty strip, no layout shift) when there's no
+ * bar to show — `bar` is already null whenever
+ * lib/store/announcement.ts's isAnnouncementBarRenderable said so
+ * (disabled, no messages, or outside its schedule); see
+ * lib/store/queries.ts's getAnnouncementBar, called server-side in
+ * app/(store)/layout.tsx so there's never a flash of stale text on load. */
+export function AnnouncementBar({ bar }: { bar: StoreAnnouncementBar | null }) {
+  if (!bar || bar.messages.length === 0) return null;
 
-function MarqueeTrack() {
-  return (
-    <div className="flex shrink-0 items-center" aria-hidden>
-      {Array.from({ length: REPEAT_COUNT }).map((_, i) => (
-        <span
-          key={i}
-          className="whitespace-nowrap px-4 text-xs font-medium tracking-wide text-kiswa-ink sm:text-sm"
-        >
-          {ANNOUNCEMENT_TEXT}
-          <span className="ml-4 text-kiswa-gold-soft">&bull;</span>
-        </span>
-      ))}
-    </div>
+  const visual = (
+    <AnnouncementBarVisual
+      messages={bar.messages}
+      backgroundColor={bar.backgroundColor}
+      textColor={bar.textColor}
+      speed={bar.speed}
+    />
   );
-}
 
-// Seamless looping marquee: two identical tracks side by side, animated by
-// exactly -50% so the moment the first track scrolls fully offscreen, the
-// second is sitting exactly where the first started — no visible seam.
-export function AnnouncementBar() {
-  return (
-    <div className="group relative overflow-hidden bg-kiswa-maroon py-2">
-      <span className="sr-only">{ANNOUNCEMENT_TEXT}</span>
-      <div className="flex w-max animate-kiswa-marquee group-hover:[animation-play-state:paused] motion-reduce:animate-none">
-        <MarqueeTrack />
-        <MarqueeTrack />
-      </div>
-    </div>
+  if (!bar.linkUrl) return visual;
+
+  return bar.linkUrl.startsWith("/") ? (
+    <Link href={bar.linkUrl} aria-label={bar.messages.join(" — ")}>
+      {visual}
+    </Link>
+  ) : (
+    <a href={bar.linkUrl} target="_blank" rel="noopener noreferrer" aria-label={bar.messages.join(" — ")}>
+      {visual}
+    </a>
   );
 }

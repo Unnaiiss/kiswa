@@ -420,6 +420,36 @@ export interface OurStorySection extends OurStorySectionDoc {
   id: string;
 }
 
+export type AnnouncementBarSpeed = "slow" | "normal" | "fast";
+
+/**
+ * Admin-editable header marquee — the running text strip above the main
+ * nav. Same siteContent pattern as giftSection/ourStory: one fixed doc,
+ * publicly readable, writes only via /api/admin/site-content/announcement-bar
+ * (admin-only). messages[] are joined with a gold dot separator and looped
+ * seamlessly on the storefront; an empty array (or isEnabled: false, or
+ * outside validFrom/validUntil) means the bar renders nothing at all — see
+ * lib/store/announcement.ts's isAnnouncementBarRenderable, the single place
+ * that decides this so the storefront and admin "why is this hidden" checks
+ * can never disagree.
+ */
+export interface AnnouncementBarDoc {
+  isEnabled: boolean;
+  messages: string[];
+  backgroundColor: string;
+  textColor: string;
+  speed: AnnouncementBarSpeed;
+  /** Internal path (e.g. "/shop") or full external URL. Null = not clickable. */
+  linkUrl: string | null;
+  validFrom: TimestampLike | null;
+  validUntil: TimestampLike | null;
+  updatedAt: TimestampLike;
+}
+
+export interface AnnouncementBar extends AnnouncementBarDoc {
+  id: string;
+}
+
 export type ComboType = "fixed" | "choose-any";
 
 /** One fixed component of a 'fixed' combo — productName/variantLabel are

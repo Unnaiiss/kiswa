@@ -7,10 +7,16 @@ import { useCart } from "./cart-provider";
 import { NavSearch } from "./nav-search";
 import { MenuDrawer } from "./menu-drawer";
 import { AnnouncementBar } from "./announcement-bar";
-import type { StoreProduct } from "@/lib/store/queries";
+import type { StoreAnnouncementBar, StoreProduct } from "@/lib/store/queries";
 import { cn } from "@/lib/utils";
 
-export function StoreHeader({ products }: { products: StoreProduct[] }) {
+export function StoreHeader({
+  products,
+  announcementBar,
+}: {
+  products: StoreProduct[];
+  announcementBar: StoreAnnouncementBar | null;
+}) {
   const { count, open: openCart } = useCart();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -27,7 +33,7 @@ export function StoreHeader({ products }: { products: StoreProduct[] }) {
 
   return (
     <>
-      <AnnouncementBar />
+      <AnnouncementBar bar={announcementBar} />
 
       <header
         className={cn(

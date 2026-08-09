@@ -1,5 +1,6 @@
 import { adminDb } from "@/lib/firebase/admin";
 import {
+  announcementBarConverter,
   bannerConverter,
   comboConverter,
   giftSectionConverter,
@@ -74,4 +75,10 @@ export function ourStorySectionDocRef() {
   return siteContentCollection()
     .doc("ourStory")
     .withConverter(ourStorySectionConverter);
+}
+
+export function announcementBarDocRef() {
+  return siteContentCollection()
+    .doc("announcementBar")
+    .withConverter(announcementBarConverter);
 }

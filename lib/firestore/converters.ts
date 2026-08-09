@@ -7,6 +7,7 @@ import type {
   WithFieldValue,
 } from "firebase/firestore";
 import type {
+  AnnouncementBarDoc,
   AppUserDoc,
   BannerDoc,
   ComboDoc,
@@ -43,3 +44,4 @@ export const bannerConverter = makeConverter<BannerDoc>();
 export const giftSectionConverter = makeConverter<GiftSectionDoc>();
 export const ourStorySectionConverter = makeConverter<OurStorySectionDoc>();
 export const comboConverter = makeConverter<ComboDoc>();
+export const announcementBarConverter = makeConverter<AnnouncementBarDoc>();

@@ -1,4 +1,5 @@
 import {
+  announcementBarDocRef,
   bannersCollection,
   combosCollection,
   giftSectionDocRef,
@@ -6,7 +7,9 @@ import {
   productsCollection,
 } from "@/lib/firestore/admin-collections";
 import { explainComboUnfulfillable, isComboCurrentlyValid } from "@/lib/combos";
+import { isAnnouncementBarRenderable } from "@/lib/store/announcement";
 import type {
+  AnnouncementBar,
   Combo,
   ComboBannerDoc,
   ComboDoc,
@@ -157,6 +160,28 @@ export async function getActiveBanners(): Promise<StoreBanner[]> {
     });
   }
   return result;
+}
+
+// createdAt/updatedAt-stripping for the same RSC-boundary reason as above;
+// validFrom/validUntil are dropped too since the schedule check already
+// happened server-side below — the header never needs the raw Timestamps.
+export type StoreAnnouncementBar = Omit<
+  AnnouncementBar,
+  "updatedAt" | "validFrom" | "validUntil"
+>;
+
+/** Fetched server-side (in the (store) layout) so the header never flashes
+ * stale/placeholder text — returns null whenever
+ * isAnnouncementBarRenderable says the bar shouldn't render at all
+ * (disabled, no messages, or outside its schedule), so the header can just
+ * render nothing with no layout shift. */
+export async function getAnnouncementBar(): Promise<StoreAnnouncementBar | null> {
+  const snap = await announcementBarDocRef().get();
+  const data = snap.data();
+  if (!data || !isAnnouncementBarRenderable(data)) return null;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { updatedAt, validFrom, validUntil, ...rest } = data;
+  return { id: snap.id, ...rest };
 }
 
 // updatedAt-stripping for the same Timestamp-can't-cross-the-RSC-boundary
