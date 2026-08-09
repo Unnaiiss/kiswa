@@ -259,8 +259,16 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
                 {submitting ? "Saving…" : "Update"}
               </button>
             </div>
+            {status === "cancelled" && sale.orderStatus !== "cancelled" && (
+              <p className="mt-2 text-xs text-amber-400">
+                Cancelling restores this order&apos;s oil ml / units to stock automatically
+                (logged as a &quot;return&quot; movement) — no separate Stock Adjustment needed.
+              </p>
+            )}
             {saved && (
-              <p className="mt-2 text-xs text-green-400">Status updated.</p>
+              <p className="mt-2 text-xs text-green-400">
+                {status === "cancelled" ? "Cancelled — stock restored." : "Status updated."}
+              </p>
             )}
             {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
           </div>
