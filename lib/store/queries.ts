@@ -5,7 +5,7 @@ import {
   ourStorySectionDocRef,
   productsCollection,
 } from "@/lib/firestore/admin-collections";
-import { isComboCurrentlyValid, isComboFulfillable } from "@/lib/combos";
+import { explainComboUnfulfillable, isComboCurrentlyValid } from "@/lib/combos";
 import type {
   Combo,
   ComboBannerDoc,
@@ -77,8 +77,14 @@ export type StoreBanner =
 /** Resolves the carousel's live list: image banners pass through as-is;
  * combo banners are expanded against a live combo doc and dropped entirely
  * (never rendered as a broken/dangling slide) if that combo is deleted,
- * inactive, outside its date window (both covered by getActiveCombos), or
- * currently unfulfillable from stock. */
+ * inactive, outside its validFrom/validUntil window, or currently
+ * unfulfillable from stock. Every exclusion is logged server-side with its
+ * specific reason (this was previously silent, which made a legitimately
+ * out-of-stock combo indistinguishable from an actual bug) — see also
+ * components/admin/banners/banner-table.tsx, which surfaces the same reason
+ * next to the banner in admin. Fetches ALL combos (not just currently-valid
+ * ones, unlike getActiveCombos) so "deleted" and "inactive/expired" can be
+ * told apart in the log instead of collapsing into one case. */
 export async function getActiveBanners(): Promise<StoreBanner[]> {
   const snap = await bannersCollection()
     .where("isActive", "==", true)
@@ -87,10 +93,12 @@ export async function getActiveBanners(): Promise<StoreBanner[]> {
   const raw = snap.docs.map((doc) => ({ id: doc.id, data: doc.data() }));
 
   const hasComboBanner = raw.some(({ data }) => data.bannerType === "combo");
-  const [combos, products] = hasComboBanner
-    ? await Promise.all([getActiveCombos(), getActiveProducts()])
-    : [[] as StoreCombo[], [] as StoreProduct[]];
-  const combosById = new Map(combos.map((c) => [c.id, c]));
+  const [comboDocs, products] = hasComboBanner
+    ? await Promise.all([combosCollection().get(), getActiveProducts()])
+    : [null, [] as StoreProduct[]];
+  const allCombosById = new Map(
+    (comboDocs?.docs ?? []).map((doc) => [doc.id, { id: doc.id, ...doc.data() }]),
+  );
   const productsById = new Map(products.map((p) => [p.id, p]));
 
   const result: StoreBanner[] = [];
@@ -101,8 +109,33 @@ export async function getActiveBanners(): Promise<StoreBanner[]> {
       result.push({ id, ...rest, bannerType: "image" });
       continue;
     }
-    const combo = combosById.get(data.comboId);
-    if (!combo || !isComboFulfillable(combo, productsById)) continue;
+
+    const combo = allCombosById.get(data.comboId);
+    if (!combo) {
+      console.warn(
+        `[getActiveBanners] excluding combo banner ${id}: comboId ${data.comboId} does not exist (deleted)`,
+      );
+      continue;
+    }
+    if (!isComboCurrentlyValid(combo)) {
+      const reason = !combo.isActive
+        ? "combo is inactive"
+        : combo.validFrom && combo.validFrom.toDate() > new Date()
+          ? `combo's validFrom (${combo.validFrom.toDate().toISOString()}) is in the future`
+          : `combo's validUntil (${combo.validUntil?.toDate().toISOString()}) is in the past`;
+      console.warn(
+        `[getActiveBanners] excluding combo banner ${id}: combo "${combo.title}" (${combo.id}) — ${reason}`,
+      );
+      continue;
+    }
+    const unfulfillableReason = explainComboUnfulfillable(combo, productsById);
+    if (unfulfillableReason) {
+      console.warn(
+        `[getActiveBanners] excluding combo banner ${id}: combo "${combo.title}" (${combo.id}) is unfulfillable — ${unfulfillableReason}`,
+      );
+      continue;
+    }
+
     result.push({
       id,
       bannerType: "combo",

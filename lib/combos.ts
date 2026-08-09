@@ -6,25 +6,32 @@ import type {
 } from "@/lib/firestore/types";
 import { IMPORTED_VARIANT_ID, type ProductStockShape, livePriceForVariant, remainingCapacity } from "@/lib/products";
 
-/** True if every fixed component's product/variant is active and there's
- * enough stock for this combo's own bundle — ml aggregated per attar
- * product (since two components can share one product's pool), units
- * aggregated per imported product. */
-export function isFixedComboFulfillable(
+/** Same check as isFixedComboFulfillable, but returns a human-readable
+ * reason for the first failing component instead of a bare boolean (null =
+ * fulfillable) — used wherever a silent exclusion needs to be explained
+ * (server-side banner logging, the admin banner list's warning). Item
+ * productName/variantLabel are the combo's own display snapshots, so this
+ * doesn't need a `name` field on ProductStockShape. */
+export function explainFixedComboUnfulfillable(
   items: ComboFixedItem[],
   productsById: Map<string, ProductStockShape>,
-): boolean {
+): string | null {
   const neededByProduct = new Map<string, number>();
   for (const item of items) {
     const product = productsById.get(item.productId);
-    if (!product || !product.isActive) return false;
+    const label = `${item.productName} (${item.variantLabel})`;
+    if (!product) return `${label}: product not found or inactive`;
+    if (!product.isActive) return `${label}: product is inactive`;
     if (product.productType === "imported") {
-      if (item.variantId !== IMPORTED_VARIANT_ID) return false;
+      if (item.variantId !== IMPORTED_VARIANT_ID) {
+        return `${label}: variant no longer matches this imported product`;
+      }
       neededByProduct.set(item.productId, (neededByProduct.get(item.productId) ?? 0) + item.qty);
       continue;
     }
     const variant = product.variants.find((v) => v.variantId === item.variantId);
-    if (!variant || !variant.isActive) return false;
+    if (!variant) return `${label}: variant no longer exists`;
+    if (!variant.isActive) return `${label}: variant is inactive`;
     neededByProduct.set(
       item.productId,
       (neededByProduct.get(item.productId) ?? 0) + item.qty * variant.oilMlPerUnit,
@@ -33,9 +40,39 @@ export function isFixedComboFulfillable(
   for (const [productId, needed] of neededByProduct) {
     const product = productsById.get(productId)!;
     const available = product.productType === "imported" ? product.unitStock : product.oilStockMl;
-    if (available < needed) return false;
+    if (available < needed) {
+      const item = items.find((i) => i.productId === productId)!;
+      const unitSuffix = product.productType === "imported" ? " unit(s)" : "ml";
+      return `${item.productName}: needs ${needed}${unitSuffix}, only ${available}${unitSuffix} in stock`;
+    }
   }
-  return true;
+  return null;
+}
+
+/** True if every fixed component's product/variant is active and there's
+ * enough stock for this combo's own bundle — ml aggregated per attar
+ * product (since two components can share one product's pool), units
+ * aggregated per imported product. */
+export function isFixedComboFulfillable(
+  items: ComboFixedItem[],
+  productsById: Map<string, ProductStockShape>,
+): boolean {
+  return explainFixedComboUnfulfillable(items, productsById) === null;
+}
+
+/** Same idea as isChooseAnyComboFulfillable, but explains the shortfall
+ * instead of a bare boolean — see explainFixedComboUnfulfillable. */
+export function explainChooseAnyComboUnfulfillable(
+  chooseCount: number,
+  eligibleVariants: ComboEligibleVariant[],
+  productsById: Map<string, ProductStockShape>,
+): string | null {
+  let capacity = 0;
+  for (const ev of eligibleVariants) {
+    capacity += remainingCapacity(productsById.get(ev.productId), ev.variantId);
+  }
+  if (capacity >= chooseCount) return null;
+  return `only ${capacity} of ${chooseCount} required picks are currently in stock across the ${eligibleVariants.length} eligible variant(s)`;
 }
 
 /** Optimistic "is this worth showing" check: true if there's enough combined
@@ -50,12 +87,7 @@ export function isChooseAnyComboFulfillable(
   eligibleVariants: ComboEligibleVariant[],
   productsById: Map<string, ProductStockShape>,
 ): boolean {
-  let capacity = 0;
-  for (const ev of eligibleVariants) {
-    capacity += remainingCapacity(productsById.get(ev.productId), ev.variantId);
-    if (capacity >= chooseCount) return true;
-  }
-  return capacity >= chooseCount;
+  return explainChooseAnyComboUnfulfillable(chooseCount, eligibleVariants, productsById) === null;
 }
 
 export function isComboFulfillable(
@@ -66,6 +98,22 @@ export function isComboFulfillable(
     return isFixedComboFulfillable(combo.items, productsById);
   }
   return isChooseAnyComboFulfillable(
+    combo.chooseCount ?? 0,
+    combo.eligibleVariants,
+    productsById,
+  );
+}
+
+/** Explains why isComboFulfillable would return false (null = fulfillable) —
+ * branches by combo.type exactly like isComboFulfillable itself. */
+export function explainComboUnfulfillable(
+  combo: Pick<Combo, "type" | "items" | "chooseCount" | "eligibleVariants">,
+  productsById: Map<string, ProductStockShape>,
+): string | null {
+  if (combo.type === "fixed") {
+    return explainFixedComboUnfulfillable(combo.items, productsById);
+  }
+  return explainChooseAnyComboUnfulfillable(
     combo.chooseCount ?? 0,
     combo.eligibleVariants,
     productsById,

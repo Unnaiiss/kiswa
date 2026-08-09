@@ -3,17 +3,18 @@
 import { useEffect, useState } from "react";
 import { AlertTriangle, GripVertical, Package, Pencil, Trash2 } from "lucide-react";
 import { adminFetch, adminFetchFormData } from "@/lib/admin/apiClient";
-import { isComboCurrentlyValid } from "@/lib/combos";
-import type { Banner, Combo } from "@/lib/firestore/types";
+import { explainComboUnfulfillable, isComboCurrentlyValid } from "@/lib/combos";
+import type { Banner, Combo, Product } from "@/lib/firestore/types";
 
 interface BannerTableProps {
   banners: Banner[];
   combos: Combo[];
+  products: Product[];
   loading: boolean;
   onEdit: (banner: Banner) => void;
 }
 
-export function BannerTable({ banners, combos, loading, onEdit }: BannerTableProps) {
+export function BannerTable({ banners, combos, products, loading, onEdit }: BannerTableProps) {
   const [items, setItems] = useState<Banner[]>(banners);
   const [dragId, setDragId] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -24,6 +25,7 @@ export function BannerTable({ banners, combos, loading, onEdit }: BannerTablePro
   }, [banners]);
 
   const combosById = new Map(combos.map((c) => [c.id, c]));
+  const productsById = new Map(products.map((p) => [p.id, p]));
 
   function handleDragOver(e: React.DragEvent, overId: string) {
     e.preventDefault();
@@ -117,6 +119,10 @@ export function BannerTable({ banners, combos, loading, onEdit }: BannerTablePro
       <div className="flex flex-col gap-2">
         {items.map((banner) => {
           const combo = banner.bannerType === "combo" ? combosById.get(banner.comboId) : null;
+          const unfulfillableReason =
+            banner.bannerType === "combo" && combo && isComboCurrentlyValid(combo)
+              ? explainComboUnfulfillable(combo, productsById)
+              : null;
           const comboWarning =
             banner.bannerType === "combo"
               ? !combo
@@ -125,7 +131,9 @@ export function BannerTable({ banners, combos, loading, onEdit }: BannerTablePro
                   ? "Combo is inactive — this banner is hidden"
                   : !isComboCurrentlyValid(combo)
                     ? "Combo is outside its scheduled dates — this banner is hidden"
-                    : null
+                    : unfulfillableReason
+                      ? `Out of stock (${unfulfillableReason}) — this banner is hidden`
+                      : null
               : null;
           const title = banner.bannerType === "combo" ? combo?.title ?? "Deleted combo" : banner.altText;
           const subtitle =

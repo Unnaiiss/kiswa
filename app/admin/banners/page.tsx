@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Plus } from "lucide-react";
 import { useAllBanners } from "@/lib/admin/useAllBanners";
 import { useAllCombos } from "@/lib/admin/useAllCombos";
+import { useAllProducts } from "@/lib/admin/useAllProducts";
 import { BannerTable } from "@/components/admin/banners/banner-table";
 import { BannerForm } from "@/components/admin/banners/banner-form";
 import type { Banner } from "@/lib/firestore/types";
@@ -11,6 +12,7 @@ import type { Banner } from "@/lib/firestore/types";
 export default function AdminBannersPage() {
   const { banners, loading } = useAllBanners();
   const { combos } = useAllCombos();
+  const { products } = useAllProducts();
   const [dialog, setDialog] = useState<
     { mode: "create" } | { mode: "edit"; banner: Banner } | null
   >(null);
@@ -37,6 +39,7 @@ export default function AdminBannersPage() {
       <BannerTable
         banners={banners}
         combos={combos}
+        products={products}
         loading={loading}
         onEdit={(banner) => setDialog({ mode: "edit", banner })}
       />
