@@ -30,6 +30,7 @@ export function ProductGallery({
               imageUrls={imageUrls}
               index={active}
               className="h-full w-full"
+              sizes="(max-width: 1024px) 100vw, 50vw"
             />
           </motion.div>
         </AnimatePresence>
@@ -43,7 +44,7 @@ export function ProductGallery({
               type="button"
               onClick={() => setActive(i)}
               aria-label={`Show image ${i + 1}`}
-              className={`h-16 w-16 shrink-0 cursor-pointer overflow-hidden rounded-md border transition-colors ${
+              className={`relative h-16 w-16 shrink-0 cursor-pointer overflow-hidden rounded-md border transition-colors ${
                 active === i ? "border-kiswa-gold" : "border-kiswa-border"
               }`}
             >
@@ -52,6 +53,7 @@ export function ProductGallery({
                 imageUrls={imageUrls}
                 index={i}
                 className="h-full w-full"
+                sizes="64px"
               />
             </button>
           ))}

@@ -30,6 +30,28 @@ import type {
   SiteSettingsDoc,
 } from "@/lib/firestore/types";
 
+/**
+ * Every exported function in this module runs server-side on essentially
+ * every storefront page load (several unconditionally, via app/layout.tsx
+ * and app/(store)/layout.tsx, which wrap the ENTIRE app including /admin
+ * and /pos). A raw Firestore read failure (network blip, quota) previously
+ * propagated as an unhandled rejection straight out of generateMetadata/the
+ * layout's render, which doesn't just break one page — it fails the whole
+ * page's static generation or crashes the whole app shell. Wrapping every
+ * read in this — degrading to a documented, harmless fallback (empty list,
+ * null section, or hardcoded site-settings defaults, same as what an
+ * unseeded/missing doc already resolves to) — keeps a transient Firestore
+ * hiccup from taking down the entire site over one section's content.
+ */
+async function safeRead<T>(label: string, fallback: T, read: () => Promise<T>): Promise<T> {
+  try {
+    return await read();
+  } catch (err) {
+    console.error(`[${label}] Firestore read failed, using fallback:`, err);
+    return fallback;
+  }
+}
+
 // Plain Omit<Union, K> collapses a discriminated union down to only its
 // shared keys (Product is now attar | imported) — this distributes Omit
 // over each union member first, so the productType discriminant keeps
@@ -49,8 +71,10 @@ function toStoreProduct(id: string, data: ProductDoc): StoreProduct {
 }
 
 export async function getActiveProducts(): Promise<StoreProduct[]> {
-  const snap = await productsCollection().where("isActive", "==", true).get();
-  return snap.docs.map((doc) => toStoreProduct(doc.id, doc.data()));
+  return safeRead("getActiveProducts", [], async () => {
+    const snap = await productsCollection().where("isActive", "==", true).get();
+    return snap.docs.map((doc) => toStoreProduct(doc.id, doc.data()));
+  });
 }
 
 export async function getFeaturedProducts(limit = 8): Promise<StoreProduct[]> {
@@ -66,35 +90,39 @@ export async function getFeaturedProducts(limit = 8): Promise<StoreProduct[]> {
  * are both applied in JS to avoid one (a range filter or an orderBy on a
  * field not in the equality set would require a composite index). */
 export async function getFeaturedImportedProducts(limit = 8): Promise<StoreProduct[]> {
-  const snap = await productsCollection()
-    .where("productType", "==", "imported")
-    .where("isActive", "==", true)
-    .where("featuredOnHome", "==", true)
-    .get();
+  return safeRead("getFeaturedImportedProducts", [], async () => {
+    const snap = await productsCollection()
+      .where("productType", "==", "imported")
+      .where("isActive", "==", true)
+      .where("featuredOnHome", "==", true)
+      .get();
 
-  const inStock = snap.docs
-    .map((doc) => ({ id: doc.id, data: doc.data() }))
-    .filter(({ data }) => data.productType === "imported" && data.unitStock > 0);
+    const inStock = snap.docs
+      .map((doc) => ({ id: doc.id, data: doc.data() }))
+      .filter(({ data }) => data.productType === "imported" && data.unitStock > 0);
 
-  inStock.sort((a, b) => {
-    const aOrder = a.data.productType === "imported" ? a.data.featuredOrder : null;
-    const bOrder = b.data.productType === "imported" ? b.data.featuredOrder : null;
-    if (aOrder != null && bOrder != null) return aOrder - bOrder;
-    if (aOrder != null) return -1;
-    if (bOrder != null) return 1;
-    return b.data.createdAt.toDate().getTime() - a.data.createdAt.toDate().getTime();
+    inStock.sort((a, b) => {
+      const aOrder = a.data.productType === "imported" ? a.data.featuredOrder : null;
+      const bOrder = b.data.productType === "imported" ? b.data.featuredOrder : null;
+      if (aOrder != null && bOrder != null) return aOrder - bOrder;
+      if (aOrder != null) return -1;
+      if (bOrder != null) return 1;
+      return b.data.createdAt.toDate().getTime() - a.data.createdAt.toDate().getTime();
+    });
+
+    return inStock.slice(0, limit).map(({ id, data }) => toStoreProduct(id, data));
   });
-
-  return inStock.slice(0, limit).map(({ id, data }) => toStoreProduct(id, data));
 }
 
 export async function getProductBySlug(
   slug: string,
 ): Promise<StoreProduct | null> {
-  const snap = await productsCollection().doc(slug).get();
-  const data = snap.data();
-  if (!snap.exists || !data || !data.isActive) return null;
-  return toStoreProduct(snap.id, data);
+  return safeRead(`getProductBySlug(${slug})`, null, async () => {
+    const snap = await productsCollection().doc(slug).get();
+    const data = snap.data();
+    if (!snap.exists || !data || !data.isActive) return null;
+    return toStoreProduct(snap.id, data);
+  });
 }
 
 // Same createdAt/updatedAt-stripping rationale as StoreProduct above — the
@@ -129,77 +157,79 @@ export type StoreBanner =
  * ones, unlike getActiveCombos) so "deleted" and "inactive/expired" can be
  * told apart in the log instead of collapsing into one case. */
 export async function getActiveBanners(): Promise<StoreBanner[]> {
-  const snap = await bannersCollection()
-    .where("isActive", "==", true)
-    .orderBy("order", "asc")
-    .get();
-  const raw = snap.docs.map((doc) => ({ id: doc.id, data: doc.data() }));
+  return safeRead("getActiveBanners", [], async () => {
+    const snap = await bannersCollection()
+      .where("isActive", "==", true)
+      .orderBy("order", "asc")
+      .get();
+    const raw = snap.docs.map((doc) => ({ id: doc.id, data: doc.data() }));
 
-  const hasComboBanner = raw.some(({ data }) => data.bannerType === "combo");
-  const [comboDocs, products] = hasComboBanner
-    ? await Promise.all([combosCollection().get(), getActiveProducts()])
-    : [null, [] as StoreProduct[]];
-  const allCombosById = new Map(
-    (comboDocs?.docs ?? []).map((doc) => [doc.id, { id: doc.id, ...doc.data() }]),
-  );
-  const productsById = new Map(products.map((p) => [p.id, p]));
+    const hasComboBanner = raw.some(({ data }) => data.bannerType === "combo");
+    const [comboDocs, products] = hasComboBanner
+      ? await Promise.all([combosCollection().get(), getActiveProducts()])
+      : [null, [] as StoreProduct[]];
+    const allCombosById = new Map(
+      (comboDocs?.docs ?? []).map((doc) => [doc.id, { id: doc.id, ...doc.data() }]),
+    );
+    const productsById = new Map(products.map((p) => [p.id, p]));
 
-  const result: StoreBanner[] = [];
-  for (const { id, data } of raw) {
-    if (data.bannerType !== "combo") {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { createdAt, updatedAt, ...rest } = data;
-      result.push({ id, ...rest, bannerType: "image" });
-      continue;
-    }
+    const result: StoreBanner[] = [];
+    for (const { id, data } of raw) {
+      if (data.bannerType !== "combo") {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { createdAt, updatedAt, ...rest } = data;
+        result.push({ id, ...rest, bannerType: "image" });
+        continue;
+      }
 
-    const combo = allCombosById.get(data.comboId);
-    if (!combo) {
-      console.warn(
-        `[getActiveBanners] excluding combo banner ${id}: comboId ${data.comboId} does not exist (deleted)`,
-      );
-      continue;
-    }
-    if (!isComboCurrentlyValid(combo)) {
-      const reason = !combo.isActive
-        ? "combo is inactive"
-        : combo.validFrom && combo.validFrom.toDate() > new Date()
-          ? `combo's validFrom (${combo.validFrom.toDate().toISOString()}) is in the future`
-          : `combo's validUntil (${combo.validUntil?.toDate().toISOString()}) is in the past`;
-      console.warn(
-        `[getActiveBanners] excluding combo banner ${id}: combo "${combo.title}" (${combo.id}) — ${reason}`,
-      );
-      continue;
-    }
-    const unfulfillableReason = explainComboUnfulfillable(combo, productsById);
-    if (unfulfillableReason) {
-      console.warn(
-        `[getActiveBanners] excluding combo banner ${id}: combo "${combo.title}" (${combo.id}) is unfulfillable — ${unfulfillableReason}`,
-      );
-      continue;
-    }
+      const combo = allCombosById.get(data.comboId);
+      if (!combo) {
+        console.warn(
+          `[getActiveBanners] excluding combo banner ${id}: comboId ${data.comboId} does not exist (deleted)`,
+        );
+        continue;
+      }
+      if (!isComboCurrentlyValid(combo)) {
+        const reason = !combo.isActive
+          ? "combo is inactive"
+          : combo.validFrom && combo.validFrom.toDate() > new Date()
+            ? `combo's validFrom (${combo.validFrom.toDate().toISOString()}) is in the future`
+            : `combo's validUntil (${combo.validUntil?.toDate().toISOString()}) is in the past`;
+        console.warn(
+          `[getActiveBanners] excluding combo banner ${id}: combo "${combo.title}" (${combo.id}) — ${reason}`,
+        );
+        continue;
+      }
+      const unfulfillableReason = explainComboUnfulfillable(combo, productsById);
+      if (unfulfillableReason) {
+        console.warn(
+          `[getActiveBanners] excluding combo banner ${id}: combo "${combo.title}" (${combo.id}) is unfulfillable — ${unfulfillableReason}`,
+        );
+        continue;
+      }
 
-    result.push({
-      id,
-      bannerType: "combo",
-      comboId: data.comboId,
-      headlineOverride: data.headlineOverride ?? null,
-      buttonLabelOverride: data.buttonLabelOverride ?? null,
-      order: data.order,
-      isActive: data.isActive,
-      combo: {
-        slug: combo.slug,
-        title: combo.title,
-        description: combo.description,
-        imageUrl: combo.imageUrl,
-        imageUrlMobile: combo.imageUrlMobile,
-        comboPriceInr: combo.comboPriceInr,
-        originalPriceInr: combo.originalPriceInr,
-        badgeText: combo.badgeText,
-      },
-    });
-  }
-  return result;
+      result.push({
+        id,
+        bannerType: "combo",
+        comboId: data.comboId,
+        headlineOverride: data.headlineOverride ?? null,
+        buttonLabelOverride: data.buttonLabelOverride ?? null,
+        order: data.order,
+        isActive: data.isActive,
+        combo: {
+          slug: combo.slug,
+          title: combo.title,
+          description: combo.description,
+          imageUrl: combo.imageUrl,
+          imageUrlMobile: combo.imageUrlMobile,
+          comboPriceInr: combo.comboPriceInr,
+          originalPriceInr: combo.originalPriceInr,
+          badgeText: combo.badgeText,
+        },
+      });
+    }
+    return result;
+  });
 }
 
 // createdAt/updatedAt-stripping for the same RSC-boundary reason as above;
@@ -213,15 +243,17 @@ export type StoreAnnouncementBar = Omit<
 /** Fetched server-side (in the (store) layout) so the header never flashes
  * stale/placeholder text — returns null whenever
  * isAnnouncementBarRenderable says the bar shouldn't render at all
- * (disabled, no messages, or outside its schedule), so the header can just
- * render nothing with no layout shift. */
+ * (disabled, no messages, or outside its schedule, OR the read itself
+ * failed), so the header can just render nothing with no layout shift. */
 export async function getAnnouncementBar(): Promise<StoreAnnouncementBar | null> {
-  const snap = await announcementBarDocRef().get();
-  const data = snap.data();
-  if (!data || !isAnnouncementBarRenderable(data)) return null;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { updatedAt, validFrom, validUntil, ...rest } = data;
-  return { id: snap.id, ...rest };
+  return safeRead("getAnnouncementBar", null, async () => {
+    const snap = await announcementBarDocRef().get();
+    const data = snap.data();
+    if (!data || !isAnnouncementBarRenderable(data)) return null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { updatedAt, validFrom, validUntil, ...rest } = data;
+    return { id: snap.id, ...rest };
+  });
 }
 
 // updatedAt-stripping for the same Timestamp-can't-cross-the-RSC-boundary
@@ -229,24 +261,28 @@ export async function getAnnouncementBar(): Promise<StoreAnnouncementBar | null>
 export type StoreGiftSection = Omit<GiftSection, "updatedAt">;
 
 export async function getGiftSection(): Promise<StoreGiftSection | null> {
-  const snap = await giftSectionDocRef().get();
-  const data = snap.data();
-  if (!snap.exists || !data) return null;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { updatedAt, ...rest } = data;
-  return { id: snap.id, ...rest };
+  return safeRead("getGiftSection", null, async () => {
+    const snap = await giftSectionDocRef().get();
+    const data = snap.data();
+    if (!snap.exists || !data) return null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { updatedAt, ...rest } = data;
+    return { id: snap.id, ...rest };
+  });
 }
 
 // Same updatedAt-stripping reason as StoreGiftSection above.
 export type StoreOurStorySection = Omit<OurStorySection, "updatedAt">;
 
 export async function getOurStorySection(): Promise<StoreOurStorySection | null> {
-  const snap = await ourStorySectionDocRef().get();
-  const data = snap.data();
-  if (!snap.exists || !data) return null;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { updatedAt, ...rest } = data;
-  return { id: snap.id, ...rest };
+  return safeRead("getOurStorySection", null, async () => {
+    const snap = await ourStorySectionDocRef().get();
+    const data = snap.data();
+    if (!snap.exists || !data) return null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { updatedAt, ...rest } = data;
+    return { id: snap.id, ...rest };
+  });
 }
 
 // Same updatedAt-stripping reason as StoreGiftSection above. The section
@@ -256,12 +292,14 @@ export async function getOurStorySection(): Promise<StoreOurStorySection | null>
 export type StoreImportedSection = Omit<ImportedSection, "updatedAt">;
 
 export async function getImportedSection(): Promise<StoreImportedSection | null> {
-  const snap = await importedSectionDocRef().get();
-  const data = snap.data();
-  if (!snap.exists || !data) return null;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { updatedAt, ...rest } = data;
-  return { id: snap.id, ...rest };
+  return safeRead("getImportedSection", null, async () => {
+    const snap = await importedSectionDocRef().get();
+    const data = snap.data();
+    if (!snap.exists || !data) return null;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { updatedAt, ...rest } = data;
+    return { id: snap.id, ...rest };
+  });
 }
 
 // Brand identity + every social/contact link on the site — unlike the other
@@ -277,22 +315,48 @@ function emptyToNull(value: string | null | undefined): string | null {
   return value && value.trim() !== "" ? value : null;
 }
 
+const SITE_SETTINGS_FALLBACK: StoreSiteSettings = {
+  brandName: DEFAULT_BRAND_NAME,
+  tagline: DEFAULT_TAGLINE,
+  shortDescription: DEFAULT_SHORT_DESCRIPTION,
+  whatsappNumber: DEFAULT_WHATSAPP_NUMBER,
+  instagramUrl: null,
+  facebookUrl: null,
+  youtubeUrl: null,
+  email: null,
+  phone: null,
+  addressLine: null,
+  mapUrl: null,
+};
+
+/**
+ * "Never returns null" per its own contract (every call site across the app
+ * relies on that) — and that has to hold even when the Firestore READ
+ * itself fails (network blip, quota), not just when the doc is missing.
+ * This is called unconditionally by the ROOT layout's generateMetadata
+ * (app/layout.tsx), which wraps every page in the app — storefront, /admin,
+ * /pos — so an unguarded throw here doesn't just break one page's metadata,
+ * it makes the entire site unbuildable/unrenderable. Falls back to the same
+ * hardcoded defaults a missing doc already uses.
+ */
 export async function getSiteSettings(): Promise<StoreSiteSettings> {
-  const snap = await siteSettingsDocRef().get();
-  const data = snap.data();
-  return {
-    brandName: data?.brandName || DEFAULT_BRAND_NAME,
-    tagline: data?.tagline || DEFAULT_TAGLINE,
-    shortDescription: data?.shortDescription || DEFAULT_SHORT_DESCRIPTION,
-    whatsappNumber: data?.whatsappNumber || DEFAULT_WHATSAPP_NUMBER,
-    instagramUrl: emptyToNull(data?.instagramUrl),
-    facebookUrl: emptyToNull(data?.facebookUrl),
-    youtubeUrl: emptyToNull(data?.youtubeUrl),
-    email: emptyToNull(data?.email),
-    phone: emptyToNull(data?.phone),
-    addressLine: emptyToNull(data?.addressLine),
-    mapUrl: emptyToNull(data?.mapUrl),
-  };
+  return safeRead("getSiteSettings", SITE_SETTINGS_FALLBACK, async () => {
+    const snap = await siteSettingsDocRef().get();
+    const data: SiteSettingsDoc | undefined = snap.data();
+    return {
+      brandName: data?.brandName || DEFAULT_BRAND_NAME,
+      tagline: data?.tagline || DEFAULT_TAGLINE,
+      shortDescription: data?.shortDescription || DEFAULT_SHORT_DESCRIPTION,
+      whatsappNumber: data?.whatsappNumber || DEFAULT_WHATSAPP_NUMBER,
+      instagramUrl: emptyToNull(data?.instagramUrl),
+      facebookUrl: emptyToNull(data?.facebookUrl),
+      youtubeUrl: emptyToNull(data?.youtubeUrl),
+      email: emptyToNull(data?.email),
+      phone: emptyToNull(data?.phone),
+      addressLine: emptyToNull(data?.addressLine),
+      mapUrl: emptyToNull(data?.mapUrl),
+    };
+  });
 }
 
 // createdAt/updatedAt stripped for the same RSC-boundary reason as above;
@@ -310,21 +374,25 @@ function toStoreCombo(id: string, data: ComboDoc): StoreCombo {
 }
 
 export async function getActiveCombos(): Promise<StoreCombo[]> {
-  const snap = await combosCollection()
-    .where("isActive", "==", true)
-    .orderBy("order", "asc")
-    .get();
-  const now = new Date();
-  return snap.docs
-    .filter((doc) => isComboCurrentlyValid(doc.data(), now))
-    .map((doc) => toStoreCombo(doc.id, doc.data()));
+  return safeRead("getActiveCombos", [], async () => {
+    const snap = await combosCollection()
+      .where("isActive", "==", true)
+      .orderBy("order", "asc")
+      .get();
+    const now = new Date();
+    return snap.docs
+      .filter((doc) => isComboCurrentlyValid(doc.data(), now))
+      .map((doc) => toStoreCombo(doc.id, doc.data()));
+  });
 }
 
 export async function getComboBySlug(slug: string): Promise<StoreCombo | null> {
-  const snap = await combosCollection().where("slug", "==", slug).limit(1).get();
-  if (snap.empty) return null;
-  const doc = snap.docs[0];
-  const data = doc.data();
-  if (!isComboCurrentlyValid(data, new Date())) return null;
-  return toStoreCombo(doc.id, data);
+  return safeRead(`getComboBySlug(${slug})`, null, async () => {
+    const snap = await combosCollection().where("slug", "==", slug).limit(1).get();
+    if (snap.empty) return null;
+    const doc = snap.docs[0];
+    const data = doc.data();
+    if (!isComboCurrentlyValid(data, new Date())) return null;
+    return toStoreCombo(doc.id, data);
+  });
 }

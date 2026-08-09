@@ -39,6 +39,7 @@ export function ProductCard({
                 name={product.name}
                 imageUrls={product.imageUrls}
                 className="h-full w-full"
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
               />
             </motion.div>
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-kiswa-void/70 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />

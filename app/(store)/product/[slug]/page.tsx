@@ -18,9 +18,23 @@ export async function generateMetadata({
   const product = await getProductBySlug(slug);
   if (!product) return {};
 
+  const image = product.imageUrls[0];
+
   return {
     title: product.name,
     description: product.description,
+    openGraph: {
+      title: product.name,
+      description: product.description,
+      type: "website",
+      ...(image && { images: [{ url: image }] }),
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title: product.name,
+      description: product.description,
+      ...(image && { images: [image] }),
+    },
   };
 }
 

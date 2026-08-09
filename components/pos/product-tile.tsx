@@ -33,6 +33,7 @@ export function ProductTile({ product, onTap }: ProductTileProps) {
           name={product.name}
           imageUrls={product.imageUrls}
           className="h-full w-full"
+          sizes="(max-width: 768px) 33vw, 15vw"
         />
         {!sellable && (
           <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/70">

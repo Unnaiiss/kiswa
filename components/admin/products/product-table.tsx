@@ -89,11 +89,12 @@ export function ProductTable({ products, loading, onEdit }: ProductTableProps) {
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="size-10 shrink-0 overflow-hidden rounded-lg border border-zinc-800">
+                        <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-zinc-800">
                           <ProductImage
                             name={product.name}
                             imageUrls={product.imageUrls}
                             className="h-full w-full"
+                            sizes="40px"
                           />
                         </div>
                         <span className="font-medium text-zinc-50">{product.name}</span>

@@ -94,11 +94,12 @@ export function NavSearch({
                   onSelect={() => goToProduct(product.slug)}
                   className="cursor-pointer gap-3 text-kiswa-ink data-selected:bg-kiswa-surface-2 data-selected:text-kiswa-gold"
                 >
-                  <div className="h-10 w-10 shrink-0 overflow-hidden rounded-md border border-kiswa-border">
+                  <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md border border-kiswa-border">
                     <ProductImage
                       name={product.name}
                       imageUrls={product.imageUrls}
                       className="h-full w-full"
+                      sizes="40px"
                     />
                   </div>
                   <div className="flex flex-1 flex-col overflow-hidden">
