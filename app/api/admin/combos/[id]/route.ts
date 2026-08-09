@@ -5,6 +5,7 @@ import { ComboValidationError, comboFieldsSchema, resolveComboFields } from "@/l
 import { deleteBannerImage, saveBannerImage } from "@/lib/server/bannerImages";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
 import { InvalidImageUploadError } from "@/lib/server/localImageStorage";
+import { rateLimit } from "@/lib/server/rateLimit";
 
 export async function PATCH(
   request: Request,
@@ -18,6 +19,9 @@ export async function PATCH(
     }
     throw err;
   }
+
+  const limited = rateLimit(request, "admin:combos", { limit: 30, windowMs: 10 * 60 * 1000 });
+  if (limited) return limited;
 
   const { id } = await params;
   const ref = combosCollection().doc(id);

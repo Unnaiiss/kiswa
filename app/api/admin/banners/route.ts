@@ -5,6 +5,7 @@ import { bannersCollection, combosCollection } from "@/lib/firestore/admin-colle
 import { saveBannerImage } from "@/lib/server/bannerImages";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
 import { InvalidImageUploadError } from "@/lib/server/localImageStorage";
+import { rateLimit } from "@/lib/server/rateLimit";
 
 const commonFields = {
   order: z.coerce.number().int().nonnegative(),
@@ -50,6 +51,9 @@ export async function POST(request: Request) {
     }
     throw err;
   }
+
+  const limited = rateLimit(request, "admin:banners", { limit: 30, windowMs: 10 * 60 * 1000 });
+  if (limited) return limited;
 
   const formData = await request.formData().catch(() => null);
   if (!formData) {

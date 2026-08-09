@@ -13,6 +13,7 @@ import {
   aggregateProductNeeds,
   livePriceForVariant,
 } from "@/lib/server/productLookup";
+import { rateLimit } from "@/lib/server/rateLimit";
 
 const shippingAddressSchema = z.object({
   line1: z.string().trim().min(1, "Address line 1 is required"),
@@ -104,6 +105,15 @@ function comboComponentsPerUnit(
 }
 
 export async function POST(request: Request) {
+  // Public + unauthenticated by design (guest checkout) and creates a real
+  // Razorpay order per call — the single most expensive unauthenticated
+  // action in the app, so it gets the tightest limit.
+  const limited = rateLimit(request, "checkout:create-order", {
+    limit: 10,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (limited) return limited;
+
   const json = await request.json().catch(() => null);
   const parsed = requestSchema.safeParse(json);
   if (!parsed.success) {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
 import { saveProductImage } from "@/lib/server/productImages";
+import { rateLimit } from "@/lib/server/rateLimit";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
@@ -19,6 +20,15 @@ export async function POST(request: Request) {
     }
     throw err;
   }
+
+  // A gallery edit posts one file per image in quick succession (see
+  // components/admin/products/image-uploader.tsx), so this is deliberately
+  // generous — it's guarding against runaway/scripted abuse, not normal use.
+  const limited = rateLimit(request, "admin:upload-image", {
+    limit: 60,
+    windowMs: 10 * 60 * 1000,
+  });
+  if (limited) return limited;
 
   const formData = await request.formData().catch(() => null);
   const file = formData?.get("image");
