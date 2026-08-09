@@ -22,18 +22,25 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Only Admin pages (app/admin/**, gated to role=='admin' at the session
+    // layer) ever read these three collections — /pos never queries them
+    // (it only reads products/combos). isStaffOrAdmin() here would grant a
+    // staff account direct-SDK read access (sales PII, stock audit trail)
+    // that no legitimate staff-facing feature uses, so this is admin-only.
     match /stockMovements/{movementId} {
-      allow read: if isStaffOrAdmin();
+      allow read: if hasRole('admin');
       allow write: if false;
     }
 
     match /sales/{saleId} {
-      allow read: if isStaffOrAdmin();
+      allow read: if hasRole('admin');
       allow write: if false;
     }
 
+    // The account roster — no staff-facing feature needs to enumerate other
+    // accounts, so this is admin-only (see stockMovements/sales above).
     match /users/{userId} {
-      allow read: if isStaffOrAdmin();
+      allow read: if hasRole('admin');
       allow write: if false;
     }
 
@@ -48,9 +55,10 @@ service cloud.firestore {
     }
 
     // Captured payments whose stock re-check failed at verification time;
-    // staff/admin need to see these to process manual refunds.
+    // only surfaced on Admin pages (admin-only, same reasoning as sales
+    // above) so staff/refund processing needs admin to action it.
     match /refundFlags/{flagId} {
-      allow read: if isStaffOrAdmin();
+      allow read: if hasRole('admin');
       allow write: if false;
     }
 

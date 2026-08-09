@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// This project has a Firebase Storage bucket provisioned (see
+// NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET) but the app deliberately does not use
+// it — all image uploads go through lib/server/localImageStorage.ts to the
+// Node server's own filesystem instead (see that file's own comment). With
+// no ruleset ever deployed, Firebase's default-for-unconfigured-buckets
+// behavior is not something to rely on — deny everything explicitly so an
+// unused bucket can never become an accidental open read/write surface.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
