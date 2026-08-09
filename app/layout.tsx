@@ -15,12 +15,27 @@ const geistMono = Geist_Mono({
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "") || undefined;
 
+// A malformed env var (e.g. "kiswaperfumes.in" pasted without the "https://"
+// scheme) makes `new URL()` throw synchronously — unlike every Firestore
+// read in this file's data fetch, that throw isn't wrapped by anything, and
+// generateMetadata runs for EVERY page including /_not-found, so it took
+// down the entire build. Resolved once at module scope so a bad value
+// degrades to "no metadataBase" instead of crashing every page.
+let metadataBase: URL | undefined;
+if (SITE_URL) {
+  try {
+    metadataBase = new URL(SITE_URL);
+  } catch (err) {
+    console.error(`[layout] NEXT_PUBLIC_SITE_URL is not a valid absolute URL: "${SITE_URL}"`, err);
+  }
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   const { brandName, tagline, shortDescription } = await getSiteSettings();
   const fullTitle = `${brandName} — ${tagline}`;
 
   return {
-    ...(SITE_URL && { metadataBase: new URL(SITE_URL) }),
+    ...(metadataBase && { metadataBase }),
     title: {
       default: fullTitle,
       template: `%s — ${brandName}`,
