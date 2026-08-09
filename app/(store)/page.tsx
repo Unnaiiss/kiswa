@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
 import {
   getActiveBanners,
+  getFeaturedImportedProducts,
   getFeaturedProducts,
   getGiftSection,
+  getImportedSection,
   getOurStorySection,
 } from "@/lib/store/queries";
 import { BannerCarousel } from "@/components/store/banner-carousel";
 import { FeaturedProducts } from "@/components/store/featured-products";
 import { GiftSection } from "@/components/store/gift-section";
 import { OurStory } from "@/components/store/our-story";
+import { ImportedPerfumesSection } from "@/components/store/imported-perfumes-section";
 
 // Revalidate periodically instead of serving a build-time snapshot forever —
 // stock and pricing change with every sale.
@@ -21,11 +24,20 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  const [products, banners, giftSection, ourStorySection] = await Promise.all([
+  const [
+    products,
+    banners,
+    giftSection,
+    ourStorySection,
+    importedProducts,
+    importedSection,
+  ] = await Promise.all([
     getFeaturedProducts(8),
     getActiveBanners(),
     getGiftSection(),
     getOurStorySection(),
+    getFeaturedImportedProducts(8),
+    getImportedSection(),
   ]);
 
   return (
@@ -34,6 +46,7 @@ export default async function HomePage() {
       <FeaturedProducts products={products} />
       <GiftSection content={giftSection} />
       <OurStory content={ourStorySection} />
+      <ImportedPerfumesSection products={importedProducts} content={importedSection} />
     </main>
   );
 }

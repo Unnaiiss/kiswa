@@ -3,6 +3,7 @@ import {
   bannersCollection,
   combosCollection,
   giftSectionDocRef,
+  importedSectionDocRef,
   ourStorySectionDocRef,
   productsCollection,
 } from "@/lib/firestore/admin-collections";
@@ -15,6 +16,7 @@ import type {
   ComboDoc,
   GiftSection,
   ImageBannerDoc,
+  ImportedSection,
   OurStorySection,
   Product,
   ProductDoc,
@@ -46,6 +48,36 @@ export async function getActiveProducts(): Promise<StoreProduct[]> {
 export async function getFeaturedProducts(limit = 8): Promise<StoreProduct[]> {
   const products = await getActiveProducts();
   return products.slice(0, limit);
+}
+
+/** Imported products the admin opted into the homepage "Imported Perfumes"
+ * section, active and currently in stock, newest-first with any
+ * admin-assigned featuredOrder taking priority (ties/unset fall to newest
+ * first). Only equality filters are used (productType/isActive/
+ * featuredOnHome) so this needs no composite index; unitStock and ordering
+ * are both applied in JS to avoid one (a range filter or an orderBy on a
+ * field not in the equality set would require a composite index). */
+export async function getFeaturedImportedProducts(limit = 8): Promise<StoreProduct[]> {
+  const snap = await productsCollection()
+    .where("productType", "==", "imported")
+    .where("isActive", "==", true)
+    .where("featuredOnHome", "==", true)
+    .get();
+
+  const inStock = snap.docs
+    .map((doc) => ({ id: doc.id, data: doc.data() }))
+    .filter(({ data }) => data.productType === "imported" && data.unitStock > 0);
+
+  inStock.sort((a, b) => {
+    const aOrder = a.data.productType === "imported" ? a.data.featuredOrder : null;
+    const bOrder = b.data.productType === "imported" ? b.data.featuredOrder : null;
+    if (aOrder != null && bOrder != null) return aOrder - bOrder;
+    if (aOrder != null) return -1;
+    if (bOrder != null) return 1;
+    return b.data.createdAt.toDate().getTime() - a.data.createdAt.toDate().getTime();
+  });
+
+  return inStock.slice(0, limit).map(({ id, data }) => toStoreProduct(id, data));
 }
 
 export async function getProductBySlug(
@@ -202,6 +234,21 @@ export type StoreOurStorySection = Omit<OurStorySection, "updatedAt">;
 
 export async function getOurStorySection(): Promise<StoreOurStorySection | null> {
   const snap = await ourStorySectionDocRef().get();
+  const data = snap.data();
+  if (!snap.exists || !data) return null;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { updatedAt, ...rest } = data;
+  return { id: snap.id, ...rest };
+}
+
+// Same updatedAt-stripping reason as StoreGiftSection above. The section
+// still needs its own isEnabled check at the call site — this doc existing
+// only controls the heading/subline copy and the on/off switch, not whether
+// there happen to be any featured imported products to show.
+export type StoreImportedSection = Omit<ImportedSection, "updatedAt">;
+
+export async function getImportedSection(): Promise<StoreImportedSection | null> {
+  const snap = await importedSectionDocRef().get();
   const data = snap.data();
   if (!snap.exists || !data) return null;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars

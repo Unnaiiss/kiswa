@@ -61,6 +61,17 @@ export interface ImportedProductDoc extends ProductBaseDoc {
    * recordSale/stockIn/stockAdjust transactions, like oilStockMl. */
   unitStock: number;
   lowStockThresholdUnits: number;
+  /** Admin opt-in to appear in the homepage "Imported Perfumes" section (see
+   * getFeaturedImportedProducts) — most imported products are NOT featured by
+   * default, unlike attar's featured rail which just shows the first N active
+   * products. Imported products created before this field existed have it
+   * missing in Firestore rather than false; every read site (the equality
+   * query, the admin form's initial state) already treats missing the same
+   * as false, so no backfill is needed. */
+  featuredOnHome: boolean;
+  /** Lower sorts first among featured imported products; ties/unset fall back
+   * to newest first. Meaningless when featuredOnHome is false. */
+  featuredOrder: number | null;
 }
 
 /** Shape as stored in Firestore (no doc id). */
@@ -447,6 +458,27 @@ export interface AnnouncementBarDoc {
 }
 
 export interface AnnouncementBar extends AnnouncementBarDoc {
+  id: string;
+}
+
+/**
+ * Admin-editable heading/subline + enable toggle for the homepage "Imported
+ * Perfumes" section — same siteContent pattern as giftSection/ourStory/
+ * announcementBar. The section's product list isn't stored here (it's
+ * queried live via ImportedProductDoc.featuredOnHome/featuredOrder); this
+ * doc only controls the copy and whether the section shows at all. Even
+ * when isEnabled is true, the section still renders nothing if no featured
+ * imported products are currently active/in stock — see
+ * getFeaturedImportedProducts.
+ */
+export interface ImportedSectionDoc {
+  isEnabled: boolean;
+  heading: string;
+  subline: string;
+  updatedAt: TimestampLike;
+}
+
+export interface ImportedSection extends ImportedSectionDoc {
   id: string;
 }
 

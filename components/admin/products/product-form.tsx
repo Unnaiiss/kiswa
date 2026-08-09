@@ -95,6 +95,14 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
   const [lowStockThresholdUnits, setLowStockThresholdUnits] = useState(
     String(product?.productType === "imported" ? product.lowStockThresholdUnits : 2),
   );
+  const [featuredOnHome, setFeaturedOnHome] = useState(
+    (product?.productType === "imported" ? product.featuredOnHome : false) ?? false,
+  );
+  const [featuredOrder, setFeaturedOrder] = useState(
+    product?.productType === "imported" && product.featuredOrder != null
+      ? String(product.featuredOrder)
+      : "",
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -168,6 +176,8 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
                   sizeLabel: sizeLabel.trim(),
                   brand: brand.trim() || null,
                   lowStockThresholdUnits: Number(lowStockThresholdUnits) || 0,
+                  featuredOnHome,
+                  featuredOrder: featuredOrder.trim() === "" ? null : Number(featuredOrder),
                 }
               : {
                   productType: "attar",
@@ -187,6 +197,8 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
             sizeLabel: sizeLabel.trim(),
             brand: brand.trim() || null,
             lowStockThresholdUnits: Number(lowStockThresholdUnits) || 0,
+            featuredOnHome,
+            featuredOrder: featuredOrder.trim() === "" ? null : Number(featuredOrder),
           }),
         });
       } else {
@@ -320,6 +332,28 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
                 onChange={(e) => setBrand(e.target.value)}
                 className={inputClass}
                 placeholder="e.g. Lattafa"
+              />
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
+              <input
+                type="checkbox"
+                checked={featuredOnHome}
+                onChange={(e) => setFeaturedOnHome(e.target.checked)}
+                className="size-4 rounded border-zinc-700 bg-zinc-900"
+              />
+              Feature on home page
+            </label>
+            <div>
+              <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
+                Home page order <span className="text-zinc-600">(optional, lower shows first)</span>
+              </label>
+              <input
+                value={featuredOrder}
+                onChange={(e) => setFeaturedOrder(e.target.value.replace(/[^0-9]/g, ""))}
+                inputMode="numeric"
+                disabled={!featuredOnHome}
+                className={`${inputClass} disabled:opacity-40`}
+                placeholder="e.g. 1"
               />
             </div>
           </div>

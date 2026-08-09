@@ -56,6 +56,8 @@ const updateImportedSchema = z.object({
   sizeLabel: z.string().trim().min(1, "Size label is required"),
   brand: z.string().trim().nullable().default(null),
   lowStockThresholdUnits: z.number().int().nonnegative(),
+  featuredOnHome: z.boolean().default(false),
+  featuredOrder: z.number().int().nonnegative().nullable().default(null),
 });
 
 const updateProductSchema = z.discriminatedUnion("productType", [
@@ -121,6 +123,8 @@ export async function PATCH(
       sizeLabel: input.sizeLabel,
       brand: input.brand,
       lowStockThresholdUnits: input.lowStockThresholdUnits,
+      featuredOnHome: input.featuredOnHome,
+      featuredOrder: input.featuredOrder,
     });
     await Promise.all(removedImageUrls.map((url) => deleteProductImage(url)));
     return NextResponse.json({ ok: true });

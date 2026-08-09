@@ -47,13 +47,24 @@ export function ProductCard({
             </span>
           </div>
           <div className="mt-4 space-y-1">
+            {product.productType === "imported" && product.brand && (
+              <p className="truncate text-xs uppercase tracking-[0.2em] text-kiswa-gold-soft">
+                {product.brand}
+              </p>
+            )}
             <h3 className="font-display text-lg text-kiswa-ink transition-colors group-hover:text-kiswa-gold">
               {product.name}
             </h3>
-            {product.notes.length > 0 && (
+            {product.productType === "imported" ? (
               <p className="truncate text-xs uppercase tracking-wide text-kiswa-ink-muted">
-                {product.notes.slice(0, 3).join(" · ")}
+                {product.sizeLabel}
               </p>
+            ) : (
+              product.notes.length > 0 && (
+                <p className="truncate text-xs uppercase tracking-wide text-kiswa-ink-muted">
+                  {product.notes.slice(0, 3).join(" · ")}
+                </p>
+              )
             )}
             <p className="text-sm text-kiswa-gold">
               {isImported ? formatInr(price) : `From ${formatInr(price)}`}

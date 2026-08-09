@@ -4,6 +4,7 @@ import {
   bannerConverter,
   comboConverter,
   giftSectionConverter,
+  importedSectionConverter,
   invoiceCounterConverter,
   ourStorySectionConverter,
   pendingOrderConverter,
@@ -81,4 +82,10 @@ export function announcementBarDocRef() {
   return siteContentCollection()
     .doc("announcementBar")
     .withConverter(announcementBarConverter);
+}
+
+export function importedSectionDocRef() {
+  return siteContentCollection()
+    .doc("importedSection")
+    .withConverter(importedSectionConverter);
 }

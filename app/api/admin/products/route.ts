@@ -43,6 +43,8 @@ const createImportedSchema = z.object({
   sizeLabel: z.string().trim().min(1, "Size label is required"),
   brand: z.string().trim().nullable().default(null),
   lowStockThresholdUnits: z.number().int().nonnegative().default(2),
+  featuredOnHome: z.boolean().default(false),
+  featuredOrder: z.number().int().nonnegative().nullable().default(null),
 });
 
 const createProductSchema = z.discriminatedUnion("productType", [
@@ -103,6 +105,8 @@ export async function POST(request: Request) {
           brand: input.brand,
           unitStock: 0,
           lowStockThresholdUnits: input.lowStockThresholdUnits,
+          featuredOnHome: input.featuredOnHome,
+          featuredOrder: input.featuredOrder,
           createdAt: FieldValue.serverTimestamp(),
         });
         return;

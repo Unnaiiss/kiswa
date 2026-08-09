@@ -11,6 +11,7 @@ import type {
   BannerDoc,
   ComboDoc,
   GiftSectionDoc,
+  ImportedSectionDoc,
   InvoiceCounter,
   OurStorySectionDoc,
   PendingOrderDoc,
@@ -43,3 +44,4 @@ export const giftSectionConverter = makeConverter<GiftSectionDoc>();
 export const ourStorySectionConverter = makeConverter<OurStorySectionDoc>();
 export const comboConverter = makeConverter<ComboDoc>();
 export const announcementBarConverter = makeConverter<AnnouncementBarDoc>();
+export const importedSectionConverter = makeConverter<ImportedSectionDoc>();
