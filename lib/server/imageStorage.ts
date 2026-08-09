@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { getStorage } from "firebase-admin/storage";
-import { adminApp } from "@/lib/firebase/admin";
+import { getAdminApp } from "@/lib/firebase/admin";
 
 const ALLOWED_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".webp"]);
 
@@ -52,7 +52,7 @@ function bucket() {
   if (!BUCKET_NAME) {
     throw new Error("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET env var is not set");
   }
-  return getStorage(adminApp).bucket(BUCKET_NAME);
+  return getStorage(getAdminApp()).bucket(BUCKET_NAME);
 }
 
 /**
