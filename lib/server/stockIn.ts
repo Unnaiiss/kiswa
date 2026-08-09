@@ -5,6 +5,7 @@ import {
   productsCollection,
   stockMovementsCollection,
 } from "@/lib/firestore/admin-collections";
+import { PublicError } from "@/lib/server/publicError";
 
 export const stockInInputSchema = z.object({
   productId: z.string().min(1),
@@ -28,12 +29,12 @@ export async function stockIn(rawInput: StockInInput): Promise<void> {
     const snap = await tx.get(productRef);
     const product = snap.data();
     if (!snap.exists || !product) {
-      throw new Error(`Product ${input.productId} not found`);
+      throw new PublicError(`Product ${input.productId} not found`);
     }
 
     if (product.productType === "imported") {
       if (!Number.isInteger(input.amount)) {
-        throw new Error(`${product.name} is sold as whole bottles — enter a whole number.`);
+        throw new PublicError(`${product.name} is sold as whole bottles — enter a whole number.`);
       }
 
       // ---- WRITE ----

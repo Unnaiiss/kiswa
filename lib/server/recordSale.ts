@@ -10,6 +10,7 @@ import {
 } from "@/lib/firestore/admin-collections";
 import { formatVariantLabel } from "@/lib/pricing";
 import { IMPORTED_VARIANT_ID, aggregateProductNeeds } from "@/lib/server/productLookup";
+import { PublicError } from "@/lib/server/publicError";
 import type { ComboDoc, ComboSaleComponent, ProductDoc, SaleItem } from "@/lib/firestore/types";
 
 const productSaleItemInputSchema = z.object({
@@ -103,14 +104,14 @@ interface ComboComponentQty {
 
 function assertComboAvailable(combo: ComboDoc) {
   if (!combo.isActive) {
-    throw new Error(`${combo.title} is no longer available`);
+    throw new PublicError(`${combo.title} is no longer available`);
   }
   const now = new Date();
   if (combo.validFrom && combo.validFrom.toDate() > now) {
-    throw new Error(`${combo.title} is not available yet`);
+    throw new PublicError(`${combo.title} is not available yet`);
   }
   if (combo.validUntil && combo.validUntil.toDate() < now) {
-    throw new Error(`${combo.title} has expired`);
+    throw new PublicError(`${combo.title} has expired`);
   }
 }
 
@@ -130,7 +131,7 @@ function comboComponentsPerUnit(
   }
 
   if (combo.chooseCount === null || selections.length !== combo.chooseCount) {
-    throw new Error(
+    throw new PublicError(
       `${combo.title} requires exactly ${combo.chooseCount ?? 0} selections`,
     );
   }
@@ -141,7 +142,7 @@ function comboComponentsPerUnit(
   for (const sel of selections) {
     const key = `${sel.productId}:${sel.variantId}`;
     if (!eligibleKeys.has(key)) {
-      throw new Error(`${combo.title}: an invalid selection was submitted`);
+      throw new PublicError(`${combo.title}: an invalid selection was submitted`);
     }
     const existing = grouped.get(key);
     if (existing) existing.qty += 1;
@@ -177,7 +178,7 @@ export async function recordSale(
       comboSnaps.forEach((snap, idx) => {
         const data = snap.data();
         if (!snap.exists || !data) {
-          throw new Error(`Combo ${comboIds[idx]} not found`);
+          throw new PublicError(`Combo ${comboIds[idx]} not found`);
         }
         comboMap.set(comboIds[idx], data);
       });
@@ -213,7 +214,7 @@ export async function recordSale(
       productSnaps.forEach((snap, idx) => {
         const data = snap.data();
         if (!snap.exists || !data) {
-          throw new Error(`Product ${productIdList[idx]} not found`);
+          throw new PublicError(`Product ${productIdList[idx]} not found`);
         }
         productMap.set(productIdList[idx], data);
       });

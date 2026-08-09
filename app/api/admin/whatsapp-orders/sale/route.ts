@@ -4,6 +4,7 @@ import { combosCollection, productsCollection } from "@/lib/firestore/admin-coll
 import { recordSale } from "@/lib/server/recordSale";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
 import { livePriceForVariant } from "@/lib/server/productLookup";
+import { toErrorResponse } from "@/lib/server/apiError";
 
 /**
  * Records a WhatsApp-confirmed order — same recordSale transaction as the
@@ -190,8 +191,6 @@ export async function POST(request: Request) {
       total: subtotal - discount,
     });
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Could not complete the order.";
-    return NextResponse.json({ error: message }, { status: 409 });
+    return toErrorResponse(err, "admin/whatsapp-orders/sale", "Could not complete the order.");
   }
 }

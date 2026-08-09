@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { stockInInputSchema, stockIn } from "@/lib/server/stockIn";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
+import { toErrorResponse } from "@/lib/server/apiError";
 
 export async function POST(request: Request) {
   try {
@@ -24,8 +25,7 @@ export async function POST(request: Request) {
   try {
     await stockIn(parsed.data);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Could not add stock.";
-    return NextResponse.json({ error: message }, { status: 409 });
+    return toErrorResponse(err, "admin/stock/in", "Could not add stock.");
   }
 
   return NextResponse.json({ ok: true });

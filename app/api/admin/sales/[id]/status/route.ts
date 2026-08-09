@@ -3,6 +3,7 @@ import { z } from "zod";
 import { salesCollection } from "@/lib/firestore/admin-collections";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
 import { restockCancelledSale } from "@/lib/server/restockCancelledSale";
+import { toErrorResponse } from "@/lib/server/apiError";
 
 const bodySchema = z.object({
   orderStatus: z.enum(["paid", "packed", "shipped", "delivered", "cancelled"]),
@@ -52,8 +53,7 @@ export async function PATCH(
     try {
       await restockCancelledSale(id);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not cancel the order.";
-      return NextResponse.json({ error: message }, { status: 409 });
+      return toErrorResponse(err, "admin/sales/status/cancel", "Could not cancel the order.");
     }
     return NextResponse.json({ ok: true });
   }

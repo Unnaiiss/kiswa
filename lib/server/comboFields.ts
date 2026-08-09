@@ -3,6 +3,7 @@ import { productsCollection } from "@/lib/firestore/admin-collections";
 import { computeOriginalPriceInr } from "@/lib/combos";
 import { IMPORTED_VARIANT_ID } from "@/lib/products";
 import { formatVariantLabel } from "@/lib/pricing";
+import { PublicError } from "@/lib/server/publicError";
 import type {
   ComboEligibleVariant,
   ComboFixedItem,
@@ -10,7 +11,7 @@ import type {
   ProductDoc,
 } from "@/lib/firestore/types";
 
-export class ComboValidationError extends Error {}
+export class ComboValidationError extends PublicError {}
 
 const fixedItemSchema = z.object({
   productId: z.string().min(1),

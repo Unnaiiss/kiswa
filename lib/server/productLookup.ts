@@ -1,9 +1,10 @@
 import type { ProductDoc } from "@/lib/firestore/types";
 import { IMPORTED_VARIANT_ID, livePriceForVariant } from "@/lib/products";
+import { PublicError } from "@/lib/server/publicError";
 
 export { IMPORTED_VARIANT_ID, livePriceForVariant };
 
-export class InsufficientStockError extends Error {}
+export class InsufficientStockError extends PublicError {}
 
 export interface ProductNeed {
   productId: string;

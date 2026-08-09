@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { productsCollection, salesCollection, stockMovementsCollection } from "@/lib/firestore/admin-collections";
+import { PublicError } from "@/lib/server/publicError";
 
 /**
  * Reverses the stock recordSale deducted for a sale, run when an order's
@@ -40,13 +41,13 @@ export async function restockCancelledSale(saleId: string): Promise<void> {
     const saleSnap = await tx.get(saleRef);
     const sale = saleSnap.data();
     if (!saleSnap.exists || !sale) {
-      throw new Error(`Sale ${saleId} not found`);
+      throw new PublicError(`Sale ${saleId} not found`);
     }
     // Idempotency guard lives here (not just in the caller) so this
     // function is itself safe to call twice — the whole point of doing the
     // status flip in the SAME transaction as the restock below.
     if (sale.orderStatus === "cancelled") {
-      throw new Error(`Sale ${saleId} is already cancelled`);
+      throw new PublicError(`Sale ${saleId} is already cancelled`);
     }
 
     // One restore draw per ORIGINAL source line (mirroring recordSale's own

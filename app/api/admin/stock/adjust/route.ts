@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { stockAdjustInputSchema, stockAdjust } from "@/lib/server/stockAdjust";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
+import { toErrorResponse } from "@/lib/server/apiError";
 
 export async function POST(request: Request) {
   try {
@@ -24,9 +25,7 @@ export async function POST(request: Request) {
   try {
     await stockAdjust(parsed.data);
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Could not adjust stock.";
-    return NextResponse.json({ error: message }, { status: 409 });
+    return toErrorResponse(err, "admin/stock/adjust", "Could not adjust stock.");
   }
 
   return NextResponse.json({ ok: true });
