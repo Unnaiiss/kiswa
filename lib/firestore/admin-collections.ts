@@ -11,6 +11,7 @@ import {
   productConverter,
   refundFlagConverter,
   saleConverter,
+  siteSettingsConverter,
   stockMovementConverter,
   userConverter,
 } from "./admin-converters";
@@ -88,4 +89,8 @@ export function importedSectionDocRef() {
   return siteContentCollection()
     .doc("importedSection")
     .withConverter(importedSectionConverter);
+}
+
+export function siteSettingsDocRef() {
+  return siteContentCollection().doc("siteSettings").withConverter(siteSettingsConverter);
 }

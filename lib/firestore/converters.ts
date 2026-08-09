@@ -18,6 +18,7 @@ import type {
   ProductDoc,
   RefundFlagDoc,
   SaleDoc,
+  SiteSettingsDoc,
   StockMovementDoc,
 } from "./types";
 
@@ -47,3 +48,4 @@ export const ourStorySectionConverter = makeConverter<OurStorySectionDoc>();
 export const comboConverter = makeConverter<ComboDoc>();
 export const announcementBarConverter = makeConverter<AnnouncementBarDoc>();
 export const importedSectionConverter = makeConverter<ImportedSectionDoc>();
+export const siteSettingsConverter = makeConverter<SiteSettingsDoc>();

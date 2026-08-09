@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { getSiteSettings } from "@/lib/store/queries";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,10 +13,33 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "KISWA — Attar & Perfume",
-  description: "Luxury attars and perfumes.",
-};
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "") || undefined;
+
+export async function generateMetadata(): Promise<Metadata> {
+  const { brandName, tagline, shortDescription } = await getSiteSettings();
+  const fullTitle = `${brandName} — ${tagline}`;
+
+  return {
+    ...(SITE_URL && { metadataBase: new URL(SITE_URL) }),
+    title: {
+      default: fullTitle,
+      template: `%s — ${brandName}`,
+    },
+    description: shortDescription,
+    openGraph: {
+      title: fullTitle,
+      description: shortDescription,
+      siteName: brandName,
+      type: "website",
+      ...(SITE_URL && { url: SITE_URL }),
+    },
+    twitter: {
+      card: "summary",
+      title: fullTitle,
+      description: shortDescription,
+    },
+  };
+}
 
 export default function RootLayout({
   children,

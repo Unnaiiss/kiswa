@@ -4,7 +4,8 @@ import { CartDrawer } from "@/components/store/cart-drawer";
 import { StoreHeader } from "@/components/store/header";
 import { StoreFooter } from "@/components/store/footer";
 import { WhatsAppFloatButton } from "@/components/store/whatsapp-float-button";
-import { getActiveProducts, getAnnouncementBar } from "@/lib/store/queries";
+import { SiteSettingsProvider } from "@/lib/store/site-settings-context";
+import { getActiveProducts, getAnnouncementBar, getSiteSettings } from "@/lib/store/queries";
 
 const playfair = Playfair_Display({
   subsets: ["latin"],
@@ -23,22 +24,45 @@ export default async function StoreLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [products, announcementBar] = await Promise.all([
+  const [products, announcementBar, siteSettings] = await Promise.all([
     getActiveProducts(),
     getAnnouncementBar(),
+    getSiteSettings(),
   ]);
+
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "").replace(/\/$/, "") || undefined;
+  const organizationJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: siteSettings.brandName,
+    ...(siteUrl && { url: siteUrl }),
+    ...(siteSettings.email && { email: siteSettings.email }),
+    ...(siteSettings.instagramUrl && { sameAs: [siteSettings.instagramUrl] }),
+    address: {
+      "@type": "PostalAddress",
+      addressLocality: "Ponoor",
+      addressRegion: "Kerala",
+      addressCountry: "IN",
+    },
+  };
 
   return (
     <div
       className={`${playfair.variable} ${inter.variable} flex flex-1 flex-col bg-kiswa-void font-body text-kiswa-ink`}
     >
-      <CartProvider>
-        <StoreHeader products={products} announcementBar={announcementBar} />
-        <div className="flex flex-1 flex-col">{children}</div>
-        <StoreFooter />
-        <CartDrawer />
-        <WhatsAppFloatButton />
-      </CartProvider>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+      />
+      <SiteSettingsProvider settings={siteSettings}>
+        <CartProvider>
+          <StoreHeader products={products} announcementBar={announcementBar} />
+          <div className="flex flex-1 flex-col">{children}</div>
+          <StoreFooter />
+          <CartDrawer />
+          <WhatsAppFloatButton />
+        </CartProvider>
+      </SiteSettingsProvider>
     </div>
   );
 }

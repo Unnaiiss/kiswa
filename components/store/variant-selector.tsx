@@ -8,6 +8,7 @@ import type { GiftDetails } from "@/lib/cart/types";
 import type { StoreProduct } from "@/lib/store/queries";
 import { formatInr, formatVariantLabel, maxAdditionalUnits } from "@/lib/pricing";
 import { buildProductOrderMessage, buildWhatsAppUrl, useSiteUrl } from "@/lib/whatsapp";
+import { useSiteSettings } from "@/lib/store/site-settings-context";
 import { useCart } from "./cart-provider";
 import { GiftDialog } from "./gift-dialog";
 import { WhatsAppIcon } from "./whatsapp-icon";
@@ -109,6 +110,7 @@ export function VariantSelector({
   }
 
   const siteUrl = useSiteUrl();
+  const { whatsappNumber } = useSiteSettings();
 
   if (!selectedVariant) return null;
 
@@ -122,6 +124,7 @@ export function VariantSelector({
       unitPrice: selectedVariant.priceInr,
       productUrl: `${siteUrl}/product/${product.slug}`,
     }),
+    whatsappNumber,
   );
 
   function cartItemBase() {

@@ -7,7 +7,7 @@ import { Reveal } from "@/components/store/reveal";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Shop — KISWA",
+  title: "Shop",
   description:
     "Browse the full KISWA collection of attar oils and perfume sprays.",
 };

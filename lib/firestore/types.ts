@@ -462,6 +462,39 @@ export interface AnnouncementBar extends AnnouncementBarDoc {
 }
 
 /**
+ * The single source of truth for brand identity and every social/contact
+ * link on the site — one fixed siteContent doc, publicly readable, writes
+ * only via /api/admin/site-content/site-settings (admin-only). brandName/
+ * tagline/shortDescription/whatsappNumber are always populated (used for
+ * page metadata and the WhatsApp ordering flows, which need a real number to
+ * function); every other field is nullable and an empty/null value means
+ * "not set" — every read site must render nothing at all for an unset field
+ * (no icon, no blank line, no href="#"), never a placeholder.
+ */
+export interface SiteSettingsDoc {
+  brandName: string;
+  tagline: string;
+  shortDescription: string;
+  /** E.164 digits without "+", e.g. "919995778963" — same format as
+   * NEXT_PUBLIC_WHATSAPP_NUMBER, which only seeds this field's initial value;
+   * from here on this Firestore field is the live source of truth. */
+  whatsappNumber: string;
+  instagramUrl: string | null;
+  facebookUrl: string | null;
+  youtubeUrl: string | null;
+  email: string | null;
+  phone: string | null;
+  addressLine: string | null;
+  /** Makes addressLine a clickable link (e.g. a Google Maps URL) when set. */
+  mapUrl: string | null;
+  updatedAt: TimestampLike;
+}
+
+export interface SiteSettings extends SiteSettingsDoc {
+  id: string;
+}
+
+/**
  * Admin-editable heading/subline + enable toggle for the homepage "Imported
  * Perfumes" section — same siteContent pattern as giftSection/ourStory/
  * announcementBar. The section's product list isn't stored here (it's

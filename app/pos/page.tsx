@@ -4,7 +4,7 @@ import { getSession } from "@/lib/server/getSession";
 import { BillingScreen } from "@/components/pos/billing-screen";
 
 export const metadata: Metadata = {
-  title: "POS — KISWA",
+  title: "POS",
 };
 
 export default async function PosPage() {

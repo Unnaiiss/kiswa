@@ -4,7 +4,7 @@ import { getSession } from "@/lib/server/getSession";
 import { LoginForm } from "@/components/auth/login-form";
 
 export const metadata: Metadata = {
-  title: "Sign in — KISWA",
+  title: "Sign in",
 };
 
 interface LoginPageProps {

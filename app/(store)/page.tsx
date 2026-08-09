@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import {
   getActiveBanners,
   getFeaturedImportedProducts,
@@ -17,11 +16,10 @@ import { ImportedPerfumesSection } from "@/components/store/imported-perfumes-se
 // stock and pricing change with every sale.
 export const revalidate = 60;
 
-export const metadata: Metadata = {
-  title: "KISWA — Pure Attar Oils & Perfume Sprays",
-  description:
-    "KISWA crafts concentrated attar oils and the fine perfume sprays distilled from them. Explore the collection.",
-};
+// No page-level metadata here — the root layout's generateMetadata already
+// builds the site's default title/description from siteSettings
+// (brandName/tagline/shortDescription), and that default is exactly what
+// the homepage should show.
 
 export default async function HomePage() {
   const [

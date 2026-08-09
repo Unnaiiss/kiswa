@@ -8,6 +8,7 @@ import type { StoreProduct } from "@/lib/store/queries";
 import { formatInr } from "@/lib/pricing";
 import { IMPORTED_VARIANT_ID } from "@/lib/products";
 import { buildProductOrderMessage, buildWhatsAppUrl, useSiteUrl } from "@/lib/whatsapp";
+import { useSiteSettings } from "@/lib/store/site-settings-context";
 import { useCart } from "./cart-provider";
 import { GiftDialog } from "./gift-dialog";
 import { WhatsAppIcon } from "./whatsapp-icon";
@@ -48,6 +49,7 @@ export function ImportedBuyBox({
   }, [maxQty]);
 
   const siteUrl = useSiteUrl();
+  const { whatsappNumber } = useSiteSettings();
 
   const whatsappUrl = buildWhatsAppUrl(
     buildProductOrderMessage({
@@ -57,6 +59,7 @@ export function ImportedBuyBox({
       unitPrice: product.priceInr,
       productUrl: `${siteUrl}/product/${product.slug}`,
     }),
+    whatsappNumber,
   );
 
   function cartItemBase() {

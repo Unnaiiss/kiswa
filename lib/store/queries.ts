@@ -6,9 +6,16 @@ import {
   importedSectionDocRef,
   ourStorySectionDocRef,
   productsCollection,
+  siteSettingsDocRef,
 } from "@/lib/firestore/admin-collections";
 import { explainComboUnfulfillable, isComboCurrentlyValid } from "@/lib/combos";
 import { isAnnouncementBarRenderable } from "@/lib/store/announcement";
+import {
+  DEFAULT_BRAND_NAME,
+  DEFAULT_SHORT_DESCRIPTION,
+  DEFAULT_TAGLINE,
+  DEFAULT_WHATSAPP_NUMBER,
+} from "@/lib/store/site-settings-defaults";
 import type {
   AnnouncementBar,
   Combo,
@@ -20,6 +27,7 @@ import type {
   OurStorySection,
   Product,
   ProductDoc,
+  SiteSettingsDoc,
 } from "@/lib/firestore/types";
 
 // Plain Omit<Union, K> collapses a discriminated union down to only its
@@ -254,6 +262,37 @@ export async function getImportedSection(): Promise<StoreImportedSection | null>
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { updatedAt, ...rest } = data;
   return { id: snap.id, ...rest };
+}
+
+// Brand identity + every social/contact link on the site — unlike the other
+// siteContent sections, this is never null: brandName/tagline/
+// shortDescription/whatsappNumber always resolve to something usable (real
+// data once seeded, hardcoded defaults before that) since page metadata and
+// the WhatsApp ordering flows need them to function. Every other field is
+// normalized to null when unset (including an empty string an admin may
+// have saved) so every read site can do a single `if (settings.x)` check.
+export type StoreSiteSettings = Omit<SiteSettingsDoc, "updatedAt">;
+
+function emptyToNull(value: string | null | undefined): string | null {
+  return value && value.trim() !== "" ? value : null;
+}
+
+export async function getSiteSettings(): Promise<StoreSiteSettings> {
+  const snap = await siteSettingsDocRef().get();
+  const data = snap.data();
+  return {
+    brandName: data?.brandName || DEFAULT_BRAND_NAME,
+    tagline: data?.tagline || DEFAULT_TAGLINE,
+    shortDescription: data?.shortDescription || DEFAULT_SHORT_DESCRIPTION,
+    whatsappNumber: data?.whatsappNumber || DEFAULT_WHATSAPP_NUMBER,
+    instagramUrl: emptyToNull(data?.instagramUrl),
+    facebookUrl: emptyToNull(data?.facebookUrl),
+    youtubeUrl: emptyToNull(data?.youtubeUrl),
+    email: emptyToNull(data?.email),
+    phone: emptyToNull(data?.phone),
+    addressLine: emptyToNull(data?.addressLine),
+    mapUrl: emptyToNull(data?.mapUrl),
+  };
 }
 
 // createdAt/updatedAt stripped for the same RSC-boundary reason as above;

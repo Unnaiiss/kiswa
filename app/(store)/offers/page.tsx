@@ -8,7 +8,7 @@ import { Reveal, StaggerGrid, StaggerItem } from "@/components/store/reveal";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Combo Offers — KISWA",
+  title: "Combo Offers",
   description: "Bundle deals on KISWA attar oils and perfume sprays.",
 };
 

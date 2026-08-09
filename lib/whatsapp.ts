@@ -28,8 +28,12 @@ export function useSiteUrl(): string {
   return url;
 }
 
-export function buildWhatsAppUrl(message: string): string {
-  return `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+/** `number` defaults to the env-configured number but should be passed
+ * explicitly wherever the live siteSettings.whatsappNumber is available
+ * (via useSiteSettings) — that Firestore field, not this env var, is the
+ * source of truth once the store is running; the env var only seeds it. */
+export function buildWhatsAppUrl(message: string, number: string = WHATSAPP_NUMBER): string {
+  return `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
 }
 
 export function buildProductOrderMessage(params: {

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CheckoutForm } from "@/components/store/checkout-form";
 
 export const metadata: Metadata = {
-  title: "Checkout — KISWA",
+  title: "Checkout",
 };
 
 export default function CheckoutPage() {

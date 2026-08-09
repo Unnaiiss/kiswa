@@ -1,17 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { MessageCircle } from "lucide-react";
 import {
   Sheet,
   SheetContent,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { InstagramIcon } from "./instagram-icon";
-import { WHATSAPP_URL, INSTAGRAM_URL, CONTACT_URL } from "@/lib/store/contact-links";
+import { useSiteSettings } from "@/lib/store/site-settings-context";
+import { SocialIconsRow } from "./contact-block";
 
-const MENU_LINKS = [
+const BASE_MENU_LINKS = [
   { href: "/", label: "Home" },
   { href: "/shop", label: "Shop" },
   { href: "/shop?type=oil", label: "Perfume Oils" },
@@ -20,7 +19,6 @@ const MENU_LINKS = [
   { href: "/offers", label: "Combo Offers" },
   { href: "/gift", label: "Gift a Perfume" },
   { href: "/#our-story", label: "Our Story" },
-  { href: CONTACT_URL, label: "Contact" },
 ];
 
 export function MenuDrawer({
@@ -30,6 +28,12 @@ export function MenuDrawer({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const settings = useSiteSettings();
+  const menuLinks = [
+    ...BASE_MENU_LINKS,
+    ...(settings.email ? [{ href: `mailto:${settings.email}`, label: "Contact" }] : []),
+  ];
+
   function close() {
     onOpenChange(false);
   }
@@ -42,12 +46,12 @@ export function MenuDrawer({
       >
         <SheetHeader className="border-b border-kiswa-border/80 px-6 py-5">
           <SheetTitle className="font-display text-lg tracking-[0.3em] text-kiswa-ink">
-            KISWA
+            {settings.brandName}
           </SheetTitle>
         </SheetHeader>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-4 py-6">
-          {MENU_LINKS.map((link) => (
+          {menuLinks.map((link) => (
             <Link
               key={link.label}
               href={link.href}
@@ -59,25 +63,8 @@ export function MenuDrawer({
           ))}
         </nav>
 
-        <div className="flex items-center gap-3 border-t border-kiswa-border px-6 py-5">
-          <a
-            href={WHATSAPP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Chat with us on WhatsApp"
-            className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-kiswa-border text-kiswa-ink-muted transition-colors hover:border-kiswa-gold/50 hover:text-kiswa-gold"
-          >
-            <MessageCircle size={18} />
-          </a>
-          <a
-            href={INSTAGRAM_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Follow us on Instagram"
-            className="flex h-11 w-11 cursor-pointer items-center justify-center rounded-full border border-kiswa-border text-kiswa-ink-muted transition-colors hover:border-kiswa-gold/50 hover:text-kiswa-gold"
-          >
-            <InstagramIcon />
-          </a>
+        <div className="border-t border-kiswa-border px-6 py-5">
+          <SocialIconsRow settings={settings} size="size-11" />
         </div>
       </SheetContent>
     </Sheet>

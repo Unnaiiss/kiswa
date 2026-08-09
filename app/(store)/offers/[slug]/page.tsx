@@ -17,7 +17,7 @@ export async function generateMetadata({ params }: ComboPageProps): Promise<Meta
   const combo = await getComboBySlug(slug);
   if (!combo) return {};
   return {
-    title: `${combo.title} — KISWA`,
+    title: combo.title,
     description: combo.description || "A KISWA combo offer.",
   };
 }

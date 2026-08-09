@@ -9,6 +9,7 @@ import { GiftDialog } from "./gift-dialog";
 import { WhatsAppIcon } from "./whatsapp-icon";
 import { formatInr } from "@/lib/pricing";
 import { buildCartOrderMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
+import { useSiteSettings } from "@/lib/store/site-settings-context";
 import type { CartItem } from "@/lib/cart/types";
 
 export function CartDrawer() {
@@ -23,6 +24,7 @@ export function CartDrawer() {
     clearGiftStatus,
   } = useCart();
   const [editingLine, setEditingLine] = useState<CartItem | null>(null);
+  const { whatsappNumber } = useSiteSettings();
 
   return (
     <AnimatePresence>
@@ -192,7 +194,7 @@ export function CartDrawer() {
                     Checkout
                   </Link>
                   <a
-                    href={buildWhatsAppUrl(buildCartOrderMessage(items, subtotal))}
+                    href={buildWhatsAppUrl(buildCartOrderMessage(items, subtotal), whatsappNumber)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5 text-xs text-kiswa-ink-muted underline underline-offset-2 hover:text-[#25D366]"

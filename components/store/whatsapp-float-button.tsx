@@ -1,6 +1,7 @@
 "use client";
 
 import { buildGenericInquiryMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
+import { useSiteSettings } from "@/lib/store/site-settings-context";
 import { WhatsAppIcon } from "./whatsapp-icon";
 
 /** Fixed bottom-right chat entry point, shown on every storefront page (not
@@ -8,9 +9,10 @@ import { WhatsAppIcon } from "./whatsapp-icon";
  * component tree). Purely a WhatsApp enquiry handoff; doesn't touch cart,
  * stock, or sales. */
 export function WhatsAppFloatButton() {
+  const { whatsappNumber } = useSiteSettings();
   return (
     <a
-      href={buildWhatsAppUrl(buildGenericInquiryMessage())}
+      href={buildWhatsAppUrl(buildGenericInquiryMessage(), whatsappNumber)}
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Chat with KISWA on WhatsApp"

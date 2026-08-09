@@ -13,6 +13,7 @@
     "migrate:product-type": "tsx --env-file=.env.local scripts/migrate-add-product-type.ts",
     "backfill:sale-oil-used": "tsx --env-file=.env.local scripts/backfill-sale-oil-used.ts",
     "seed:announcement-bar": "tsx --env-file=.env.local scripts/seed-announcement-bar.ts",
+    "seed:site-settings": "tsx --env-file=.env.local scripts/seed-site-settings.ts",
     "set-role": "tsx --env-file=.env.local scripts/set-role.ts",
     "test:oversell": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-oversell.ts\"",
     "test:checkout": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-checkout-stock-conflict.ts\"",

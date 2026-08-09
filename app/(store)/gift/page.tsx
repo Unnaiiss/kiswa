@@ -6,7 +6,7 @@ import { Reveal } from "@/components/store/reveal";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Gift a Perfume — KISWA",
+  title: "Gift a Perfume",
   description:
     "Choose a KISWA attar oil or perfume spray to gift, add a personal message, and we'll wrap it beautifully.",
 };
