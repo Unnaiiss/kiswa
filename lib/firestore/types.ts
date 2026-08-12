@@ -256,6 +256,26 @@ export interface AppUser extends AppUserDoc {
   uid: string;
 }
 
+/** A storefront customer account — entirely separate from AppUserDoc
+ * (admin/staff). Customers get NO custom claim on their Firebase Auth user,
+ * so every admin/staff role check (allowlist-based: `role === 'admin' |
+ * 'staff'`) already rejects them with zero special-casing. Created
+ * automatically on first signup/login by /api/account/session and
+ * /api/account/signup (firebase-admin, server-side only — see
+ * lib/server/customerSessionCookie.ts). */
+export interface CustomerDoc {
+  name: string | null;
+  email: string;
+  phone: string | null;
+  createdAt: TimestampLike;
+  lastLoginAt: TimestampLike;
+  marketingOptIn: boolean;
+}
+
+export interface Customer extends CustomerDoc {
+  uid: string;
+}
+
 export interface InvoiceCounter {
   year: number;
   seq: number;

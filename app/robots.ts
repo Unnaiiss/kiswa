@@ -12,7 +12,7 @@ export default function robots(): MetadataRoute.Robots {
         // /pos and /admin are session-gated server-side regardless (see
         // app/pos/page.tsx, app/admin/layout.tsx) — disallowing them here
         // is just about keeping them out of search results, not security.
-        disallow: ["/pos", "/admin", "/checkout", "/login"],
+        disallow: ["/pos", "/admin", "/checkout", "/login", "/account"],
       },
     ],
     sitemap: `${SITE_URL}/sitemap.xml`,

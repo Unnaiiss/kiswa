@@ -44,6 +44,20 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Storefront customer accounts — entirely separate from users/{uid}
+    // (admin/staff) above. A customer may read only their OWN doc; writes
+    // still only ever happen server-side via firebase-admin (signup/login/
+    // profile-update routes), same as every other collection here. A
+    // customer's Firebase Auth token carries no role claim at all (see
+    // lib/firestore/types.ts's CustomerDoc), so this rule is intentionally
+    // NOT gated by hasRole/isStaffOrAdmin — any signed-in user (customer or
+    // staff/admin) may read their own customer doc if one exists, which is
+    // harmless since it's just their own account info.
+    match /customers/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if false;
+    }
+
     match /counters/{counterId} {
       allow read, write: if false;
     }

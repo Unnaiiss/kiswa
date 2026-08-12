@@ -7,6 +7,7 @@ import { useCart } from "./cart-provider";
 import { NavSearch } from "./nav-search";
 import { MenuDrawer } from "./menu-drawer";
 import { AnnouncementBar } from "./announcement-bar";
+import { AccountMenu } from "./account-menu";
 import type { StoreAnnouncementBar, StoreProduct } from "@/lib/store/queries";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +70,8 @@ export function StoreHeader({
             >
               <Search size={20} strokeWidth={1.5} />
             </button>
+
+            <AccountMenu />
 
             <button
               type="button"

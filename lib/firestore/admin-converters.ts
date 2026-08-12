@@ -10,6 +10,7 @@ import type {
   AppUserDoc,
   BannerDoc,
   ComboDoc,
+  CustomerDoc,
   GiftSectionDoc,
   ImportedSectionDoc,
   InvoiceCounter,
@@ -37,6 +38,7 @@ export const productConverter = makeConverter<ProductDoc>();
 export const stockMovementConverter = makeConverter<StockMovementDoc>();
 export const saleConverter = makeConverter<SaleDoc>();
 export const userConverter = makeConverter<AppUserDoc>();
+export const customerConverter = makeConverter<CustomerDoc>();
 export const invoiceCounterConverter = makeConverter<InvoiceCounter>();
 export const pendingOrderConverter = makeConverter<PendingOrderDoc>();
 export const refundFlagConverter = makeConverter<RefundFlagDoc>();

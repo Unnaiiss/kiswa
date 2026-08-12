@@ -3,6 +3,7 @@ import {
   announcementBarConverter,
   bannerConverter,
   comboConverter,
+  customerConverter,
   giftSectionConverter,
   importedSectionConverter,
   invoiceCounterConverter,
@@ -32,6 +33,13 @@ export function salesCollection() {
 
 export function usersCollection() {
   return adminDb.collection("users").withConverter(userConverter);
+}
+
+// Storefront customer accounts — entirely separate from usersCollection()
+// (admin/staff). See CustomerDoc's own comment for why this needs no role
+// claim at all.
+export function customersCollection() {
+  return adminDb.collection("customers").withConverter(customerConverter);
 }
 
 export function invoiceCounterDoc() {
