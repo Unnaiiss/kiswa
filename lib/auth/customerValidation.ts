@@ -51,6 +51,54 @@ export const profileUpdateBodySchema = z.object({
   marketingOptIn: z.boolean().optional(),
 });
 
+// Same 10-digit Indian mobile / 6-digit PIN shape as
+// components/store/checkout-form.tsx's PHONE_RE/PINCODE_RE — a delivery
+// address needs a deliverable Indian number/PIN, unlike the account
+// profile's own phone field above (kept loose/international there).
+const ADDRESS_PHONE_RE = /^[6-9][0-9]{9}$/;
+const PINCODE_RE = /^[1-9][0-9]{5}$/;
+
+export const addressBodySchema = z.object({
+  label: z.string().trim().min(1, "Label is required").max(40),
+  fullName: nameSchema,
+  phone: z.string().trim().regex(ADDRESS_PHONE_RE, "Enter a valid 10-digit Indian mobile number"),
+  line1: z.string().trim().min(1, "Address line 1 is required").max(200),
+  line2: z.string().trim().max(200).nullable().optional(),
+  city: z.string().trim().min(1, "City is required").max(100),
+  district: z.string().trim().min(1, "District is required").max(100),
+  state: z.string().trim().min(1, "State is required").max(100),
+  pincode: z.string().trim().regex(PINCODE_RE, "Enter a valid 6-digit PIN code"),
+  landmark: z.string().trim().max(200).nullable().optional(),
+  isDefault: z.boolean().default(false),
+});
+
+export const addressUpdateBodySchema = addressBodySchema.partial();
+
+// Client-side mirror of addressBodySchema's phone/pincode checks, for the
+// same "immediate feedback without importing the server schema" reason as
+// passwordPolicyError above.
+export function addressFieldErrors(form: {
+  label: string;
+  fullName: string;
+  phone: string;
+  line1: string;
+  city: string;
+  district: string;
+  state: string;
+  pincode: string;
+}): Partial<Record<keyof typeof form, string>> {
+  const errors: Partial<Record<keyof typeof form, string>> = {};
+  if (!form.label.trim()) errors.label = "Label is required";
+  if (!form.fullName.trim()) errors.fullName = "Name is required";
+  if (!ADDRESS_PHONE_RE.test(form.phone.trim())) errors.phone = "Enter a valid 10-digit Indian mobile number";
+  if (!form.line1.trim()) errors.line1 = "Address line 1 is required";
+  if (!form.city.trim()) errors.city = "City is required";
+  if (!form.district.trim()) errors.district = "District is required";
+  if (!form.state.trim()) errors.state = "State is required";
+  if (!PINCODE_RE.test(form.pincode.trim())) errors.pincode = "Enter a valid 6-digit PIN code";
+  return errors;
+}
+
 /** Client-side password check mirroring passwordSchema, for inline form
  * validation without importing the whole zod schema into a "use client"
  * bundle path that also touches server-only code. */

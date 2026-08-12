@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PackageSearch } from "lucide-react";
 import { getCustomerSession } from "@/lib/server/getCustomerSession";
 import { getSiteSettings } from "@/lib/store/queries";
+import { AccountNav } from "@/components/account/account-nav";
 
 export const metadata: Metadata = {
   title: "My Orders",
@@ -25,14 +25,7 @@ export default async function AccountOrdersPage() {
       <p className="text-xs uppercase tracking-[0.4em] text-kiswa-gold-soft">Account</p>
       <h1 className="mt-3 font-display text-4xl text-kiswa-ink sm:text-5xl">My Orders</h1>
 
-      <div className="mt-4 flex gap-4 text-sm">
-        <Link href="/account" className="text-kiswa-ink-muted hover:text-kiswa-ink">
-          Profile
-        </Link>
-        <Link href="/account/orders" className="text-kiswa-gold">
-          My Orders
-        </Link>
-      </div>
+      <AccountNav active="orders" />
 
       <div className="mt-8 flex flex-col items-center gap-4 rounded-lg border border-kiswa-border bg-kiswa-surface px-6 py-16 text-center">
         <PackageSearch className="text-kiswa-ink-muted" size={40} />

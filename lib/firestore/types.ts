@@ -276,6 +276,30 @@ export interface Customer extends CustomerDoc {
   uid: string;
 }
 
+/** customers/{uid}/addresses/{id} — a saved delivery address. Only one
+ * address per customer may have isDefault true at once; the transactional
+ * invariant is enforced in lib/server/customerAddresses.ts, never at the
+ * client. */
+export interface AddressDoc {
+  label: string;
+  fullName: string;
+  phone: string;
+  line1: string;
+  line2: string | null;
+  city: string;
+  district: string;
+  state: string;
+  pincode: string;
+  landmark: string | null;
+  isDefault: boolean;
+  createdAt: TimestampLike;
+  updatedAt: TimestampLike;
+}
+
+export interface Address extends AddressDoc {
+  id: string;
+}
+
 export interface InvoiceCounter {
   year: number;
   seq: number;

@@ -1,5 +1,6 @@
 import { adminDb } from "@/lib/firebase/admin";
 import {
+  addressConverter,
   announcementBarConverter,
   bannerConverter,
   comboConverter,
@@ -40,6 +41,14 @@ export function usersCollection() {
 // claim at all.
 export function customersCollection() {
   return adminDb.collection("customers").withConverter(customerConverter);
+}
+
+// customers/{uid}/addresses/{id} — always scoped through the caller-supplied
+// uid, which every route in this app derives from the verified
+// __customer_session cookie (getCustomerSession), never from client input —
+// see app/api/account/addresses/**.
+export function customerAddressesCollection(uid: string) {
+  return customersCollection().doc(uid).collection("addresses").withConverter(addressConverter);
 }
 
 export function invoiceCounterDoc() {

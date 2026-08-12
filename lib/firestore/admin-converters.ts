@@ -6,6 +6,7 @@ import type {
   WithFieldValue,
 } from "firebase-admin/firestore";
 import type {
+  AddressDoc,
   AnnouncementBarDoc,
   AppUserDoc,
   BannerDoc,
@@ -39,6 +40,7 @@ export const stockMovementConverter = makeConverter<StockMovementDoc>();
 export const saleConverter = makeConverter<SaleDoc>();
 export const userConverter = makeConverter<AppUserDoc>();
 export const customerConverter = makeConverter<CustomerDoc>();
+export const addressConverter = makeConverter<AddressDoc>();
 export const invoiceCounterConverter = makeConverter<InvoiceCounter>();
 export const pendingOrderConverter = makeConverter<PendingOrderDoc>();
 export const refundFlagConverter = makeConverter<RefundFlagDoc>();
