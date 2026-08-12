@@ -5,40 +5,22 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { LogOut, Package, User, UserCircle } from "lucide-react";
-import { CUSTOMER_AUTH_CHANGED_EVENT, customerLogout } from "@/lib/auth/customerSession";
+import { customerLogout } from "@/lib/auth/customerSession";
+import { useCustomerSession } from "@/lib/auth/useCustomerSession";
 
-type CustomerInfo = { name: string | null; email: string | null };
-
-// Fetched client-side rather than passed down from the (store) layout —
-// reading the session cookie there would force cookies(), a Next.js
-// "dynamic API", onto every page under it, opting the whole storefront
-// (including currently-static/ISR pages like / and /offers) out of static
-// generation. This one small route keeps that cost isolated to just the
-// account icon, at the cost of it resolving a moment after first paint.
+// customer session is fetched client-side (useCustomerSession) rather than
+// passed down from the (store) layout — reading the session cookie there
+// would force cookies(), a Next.js "dynamic API", onto every page under it,
+// opting the whole storefront (including currently-static/ISR pages like /
+// and /offers) out of static generation. This one small route keeps that
+// cost isolated to just the account icon, at the cost of it resolving a
+// moment after first paint.
 export function AccountMenu() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [customer, setCustomer] = useState<CustomerInfo | null>(null);
+  const { customer } = useCustomerSession();
   const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    function refetch() {
-      fetch("/api/account/me")
-        .then((res) => (res.ok ? res.json() : { customer: null }))
-        .then((data) => {
-          if (!cancelled) setCustomer(data.customer ?? null);
-        })
-        .catch(() => {});
-    }
-    refetch();
-    window.addEventListener(CUSTOMER_AUTH_CHANGED_EVENT, refetch);
-    return () => {
-      cancelled = true;
-      window.removeEventListener(CUSTOMER_AUTH_CHANGED_EVENT, refetch);
-    };
-  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -75,8 +57,7 @@ export function AccountMenu() {
 
   async function handleLogout() {
     setOpen(false);
-    await customerLogout();
-    setCustomer(null);
+    await customerLogout(); // dispatches CUSTOMER_AUTH_CHANGED_EVENT — useCustomerSession picks it up
     router.push("/");
     router.refresh();
   }

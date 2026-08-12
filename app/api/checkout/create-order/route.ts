@@ -6,6 +6,7 @@ import {
   productsCollection,
   pendingOrdersCollection,
 } from "@/lib/firestore/admin-collections";
+import { getCustomerSession } from "@/lib/server/getCustomerSession";
 import type { ComboDoc, ProductDoc } from "@/lib/firestore/types";
 import { createRazorpayOrder, razorpayPublicKeyId } from "@/lib/server/razorpay";
 import {
@@ -113,6 +114,11 @@ export async function POST(request: Request) {
     windowMs: 10 * 60 * 1000,
   });
   if (limited) return limited;
+
+  // Guest checkout stays guest — this just links the resulting order back to
+  // the account when the customer happens to be signed in while checking
+  // out, same as any other order-linking in this pass. Never required.
+  const session = await getCustomerSession();
 
   const json = await request.json().catch(() => null);
   const parsed = requestSchema.safeParse(json);
@@ -292,6 +298,11 @@ export async function POST(request: Request) {
     createdAt: FieldValue.serverTimestamp(),
     giftShippingAddress: input.giftShippingAddress,
     hidePrices: input.hidePrices,
+    customerUid: session?.uid ?? null,
+    deliveryAddress: null,
+    source: "razorpay",
+    referenceCode: null,
+    expiresAt: null,
   });
 
   return NextResponse.json({

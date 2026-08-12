@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Download, Home } from "lucide-react";
 import type { SaleDoc } from "@/lib/firestore/types";
-import { formatInr, formatVariantLabel } from "@/lib/pricing";
+import { formatInr } from "@/lib/pricing";
+import { itemVariantLabel } from "@/lib/admin/salesAggregation";
 
 interface OrderInvoiceProps {
   // createdAt is a Firestore Timestamp instance on SaleDoc — not a plain
@@ -56,23 +57,36 @@ export function OrderInvoice({ sale, createdAt }: OrderInvoiceProps) {
               {sale.shippingAddress.pincode}
             </p>
           )}
+          {!sale.shippingAddress && sale.deliveryAddress && (
+            <p className="mt-1 text-kiswa-ink-muted">
+              {sale.deliveryAddress.line1}
+              {sale.deliveryAddress.line2 ? `, ${sale.deliveryAddress.line2}` : ""},{" "}
+              {sale.deliveryAddress.city}, {sale.deliveryAddress.district},{" "}
+              {sale.deliveryAddress.state} — {sale.deliveryAddress.pincode}
+            </p>
+          )}
         </div>
 
         <ul className="mt-5 flex flex-col gap-3 border-t border-kiswa-border pt-4">
-          {sale.items.map((item) => (
+          {sale.items.map((item, idx) => (
             <li
-              key={item.variantId}
+              key={`${item.productId}-${item.variantId}-${idx}`}
               className="flex justify-between gap-4 text-sm"
             >
               <div>
                 <p className="text-kiswa-ink">{item.productName}</p>
-                <p className="text-kiswa-ink-muted">
-                  {formatVariantLabel(
-                    item.variantId.startsWith("oil") ? "oil" : "spray",
-                    item.sizeMl,
-                  )}{" "}
-                  × {item.qty}
-                </p>
+                {item.comboComponents && item.comboComponents.length > 0 ? (
+                  <p className="text-kiswa-ink-muted">
+                    {item.comboComponents
+                      .map((c) => `${c.variantLabel}${c.qty > 1 ? ` ×${c.qty}` : ""}`)
+                      .join(", ")}{" "}
+                    × {item.qty}
+                  </p>
+                ) : (
+                  <p className="text-kiswa-ink-muted">
+                    {itemVariantLabel(item)} × {item.qty}
+                  </p>
+                )}
               </div>
               <p className="shrink-0 text-kiswa-ink">
                 {formatInr(item.lineTotal)}

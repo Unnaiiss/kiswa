@@ -81,6 +81,8 @@ export async function finalizeOnlineOrder(
       createdByUid: "online-checkout",
       giftShippingAddress: pending.giftShippingAddress ?? null,
       hidePrices: pending.hidePrices ?? false,
+      customerUid: pending.customerUid ?? null,
+      deliveryAddress: pending.deliveryAddress ?? null,
     });
 
     await pendingRef.update({ status: "completed", saleId, invoiceNo });
@@ -99,7 +101,12 @@ export async function finalizeOnlineOrder(
       customerPhone: pending.customerPhone,
       items: pending.items,
       amountPaise: pending.amountPaise,
-      shippingAddress: pending.shippingAddress,
+      // Non-null: finalizeOnlineOrder is only ever invoked for a Razorpay-
+      // sourced pendingOrder (see its own doc comment above), which always
+      // has shippingAddress set — only WhatsApp-sourced drafts (a separate,
+      // non-payment flow that never reaches this catch block at all) can
+      // have it null, which is why the type is nullable at all now.
+      shippingAddress: pending.shippingAddress!,
       reason,
       status: "pending",
       createdAt: FieldValue.serverTimestamp(),

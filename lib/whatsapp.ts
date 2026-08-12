@@ -70,8 +70,18 @@ export const WHATSAPP_REASSURANCE_LINE =
  * an indented row per component (not just the combo's own title) and gift
  * lines add the recipient/message/wrap choice — this is the message staff
  * use to manually record the order in the WhatsApp Orders screen.
+ *
+ * `referenceCode`, when given, is a signed-in customer's pendingOrders
+ * draft code (see app/api/account/whatsapp-order/route.ts) — included so
+ * admin can find and one-click-convert the exact same draft in Admin >
+ * WhatsApp Orders instead of re-keying the order from scratch. Absent for
+ * guests, who have no draft at all.
  */
-export function buildCartOrderMessage(items: CartItem[], subtotal: number): string {
+export function buildCartOrderMessage(
+  items: CartItem[],
+  subtotal: number,
+  referenceCode?: string,
+): string {
   const shown = items.slice(0, CART_MESSAGE_MAX_LINES);
   const remaining = items.length - shown.length;
 
@@ -108,6 +118,7 @@ export function buildCartOrderMessage(items: CartItem[], subtotal: number): stri
     "",
     `Order total: ${formatInr(subtotal)}`,
     "",
+    ...(referenceCode ? [`Reference: ${referenceCode}`, ""] : []),
     "Please confirm availability.",
   ].join("\n");
 }

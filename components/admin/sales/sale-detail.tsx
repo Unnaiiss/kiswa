@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Gift, Package, Printer } from "lucide-react";
+import { Gift, Package, Printer, User } from "lucide-react";
 import { Modal } from "@/components/admin/modal";
 import { adminFetch } from "@/lib/admin/apiClient";
 import { itemVariantLabel, saleHasCombo, saleHasGift } from "@/lib/admin/salesAggregation";
+import { useCustomerDoc } from "@/lib/admin/useCustomerDoc";
 import { formatInr } from "@/lib/pricing";
 import type { OrderStatus, Sale } from "@/lib/firestore/types";
 
@@ -23,6 +24,7 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const { customer: linkedCustomer } = useCustomerDoc(sale.customerUid);
 
   const giftItems = sale.items.filter((item) => item.isGift);
   const comboItems = sale.items.filter((item) => item.comboId);
@@ -69,6 +71,43 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
             </p>
           </div>
         </div>
+
+        {sale.customerUid && (
+          <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3 text-sm">
+            <p className="text-xs text-zinc-500 uppercase">Linked account</p>
+            {linkedCustomer ? (
+              <>
+                <p className="mt-1 text-zinc-50">{linkedCustomer.name || "—"}</p>
+                <p className="text-zinc-400">{linkedCustomer.email}</p>
+                {linkedCustomer.phone && <p className="text-zinc-400">{linkedCustomer.phone}</p>}
+              </>
+            ) : (
+              <p className="mt-1 text-zinc-500">Loading…</p>
+            )}
+            <Link
+              href={`/admin/customers/${sale.customerUid}`}
+              className="mt-2 inline-flex items-center gap-1.5 text-xs text-amber-400 underline underline-offset-2 hover:text-amber-300"
+            >
+              <User size={12} />
+              View customer profile
+            </Link>
+          </div>
+        )}
+
+        {sale.deliveryAddress && (
+          <div className="text-sm">
+            <p className="text-xs text-zinc-500 uppercase">Delivery address</p>
+            <p className="text-zinc-300">
+              {sale.deliveryAddress.label} — {sale.deliveryAddress.fullName} · {sale.deliveryAddress.phone}
+            </p>
+            <p className="text-zinc-300">
+              {sale.deliveryAddress.line1}
+              {sale.deliveryAddress.line2 ? `, ${sale.deliveryAddress.line2}` : ""},{" "}
+              {sale.deliveryAddress.city}, {sale.deliveryAddress.district}, {sale.deliveryAddress.state} —{" "}
+              {sale.deliveryAddress.pincode}
+            </p>
+          </div>
+        )}
 
         {sale.shippingAddress && (
           <div className="text-sm">

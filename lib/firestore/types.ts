@@ -194,6 +194,25 @@ export interface SaleItem {
   comboComponents?: ComboSaleComponent[] | null;
 }
 
+/** A snapshot of one of a customer's saved addresses (see AddressDoc),
+ * copied onto a sale/pendingOrder at order time — NOT a live reference,
+ * since the customer's saved address can be edited/deleted afterward and
+ * the order's own record must stay stable. Distinct from ShippingAddress
+ * (the older, narrower shape used by the Razorpay checkout flow, which
+ * predates saved addresses and has no label/district/landmark/phone). */
+export interface DeliveryAddressSnapshot {
+  label: string;
+  fullName: string;
+  phone: string;
+  line1: string;
+  line2: string | null;
+  city: string;
+  district: string;
+  state: string;
+  pincode: string;
+  landmark: string | null;
+}
+
 export interface ShippingAddress {
   line1: string;
   line2: string | null;
@@ -239,6 +258,18 @@ export interface SaleDoc {
   /** "Hide prices in the package" checkbox from checkout — a packing
    * instruction for staff, not a technical price-hiding mechanism. */
   hidePrices?: boolean;
+  /** uid of the signed-in customer who placed this order — null for POS/
+   * offline sales and guest WhatsApp/online orders. Optional because sales
+   * recorded before this field existed have it missing entirely (treat
+   * missing the same as null: "not linked to any account"). Never set from
+   * client input — always the server-verified session's own uid. */
+  customerUid?: string | null;
+  /** Set when a logged-in customer's order carried one of their saved
+   * addresses (see AddressDoc) — a snapshot, not a live reference. Separate
+   * from shippingAddress (the Razorpay checkout flow's own address shape);
+   * a given sale populates at most one of the two depending on which flow
+   * created it. Optional/missing on sales predating this field. */
+  deliveryAddress?: DeliveryAddressSnapshot | null;
 }
 
 export interface Sale extends SaleDoc {
@@ -343,11 +374,22 @@ export interface PendingOrderComboItem {
 
 export type PendingOrderItem = PendingOrderProductItem | PendingOrderComboItem;
 
+/** Where a pendingOrders doc originated — the original Razorpay
+ * create-order flow (shippingAddress, amountPaise driving a real payment)
+ * vs. a logged-in customer's "Order on WhatsApp" tap (no payment involved,
+ * just a draft for staff to review and convert — see referenceCode/
+ * expiresAt below). Missing on docs created before this field existed,
+ * which were always the Razorpay flow (treat missing as "razorpay"). */
+export type PendingOrderSource = "razorpay" | "whatsapp";
+
 export interface PendingOrderDoc {
   items: PendingOrderItem[];
   customerName: string;
   customerPhone: string;
-  shippingAddress: ShippingAddress;
+  /** Required for the Razorpay flow; null for a WhatsApp draft, which uses
+   * deliveryAddress instead (or neither, if the customer had no saved
+   * address). */
+  shippingAddress: ShippingAddress | null;
   amountPaise: number;
   status: PendingOrderStatus;
   saleId: string | null;
@@ -355,6 +397,25 @@ export interface PendingOrderDoc {
   createdAt: TimestampLike;
   giftShippingAddress?: GiftShippingAddress | null;
   hidePrices?: boolean;
+  /** uid of the customer this draft/order belongs to — null for a guest
+   * Razorpay checkout. Set for every WhatsApp-sourced draft (only a
+   * logged-in customer's "Order on WhatsApp" tap creates one at all — see
+   * app/api/account/whatsapp-order/route.ts). Optional/missing on docs
+   * predating this field (always null in that case). */
+  customerUid?: string | null;
+  /** Snapshot of the customer's chosen saved address — WhatsApp-drafts
+   * only; the Razorpay flow uses shippingAddress instead. */
+  deliveryAddress?: DeliveryAddressSnapshot | null;
+  source?: PendingOrderSource;
+  /** Short human-readable code included in the WhatsApp message so staff
+   * can find this exact draft — WhatsApp-drafts only, null for Razorpay
+   * ones (which are found by their Razorpay order id, the doc id itself). */
+  referenceCode?: string | null;
+  /** WhatsApp-drafts only — createdAt + 7 days. Past this, the draft is
+   * treated as expired: hidden from the admin's open-drafts list and
+   * rejected by the convert endpoint even if somehow still requested.
+   * Null for Razorpay pending orders, which have no such expiry concept. */
+  expiresAt?: TimestampLike | null;
 }
 
 export interface PendingOrder extends PendingOrderDoc {

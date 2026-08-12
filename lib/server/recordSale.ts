@@ -58,6 +58,19 @@ const giftShippingAddressSchema = shippingAddressSchema.extend({
   phone: z.string().min(1),
 });
 
+const deliveryAddressSchema = z.object({
+  label: z.string().min(1),
+  fullName: z.string().min(1),
+  phone: z.string().min(1),
+  line1: z.string().min(1),
+  line2: z.string().nullable().default(null),
+  city: z.string().min(1),
+  district: z.string().min(1),
+  state: z.string().min(1),
+  pincode: z.string().min(1),
+  landmark: z.string().nullable().default(null),
+});
+
 export const recordSaleInputSchema = z.object({
   channel: z.enum(["online", "offline"]),
   customerName: z.string().min(1),
@@ -80,6 +93,12 @@ export const recordSaleInputSchema = z.object({
   createdByUid: z.string().min(1),
   giftShippingAddress: giftShippingAddressSchema.nullable().default(null),
   hidePrices: z.boolean().default(false),
+  // uid of the signed-in customer who placed this order — null for POS/
+  // offline sales and guest orders. Purely a passthrough field: it plays no
+  // part in the transaction's stock/oil/invoice logic below, same as
+  // deliveryAddress.
+  customerUid: z.string().nullable().default(null),
+  deliveryAddress: deliveryAddressSchema.nullable().default(null),
 });
 
 // z.input (not z.infer/z.output) so callers can omit fields that have zod
@@ -469,6 +488,8 @@ export async function recordSale(
         totalOilMlUsed,
         giftShippingAddress: input.giftShippingAddress,
         hidePrices: input.hidePrices,
+        customerUid: input.customerUid,
+        deliveryAddress: input.deliveryAddress,
       });
 
       return invoiceNo;

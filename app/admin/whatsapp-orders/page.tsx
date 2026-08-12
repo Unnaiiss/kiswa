@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { WhatsAppOrderScreen } from "@/components/admin/whatsapp-orders/whatsapp-order-screen";
+import { PendingDraftsPanel } from "@/components/admin/whatsapp-orders/pending-drafts-panel";
 
 export const metadata: Metadata = {
   title: "WhatsApp Orders",
@@ -16,6 +17,7 @@ export default function AdminWhatsAppOrdersPage() {
           order a real invoice number. WhatsApp chats themselves never touch stock.
         </p>
       </div>
+      <PendingDraftsPanel />
       <WhatsAppOrderScreen />
     </div>
   );

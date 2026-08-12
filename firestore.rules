@@ -32,8 +32,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Admin can read every sale; a signed-in customer may additionally read
+    // ONLY their own (resource.data.customerUid == their uid) — this is the
+    // real security boundary behind /account/orders and /account/orders/
+    // [id] (which read via firebase-admin server-side and would bypass this
+    // regardless, but the rule itself must independently hold since a
+    // customer could otherwise reach any sale doc directly via the client
+    // SDK by id). A sale with no customerUid (POS/offline, guest WhatsApp/
+    // online orders) is readable by admin only, same as before.
     match /sales/{saleId} {
-      allow read: if hasRole('admin');
+      allow read: if hasRole('admin') || (isSignedIn() && resource.data.customerUid == request.auth.uid);
       allow write: if false;
     }
 
@@ -57,11 +65,17 @@ service cloud.firestore {
     // boundary a raw/future direct-SDK write would still have to pass, not
     // just a UI-level restriction. A customer's Firebase Auth token carries
     // no role claim at all (see lib/firestore/types.ts's CustomerDoc), so
-    // this is intentionally NOT gated by hasRole/isStaffOrAdmin — any
-    // signed-in user (customer or staff/admin) may read/write their own
-    // customer doc, which is harmless since it's just their own account.
+    // this is intentionally NOT gated by hasRole/isStaffOrAdmin for the
+    // customer's own access — any signed-in user (customer or staff/admin)
+    // may read/write their own customer doc, which is harmless since it's
+    // just their own account. Admin ADDITIONALLY gets read access (not
+    // write — every admin-initiated change still goes through firebase-
+    // admin server routes) so Admin > Sales' linked-customer block and the
+    // /admin/customers/[uid] profile page can read arbitrary customer docs
+    // directly, same as sales/stockMovements/users above.
     match /customers/{uid} {
-      allow read, write: if isSignedIn() && request.auth.uid == uid;
+      allow read: if hasRole('admin') || (isSignedIn() && request.auth.uid == uid);
+      allow write: if isSignedIn() && request.auth.uid == uid;
 
       match /addresses/{addressId} {
         allow read, write: if isSignedIn() && request.auth.uid == uid;
@@ -72,10 +86,19 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Bridges Razorpay order creation and payment verification; only touched
-    // by server code (firebase-admin) between checkout and recordSale.
+    // Bridges Razorpay order creation and payment verification, AND (a
+    // second, later-added use of this same collection) a signed-in
+    // customer's "Order on WhatsApp" draft awaiting admin review — see
+    // PendingOrderDoc's source field. Writes only ever happen server-side
+    // (firebase-admin) either way. Admin gets read access so Admin >
+    // WhatsApp Orders' pending-drafts panel can live-query open drafts
+    // directly (components/admin/whatsapp-orders/pending-drafts-panel.tsx),
+    // same onSnapshot pattern as sales/stockMovements; a customer has no
+    // direct read of their own drafts (the reference code in the WhatsApp
+    // message is enough for staff to find it — no self-serve draft list).
     match /pendingOrders/{orderId} {
-      allow read, write: if false;
+      allow read: if hasRole('admin');
+      allow write: if false;
     }
 
     // Captured payments whose stock re-check failed at verification time;

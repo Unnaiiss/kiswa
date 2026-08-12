@@ -7,8 +7,9 @@ import { Gift, Minus, Package, Plus, ShoppingBag, Trash2, X } from "lucide-react
 import { useCart } from "./cart-provider";
 import { GiftDialog } from "./gift-dialog";
 import { WhatsAppIcon } from "./whatsapp-icon";
+import { WhatsAppOrderLink } from "./whatsapp-order-link";
 import { formatInr } from "@/lib/pricing";
-import { WHATSAPP_REASSURANCE_LINE, buildCartOrderMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
+import { WHATSAPP_REASSURANCE_LINE } from "@/lib/whatsapp";
 import { useSiteSettings } from "@/lib/store/site-settings-context";
 import { ONLINE_PAYMENTS_ENABLED } from "@/lib/config/featureFlags";
 import type { CartItem } from "@/lib/cart/types";
@@ -196,28 +197,28 @@ export function CartDrawer() {
                       >
                         Checkout
                       </Link>
-                      <a
-                        href={buildWhatsAppUrl(buildCartOrderMessage(items, subtotal), whatsappNumber)}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <WhatsAppOrderLink
+                        items={items}
+                        subtotal={subtotal}
+                        whatsappNumber={whatsappNumber}
                         className="mt-3 flex w-full cursor-pointer items-center justify-center gap-1.5 text-xs text-kiswa-ink-muted underline underline-offset-2 hover:text-[#25D366]"
                       >
                         <WhatsAppIcon size={14} />
                         Order this cart on WhatsApp
-                      </a>
+                      </WhatsAppOrderLink>
                     </>
                   ) : (
                     <>
-                      <a
-                        href={buildWhatsAppUrl(buildCartOrderMessage(items, subtotal), whatsappNumber)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={close}
+                      <WhatsAppOrderLink
+                        items={items}
+                        subtotal={subtotal}
+                        whatsappNumber={whatsappNumber}
+                        onNavigate={close}
                         className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-[#25D366] py-3 text-center text-sm font-medium tracking-wide text-white transition-colors hover:bg-[#20bd5a]"
                       >
                         <WhatsAppIcon size={16} />
                         Order on WhatsApp
-                      </a>
+                      </WhatsAppOrderLink>
                       <p className="mt-2 text-center text-xs text-kiswa-ink-muted">
                         {WHATSAPP_REASSURANCE_LINE}
                       </p>

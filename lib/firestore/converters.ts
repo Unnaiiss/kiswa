@@ -11,10 +11,12 @@ import type {
   AppUserDoc,
   BannerDoc,
   ComboDoc,
+  CustomerDoc,
   GiftSectionDoc,
   ImportedSectionDoc,
   InvoiceCounter,
   OurStorySectionDoc,
+  PendingOrderDoc,
   ProductDoc,
   RefundFlagDoc,
   SaleDoc,
@@ -49,3 +51,5 @@ export const comboConverter = makeConverter<ComboDoc>();
 export const announcementBarConverter = makeConverter<AnnouncementBarDoc>();
 export const importedSectionConverter = makeConverter<ImportedSectionDoc>();
 export const siteSettingsConverter = makeConverter<SiteSettingsDoc>();
+export const customerConverter = makeConverter<CustomerDoc>();
+export const pendingOrderConverter = makeConverter<PendingOrderDoc>();
