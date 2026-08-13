@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { buildCartOrderMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
 import { useCustomerSession } from "@/lib/auth/useCustomerSession";
+import { REQUIRE_LOGIN_TO_ORDER } from "@/lib/config/featureFlags";
+import { SignInToOrderPrompt } from "./sign-in-to-order-prompt";
 import type { CartItem } from "@/lib/cart/types";
 
 /**
@@ -35,8 +37,19 @@ export function WhatsAppOrderLink({
 }) {
   const { customer } = useCustomerSession();
   const [submitting, setSubmitting] = useState(false);
+  const [promptOpen, setPromptOpen] = useState(false);
 
   if (!customer) {
+    if (REQUIRE_LOGIN_TO_ORDER) {
+      return (
+        <>
+          <button type="button" onClick={() => setPromptOpen(true)} className={className}>
+            {children}
+          </button>
+          <SignInToOrderPrompt open={promptOpen} onClose={() => setPromptOpen(false)} />
+        </>
+      );
+    }
     return (
       <a
         href={buildWhatsAppUrl(buildCartOrderMessage(items, subtotal), whatsappNumber)}

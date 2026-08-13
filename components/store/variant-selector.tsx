@@ -15,9 +15,11 @@ import {
 } from "@/lib/whatsapp";
 import { useSiteSettings } from "@/lib/store/site-settings-context";
 import { ONLINE_PAYMENTS_ENABLED } from "@/lib/config/featureFlags";
+import { useOrderGate } from "@/lib/auth/useOrderGate";
 import { useCart } from "./cart-provider";
 import { GiftDialog } from "./gift-dialog";
 import { WhatsAppIcon } from "./whatsapp-icon";
+import { SignInToOrderPrompt } from "./sign-in-to-order-prompt";
 
 const TYPE_META: Record<
   VariantType,
@@ -117,6 +119,7 @@ export function VariantSelector({
 
   const siteUrl = useSiteUrl();
   const { whatsappNumber } = useSiteSettings();
+  const { blocked: orderBlocked, promptOpen, openPrompt, closePrompt } = useOrderGate();
 
   if (!selectedVariant) return null;
 
@@ -372,12 +375,19 @@ export function VariantSelector({
        * WhatsApp button, which otherwise sits right on top of it. */}
       <div className="-mt-4 flex flex-col gap-1.5 pb-20 sm:pb-0">
         <a
-          href={outOfStock ? undefined : whatsappUrl}
+          href={outOfStock || orderBlocked ? undefined : whatsappUrl}
           target="_blank"
           rel="noopener noreferrer"
           aria-disabled={outOfStock}
           onClick={(e) => {
-            if (outOfStock) e.preventDefault();
+            if (outOfStock) {
+              e.preventDefault();
+              return;
+            }
+            if (orderBlocked) {
+              e.preventDefault();
+              openPrompt();
+            }
           }}
           className={`flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-medium tracking-wide transition-colors ${
             outOfStock
@@ -394,6 +404,8 @@ export function VariantSelector({
             : WHATSAPP_REASSURANCE_LINE}
         </p>
       </div>
+
+      <SignInToOrderPrompt open={promptOpen} onClose={closePrompt} />
 
       <GiftDialog
         open={giftDialogOpen}

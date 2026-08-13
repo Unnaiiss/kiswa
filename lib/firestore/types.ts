@@ -344,6 +344,39 @@ export interface AppUser extends AppUserDoc {
   uid: string;
 }
 
+/** A structural mirror of lib/cart/types.ts's CartItem — declared
+ * independently here (rather than imported) to avoid a circular import,
+ * since CartItem itself imports VariantType from this file. The API route
+ * that reads/writes this field (app/api/account/cart/route.ts) Zod-
+ * validates the actual shape at the boundary regardless, so this is purely
+ * for typing the CustomerDoc.cart field below. Kept in sync by hand with
+ * CartItem's shape. */
+export interface SavedCartItem {
+  lineId: string;
+  productId: string;
+  variantId: string;
+  productName: string;
+  slug: string;
+  variantLabel: string;
+  type: VariantType;
+  sizeMl: number;
+  unitPrice: number;
+  oilMlPerUnit: number;
+  qty: number;
+  gift?: {
+    recipientName: string;
+    message: string;
+    senderName: string;
+    giftWrap: boolean;
+  };
+  combo?: {
+    comboId: string;
+    comboTitle: string;
+    components: { productId: string; variantId: string; productName: string; variantLabel: string; qty: number }[];
+    selections: { productId: string; variantId: string }[];
+  };
+}
+
 /** A storefront customer account — entirely separate from AppUserDoc
  * (admin/staff). Customers get NO custom claim on their Firebase Auth user,
  * so every admin/staff role check (allowlist-based: `role === 'admin' |
@@ -358,6 +391,13 @@ export interface CustomerDoc {
   createdAt: TimestampLike;
   lastLoginAt: TimestampLike;
   marketingOptIn: boolean;
+  /** A snapshot of the customer's cart, kept in sync (debounced) by
+   * lib/cart/cart-provider.tsx while they're signed in — lets a returning
+   * customer's cart survive a cleared browser or a new device. Merged with
+   * (never replacing) whatever's already in the local cart at the moment of
+   * sign-in — see lib/cart/mergeCartItems.ts. Missing/empty for a customer
+   * who has never saved a cart, or predates this field. */
+  cart?: SavedCartItem[];
 }
 
 export interface Customer extends CustomerDoc {

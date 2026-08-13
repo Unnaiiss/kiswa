@@ -12,6 +12,8 @@ import { formatInr } from "@/lib/pricing";
 import { WHATSAPP_REASSURANCE_LINE } from "@/lib/whatsapp";
 import { useSiteSettings } from "@/lib/store/site-settings-context";
 import { ONLINE_PAYMENTS_ENABLED } from "@/lib/config/featureFlags";
+import { useOrderGate } from "@/lib/auth/useOrderGate";
+import { SignInToOrderPrompt } from "./sign-in-to-order-prompt";
 import type { CartItem } from "@/lib/cart/types";
 
 export function CartDrawer() {
@@ -27,6 +29,7 @@ export function CartDrawer() {
   } = useCart();
   const [editingLine, setEditingLine] = useState<CartItem | null>(null);
   const { whatsappNumber } = useSiteSettings();
+  const { blocked: orderBlocked, promptOpen, openPrompt, closePrompt } = useOrderGate();
 
   return (
     <AnimatePresence>
@@ -190,13 +193,23 @@ export function CartDrawer() {
                   </div>
                   {ONLINE_PAYMENTS_ENABLED ? (
                     <>
-                      <Link
-                        href="/checkout"
-                        onClick={close}
-                        className="block w-full cursor-pointer rounded-full bg-kiswa-gold py-3 text-center text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft"
-                      >
-                        Checkout
-                      </Link>
+                      {orderBlocked ? (
+                        <button
+                          type="button"
+                          onClick={openPrompt}
+                          className="block w-full cursor-pointer rounded-full bg-kiswa-gold py-3 text-center text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft"
+                        >
+                          Checkout
+                        </button>
+                      ) : (
+                        <Link
+                          href="/checkout"
+                          onClick={close}
+                          className="block w-full cursor-pointer rounded-full bg-kiswa-gold py-3 text-center text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft"
+                        >
+                          Checkout
+                        </Link>
+                      )}
                       <WhatsAppOrderLink
                         items={items}
                         subtotal={subtotal}
@@ -244,6 +257,8 @@ export function CartDrawer() {
               setEditingLine(null);
             }}
           />
+
+          <SignInToOrderPrompt open={promptOpen} onClose={closePrompt} />
         </>
       )}
     </AnimatePresence>
