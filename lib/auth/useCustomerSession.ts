@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { CUSTOMER_AUTH_CHANGED_EVENT } from "./customerSession";
 
 export interface CustomerSessionInfo {
+  uid: string;
   name: string | null;
   email: string | null;
 }

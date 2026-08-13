@@ -10,6 +10,8 @@ import { getCustomerSession } from "@/lib/server/getCustomerSession";
 export async function GET() {
   const session = await getCustomerSession();
   return NextResponse.json({
-    customer: session ? { name: session.name, email: session.email } : null,
+    // uid is included so client-side storage (cart-provider.tsx) can be
+    // keyed per-identity rather than one global key shared by every visitor.
+    customer: session ? { uid: session.uid, name: session.name, email: session.email } : null,
   });
 }
