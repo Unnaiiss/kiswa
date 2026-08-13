@@ -167,9 +167,14 @@ export async function POST(request: Request) {
       paymentStatus: "paid",
       razorpayOrderId: null,
       razorpayPaymentId: null,
-      orderStatus: "paid",
+      // POS sales are complete the moment the bill is rung up — the
+      // customer walks out with the product, no shipping/fulfillment flow
+      // applies. Structurally this means the only further status this sale
+      // can ever move to is 'returned' (see isValidStatusTransition).
+      orderStatus: "delivered",
       shippingAddress: null,
       createdByUid: decoded.uid,
+      createdByName: decoded.name ?? null,
     });
 
     return NextResponse.json({

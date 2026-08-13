@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import {
   combosCollection,
@@ -83,14 +83,21 @@ export const recordSaleInputSchema = z.object({
   razorpayPaymentId: z.string().nullable().default(null),
   orderStatus: z.enum([
     "pending",
-    "paid",
+    "confirmed",
     "packed",
     "shipped",
+    "out_for_delivery",
     "delivered",
     "cancelled",
+    "returned",
   ]),
   shippingAddress: shippingAddressSchema.nullable().default(null),
   createdByUid: z.string().min(1),
+  // Name of the staff/admin/system that recorded the sale — used only to
+  // seed statusHistory's first entry (see below) with something more
+  // readable than a bare uid; null is fine, the history entry just falls
+  // back to showing the uid.
+  createdByName: z.string().nullable().default(null),
   giftShippingAddress: giftShippingAddressSchema.nullable().default(null),
   hidePrices: z.boolean().default(false),
   // uid of the signed-in customer who placed this order — null for POS/
@@ -490,6 +497,21 @@ export async function recordSale(
         hidePrices: input.hidePrices,
         customerUid: input.customerUid,
         deliveryAddress: input.deliveryAddress,
+        // Seeds the fulfillment audit trail with exactly one entry — every
+        // entry after this comes from an explicit admin action via
+        // lib/server/orderFulfillment.ts's updateOrderStatus. A real
+        // Timestamp.now() here, not FieldValue.serverTimestamp(): Firestore
+        // doesn't allow server-timestamp sentinels inside array elements.
+        statusHistory: [
+          {
+            status: input.orderStatus,
+            timestamp: Timestamp.now(),
+            changedByUid: input.createdByUid,
+            changedByName: input.createdByName,
+            note: null,
+          },
+        ],
+        shipping: null,
       });
 
       return invoiceNo;

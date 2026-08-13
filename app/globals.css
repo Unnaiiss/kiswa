@@ -171,7 +171,11 @@
   #order-invoice,
   #order-invoice *,
   #gift-card,
-  #gift-card * {
+  #gift-card *,
+  #packing-slip-a4,
+  #packing-slip-a4 *,
+  #packing-slip-thermal,
+  #packing-slip-thermal * {
     visibility: visible;
     color: #000 !important;
     background: transparent !important;
@@ -209,6 +213,27 @@
   #gift-card .gift-card-item:last-child {
     break-after: auto;
   }
+  /* Only one of these two renders in the DOM at a time (the admin toggles
+     between them before printing) — same "two named @page rules so the
+     sizes never fight each other" reasoning as pos-receipt/order-invoice
+     above, just both scoped to the same packing-slip content. */
+  #packing-slip-a4 {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 12mm;
+    page: packing-slip-a4;
+  }
+  #packing-slip-thermal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 80mm;
+    padding: 4mm;
+    font-size: 12px;
+    page: packing-slip-thermal;
+  }
   @page pos-receipt {
     size: 80mm auto;
     margin: 0;
@@ -219,6 +244,14 @@
   }
   @page gift-card {
     size: 148mm 105mm;
+    margin: 0;
+  }
+  @page packing-slip-a4 {
+    size: A4;
+    margin: 12mm;
+  }
+  @page packing-slip-thermal {
+    size: 80mm auto;
     margin: 0;
   }
 }

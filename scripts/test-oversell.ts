@@ -72,7 +72,7 @@ async function main() {
     paymentStatus: "paid",
     razorpayOrderId: null,
     razorpayPaymentId: null,
-    orderStatus: "paid",
+    orderStatus: "pending",
     shippingAddress: null,
     createdByUid: "test-script",
   });
@@ -92,7 +92,7 @@ async function main() {
       paymentStatus: "paid",
       razorpayOrderId: null,
       razorpayPaymentId: null,
-      orderStatus: "paid",
+      orderStatus: "pending",
       shippingAddress: null,
       createdByUid: "test-script",
     });
@@ -118,7 +118,7 @@ async function main() {
       paymentStatus: "paid",
       razorpayOrderId: null,
       razorpayPaymentId: null,
-      orderStatus: "paid",
+      orderStatus: "pending",
       shippingAddress: null,
       createdByUid: "test-script",
     });

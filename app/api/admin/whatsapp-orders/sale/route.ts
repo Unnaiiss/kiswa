@@ -178,9 +178,10 @@ export async function POST(request: Request) {
       paymentStatus: "paid",
       razorpayOrderId: null,
       razorpayPaymentId: null,
-      orderStatus: "paid",
+      orderStatus: "pending",
       shippingAddress: null,
       createdByUid: decoded.uid,
+      createdByName: decoded.name ?? null,
     });
 
     return NextResponse.json({

@@ -6,6 +6,7 @@ import { customersCollection } from "@/lib/firestore/admin-collections";
 import { getCustomerOrders } from "@/lib/server/customerOrders";
 import { formatInr } from "@/lib/pricing";
 import { itemVariantLabel } from "@/lib/admin/salesAggregation";
+import { normalizeOrderStatus, ORDER_STATUS_LABELS, TERMINAL_ORDER_STATUSES } from "@/lib/orderFulfillment";
 
 export const metadata: Metadata = {
   title: "Customer profile",
@@ -17,11 +18,13 @@ interface CustomerProfilePageProps {
 
 const STATUS_STYLES: Record<string, string> = {
   pending: "bg-zinc-500/15 text-zinc-300",
-  paid: "bg-amber-400/15 text-amber-400",
+  confirmed: "bg-amber-400/15 text-amber-400",
   packed: "bg-sky-500/15 text-sky-300",
   shipped: "bg-purple-500/15 text-purple-300",
+  out_for_delivery: "bg-indigo-500/15 text-indigo-300",
   delivered: "bg-green-500/15 text-green-300",
   cancelled: "bg-red-500/15 text-red-300",
+  returned: "bg-orange-500/15 text-orange-400",
 };
 
 export default async function AdminCustomerProfilePage({ params }: CustomerProfilePageProps) {
@@ -33,7 +36,9 @@ export default async function AdminCustomerProfilePage({ params }: CustomerProfi
 
   const orders = await getCustomerOrders(uid);
   const lifetimeTotal = orders.reduce((sum, o) => sum + o.total, 0);
-  const cancelledCount = orders.filter((o) => o.orderStatus === "cancelled").length;
+  const cancelledCount = orders.filter((o) =>
+    TERMINAL_ORDER_STATUSES.includes(normalizeOrderStatus(o.orderStatus)),
+  ).length;
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
@@ -74,7 +79,7 @@ export default async function AdminCustomerProfilePage({ params }: CustomerProfi
         </div>
         {cancelledCount > 0 && (
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-            <p className="text-xs text-zinc-500 uppercase">Cancelled</p>
+            <p className="text-xs text-zinc-500 uppercase">Cancelled / Returned</p>
             <p className="mt-1 text-2xl font-semibold text-red-400">{cancelledCount}</p>
           </div>
         )}
@@ -104,9 +109,9 @@ export default async function AdminCustomerProfilePage({ params }: CustomerProfi
                   </div>
                   <div className="flex shrink-0 items-center gap-3">
                     <span
-                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${STATUS_STYLES[order.orderStatus] ?? "bg-zinc-500/15 text-zinc-300"}`}
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${STATUS_STYLES[normalizeOrderStatus(order.orderStatus)]}`}
                     >
-                      {order.orderStatus}
+                      {ORDER_STATUS_LABELS[normalizeOrderStatus(order.orderStatus)]}
                     </span>
                     <span className="text-sm font-semibold text-zinc-50">{formatInr(order.total)}</span>
                   </div>

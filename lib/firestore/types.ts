@@ -121,13 +121,63 @@ export interface StockMovement extends StockMovementDoc {
 export type SaleChannel = "online" | "offline";
 export type PaymentMethod = "razorpay" | "cash" | "upi" | "card";
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+/** Fulfillment progress — deliberately separate from PaymentStatus above
+ * (money) and SaleChannel (how the sale was made). 'paid' was the old name
+ * for what's now 'confirmed' — see lib/orderFulfillment.ts's
+ * normalizeOrderStatus, which maps any sale doc still holding the literal
+ * string "paid" (recorded before this enum changed) to 'confirmed' at read
+ * time; nothing bulk-migrates the stored value. Forward progression is
+ * pending -> confirmed -> packed -> shipped -> out_for_delivery ->
+ * delivered; 'cancelled' and 'returned' are terminal (see
+ * isValidStatusTransition — cancelled is reachable from anything before
+ * delivered, returned only from delivered, and nothing is reachable from
+ * either). POS/offline sales are recorded 'delivered' immediately (the
+ * customer already has it in hand at the counter) and so structurally can
+ * only ever additionally move to 'returned'. */
 export type OrderStatus =
   | "pending"
-  | "paid"
+  | "confirmed"
   | "packed"
   | "shipped"
+  | "out_for_delivery"
   | "delivered"
-  | "cancelled";
+  | "cancelled"
+  | "returned";
+
+/** One entry per status change, oldest first — append-only, never mutated
+ * or removed (see lib/server/orderFulfillment.ts's updateOrderStatus, the
+ * only code path that ever writes this array). recordSale seeds the first
+ * entry when a sale is created; every entry after that comes from an
+ * explicit admin action. Sales recorded before this field existed have no
+ * statusHistory at all — see components/admin/sales's synthesized
+ * single-entry fallback for those, built for display only, never written
+ * back. */
+export interface OrderStatusHistoryEntry {
+  status: OrderStatus;
+  /** A real Timestamp, not FieldValue.serverTimestamp() — Firestore
+   * doesn't allow server-timestamp sentinels inside array elements, only as
+   * plain top-level/map field values. Set via Timestamp.now() at the point
+   * the transaction runs, which is accurate enough for an audit log even
+   * though it's not the exact commit instant serverTimestamp() would give. */
+  timestamp: TimestampLike;
+  changedByUid: string;
+  changedByName: string | null;
+  note: string | null;
+}
+
+/** Courier/tracking info for an online order — set via the admin per-order
+ * panel (PATCH /api/admin/sales/[id]/shipping), independently of status
+ * changes (an admin might enter tracking before or after actually marking
+ * an order 'shipped'). Null until first set; every field independently
+ * nullable since they're typically filled in gradually. */
+export interface ShippingDetails {
+  courierName: string | null;
+  trackingNumber: string | null;
+  trackingUrl: string | null;
+  dispatchDate: TimestampLike | null;
+  expectedDeliveryDate: TimestampLike | null;
+  deliveryNotes: string | null;
+}
 
 /** One fragrance/variant drawn from a combo, expanded and snapshotted at
  * sale time — qty and oilMlUsed are already totalled across the whole
@@ -270,6 +320,13 @@ export interface SaleDoc {
    * a given sale populates at most one of the two depending on which flow
    * created it. Optional/missing on sales predating this field. */
   deliveryAddress?: DeliveryAddressSnapshot | null;
+  /** Append-only fulfillment log — see OrderStatusHistoryEntry. Optional/
+   * missing on sales predating this field (see components/admin/sales's
+   * synthesized single-entry fallback for those). */
+  statusHistory?: OrderStatusHistoryEntry[];
+  /** Courier/tracking info — see ShippingDetails. Null (or missing, on
+   * sales predating this field) until an admin first fills any of it in. */
+  shipping?: ShippingDetails | null;
 }
 
 export interface Sale extends SaleDoc {

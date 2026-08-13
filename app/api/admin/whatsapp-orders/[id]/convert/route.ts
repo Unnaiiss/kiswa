@@ -138,9 +138,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       paymentStatus: "paid",
       razorpayOrderId: null,
       razorpayPaymentId: null,
-      orderStatus: "paid",
+      orderStatus: "pending",
       shippingAddress: null,
       createdByUid: decoded.uid,
+      createdByName: decoded.name ?? null,
       customerUid: draft.customerUid ?? null,
       deliveryAddress: draft.deliveryAddress ?? null,
     });

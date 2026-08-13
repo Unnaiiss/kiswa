@@ -6,7 +6,7 @@ import {
   stockMovementsCollection,
 } from "@/lib/firestore/admin-collections";
 import { recordSale } from "@/lib/server/recordSale";
-import { restockCancelledSale } from "@/lib/server/restockCancelledSale";
+import { updateOrderStatus } from "@/lib/server/orderFulfillment";
 import { IMPORTED_VARIANT_ID } from "@/lib/products";
 
 if (!process.env.FIRESTORE_EMULATOR_HOST) {
@@ -18,10 +18,11 @@ if (!process.env.FIRESTORE_EMULATOR_HOST) {
 
 /**
  * Proves cancelling an order (app/api/admin/sales/[id]/status/route.ts,
- * via lib/server/restockCancelledSale.ts) restores exactly the oil ml /
- * units the original sale consumed — for a direct attar line, a direct
- * imported line, and a combo bundling one more of each — and that
- * cancelling twice is rejected rather than double-restocking.
+ * via lib/server/orderFulfillment.ts's updateOrderStatus) restores exactly
+ * the oil ml / units the original sale consumed — for a direct attar line,
+ * a direct imported line, and a combo bundling one more of each — writes a
+ * complete statusHistory, and that cancelling twice is rejected rather
+ * than double-restocking.
  */
 
 const ATTAR_ID = "test-cancel-attar";
@@ -118,7 +119,7 @@ async function main() {
     paymentStatus: "paid",
     razorpayOrderId: null,
     razorpayPaymentId: null,
-    orderStatus: "paid",
+    orderStatus: "pending",
     shippingAddress: null,
     createdByUid: "test-script",
   });
@@ -135,7 +136,13 @@ async function main() {
   );
 
   console.log("\n2. Cancel the order");
-  await restockCancelledSale(saleId);
+  await updateOrderStatus({
+    saleId,
+    newStatus: "cancelled",
+    actingUid: "test-admin-uid",
+    actingName: "Test Admin",
+    note: "Cancelled by test script",
+  });
 
   const attarAfterCancel = (await products.doc(ATTAR_ID).get()).data()!;
   const importedAfterCancel = (await products.doc(IMPORTED_ID).get()).data()!;
@@ -150,6 +157,20 @@ async function main() {
 
   const saleAfterCancel = (await salesCollection().doc(saleId).get()).data()!;
   check(saleAfterCancel.orderStatus === "cancelled", "sale's orderStatus flipped to cancelled");
+  check(
+    saleAfterCancel.statusHistory?.length === 2,
+    `statusHistory has exactly 2 entries — pending then cancelled (got ${saleAfterCancel.statusHistory?.length})`,
+  );
+  check(
+    saleAfterCancel.statusHistory?.[0]?.status === "pending" && saleAfterCancel.statusHistory?.[1]?.status === "cancelled",
+    `statusHistory is in order [pending, cancelled] (got ${saleAfterCancel.statusHistory?.map((h) => h.status).join(", ")})`,
+  );
+  check(
+    saleAfterCancel.statusHistory?.[1]?.changedByUid === "test-admin-uid" &&
+      saleAfterCancel.statusHistory?.[1]?.changedByName === "Test Admin" &&
+      saleAfterCancel.statusHistory?.[1]?.note === "Cancelled by test script",
+    "the cancel entry records who did it, their name, and the note",
+  );
 
   const returnMovements = await stockMovementsCollection()
     .where("referenceId", "==", saleId)
@@ -163,7 +184,12 @@ async function main() {
   console.log("\n3. Cancelling an already-cancelled order is rejected, not double-restocked");
   let secondCancelRejected = false;
   try {
-    await restockCancelledSale(saleId);
+    await updateOrderStatus({
+      saleId,
+      newStatus: "cancelled",
+      actingUid: "test-admin-uid",
+      actingName: "Test Admin",
+    });
   } catch (err) {
     secondCancelRejected = true;
     console.log(`    -> rejected as expected: ${(err as Error).message}`);

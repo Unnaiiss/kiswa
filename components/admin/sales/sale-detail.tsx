@@ -2,25 +2,180 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Gift, Package, Printer, User } from "lucide-react";
+import { AlertTriangle, Gift, Package, Printer, Truck, User } from "lucide-react";
 import { Modal } from "@/components/admin/modal";
 import { adminFetch } from "@/lib/admin/apiClient";
 import { itemVariantLabel, saleHasCombo, saleHasGift } from "@/lib/admin/salesAggregation";
 import { useCustomerDoc } from "@/lib/admin/useCustomerDoc";
+import {
+  computeRestockDraws,
+  normalizeOrderStatus,
+  nextValidStatuses,
+  ORDER_STATUS_LABELS,
+  summarizeRestockDraws,
+  TERMINAL_ORDER_STATUSES,
+} from "@/lib/orderFulfillment";
 import { formatInr } from "@/lib/pricing";
 import type { OrderStatus, Sale } from "@/lib/firestore/types";
 
-const STATUS_OPTIONS: OrderStatus[] = [
-  "pending",
-  "paid",
-  "packed",
-  "shipped",
-  "delivered",
-  "cancelled",
-];
+const inputClass =
+  "w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-50 outline-none focus:border-amber-400";
+
+function StatusHistoryTimeline({ sale }: { sale: Sale }) {
+  // Sales recorded before statusHistory existed have none at all — synthesize
+  // a single entry from what we do know (display only, never written back)
+  // rather than showing an empty/confusing timeline.
+  const history =
+    sale.statusHistory && sale.statusHistory.length > 0
+      ? sale.statusHistory
+      : [
+          {
+            status: normalizeOrderStatus(sale.orderStatus),
+            timestamp: sale.createdAt,
+            changedByUid: sale.createdByUid,
+            changedByName: null,
+            note: "Historical — recorded before status tracking began",
+          },
+        ];
+
+  return (
+    <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+      <p className="mb-2 text-xs text-zinc-500 uppercase">Status history</p>
+      <ol className="flex flex-col gap-2.5">
+        {history.map((entry, idx) => (
+          <li key={idx} className="flex items-start gap-2.5 text-sm">
+            <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-400" />
+            <div>
+              <p className="text-zinc-50">
+                {ORDER_STATUS_LABELS[entry.status]}
+                <span className="ml-2 text-xs text-zinc-500">
+                  {entry.timestamp.toDate().toLocaleString("en-IN")}
+                </span>
+              </p>
+              <p className="text-xs text-zinc-500">
+                by {entry.changedByName || entry.changedByUid}
+              </p>
+              {entry.note && <p className="mt-0.5 text-xs text-zinc-400 italic">{entry.note}</p>}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function ShippingForm({ sale, onSaved }: { sale: Sale; onSaved: () => void }) {
+  const s = sale.shipping;
+  const [courierName, setCourierName] = useState(s?.courierName ?? "");
+  const [trackingNumber, setTrackingNumber] = useState(s?.trackingNumber ?? "");
+  const [trackingUrl, setTrackingUrl] = useState(s?.trackingUrl ?? "");
+  const [dispatchDate, setDispatchDate] = useState(
+    s?.dispatchDate ? s.dispatchDate.toDate().toISOString().slice(0, 10) : "",
+  );
+  const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(
+    s?.expectedDeliveryDate ? s.expectedDeliveryDate.toDate().toISOString().slice(0, 10) : "",
+  );
+  const [deliveryNotes, setDeliveryNotes] = useState(s?.deliveryNotes ?? "");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  async function handleSave() {
+    setSubmitting(true);
+    setError(null);
+    setSaved(false);
+    try {
+      await adminFetch(`/api/admin/sales/${sale.id}/shipping`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          courierName: courierName.trim() || null,
+          trackingNumber: trackingNumber.trim() || null,
+          trackingUrl: trackingUrl.trim() || null,
+          dispatchDate: dispatchDate || null,
+          expectedDeliveryDate: expectedDeliveryDate || null,
+          deliveryNotes: deliveryNotes.trim() || null,
+        }),
+      });
+      setSaved(true);
+      onSaved();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+      <p className="mb-2 flex items-center gap-1.5 text-xs text-zinc-500 uppercase">
+        <Truck size={12} />
+        Courier &amp; tracking
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        <input
+          className={inputClass}
+          placeholder="Courier name"
+          value={courierName}
+          onChange={(e) => setCourierName(e.target.value)}
+        />
+        <input
+          className={inputClass}
+          placeholder="Tracking number"
+          value={trackingNumber}
+          onChange={(e) => setTrackingNumber(e.target.value)}
+        />
+        <input
+          className={`${inputClass} col-span-2`}
+          placeholder="Tracking URL"
+          value={trackingUrl}
+          onChange={(e) => setTrackingUrl(e.target.value)}
+        />
+        <div>
+          <label className="mb-1 block text-[11px] text-zinc-500">Dispatch date</label>
+          <input
+            type="date"
+            className={inputClass}
+            value={dispatchDate}
+            onChange={(e) => setDispatchDate(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-[11px] text-zinc-500">Expected delivery</label>
+          <input
+            type="date"
+            className={inputClass}
+            value={expectedDeliveryDate}
+            onChange={(e) => setExpectedDeliveryDate(e.target.value)}
+          />
+        </div>
+        <textarea
+          className={`${inputClass} col-span-2`}
+          placeholder="Delivery notes"
+          rows={2}
+          value={deliveryNotes}
+          onChange={(e) => setDeliveryNotes(e.target.value)}
+        />
+      </div>
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+      {saved && !error && <p className="mt-2 text-xs text-green-400">Saved.</p>}
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={submitting}
+        className="mt-2 cursor-pointer rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-50 hover:bg-zinc-700 disabled:opacity-40"
+      >
+        {submitting ? "Saving…" : "Save shipping details"}
+      </button>
+    </div>
+  );
+}
 
 export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void }) {
-  const [status, setStatus] = useState<OrderStatus>(sale.orderStatus);
+  const currentStatus = normalizeOrderStatus(sale.orderStatus);
+  const options = nextValidStatuses(currentStatus);
+  const [nextStatus, setNextStatus] = useState<OrderStatus | "">("");
+  const [note, setNote] = useState("");
+  const [confirmingRestock, setConfirmingRestock] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -28,22 +183,38 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
 
   const giftItems = sale.items.filter((item) => item.isGift);
   const comboItems = sale.items.filter((item) => item.comboId);
+  const isRestockingChoice = nextStatus === "cancelled" || nextStatus === "returned";
 
-  async function handleUpdateStatus() {
+  async function commitStatusChange(target: OrderStatus) {
     setSubmitting(true);
     setError(null);
     try {
       await adminFetch(`/api/admin/sales/${sale.id}/status`, {
         method: "PATCH",
-        body: JSON.stringify({ orderStatus: status }),
+        body: JSON.stringify({ orderStatus: target, note: note.trim() || null }),
       });
       setSaved(true);
+      setConfirmingRestock(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
       setSubmitting(false);
     }
   }
+
+  function handleUpdateClick() {
+    if (!nextStatus) return;
+    setError(null);
+    setSaved(false);
+    if (isRestockingChoice) {
+      setConfirmingRestock(true);
+      return;
+    }
+    void commitStatusChange(nextStatus);
+  }
+
+  const restockDraws = isRestockingChoice ? computeRestockDraws(sale, nextStatus as "cancelled" | "returned") : [];
+  const restockSummary = summarizeRestockDraws(restockDraws);
 
   return (
     <Modal title={`Invoice ${sale.invoiceNo}`} onClose={onClose}>
@@ -271,47 +442,109 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
           </div>
         )}
 
-        {sale.channel === "online" && (
-          <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-            <p className="mb-2 text-xs text-zinc-500 uppercase">Order status</p>
-            <div className="flex gap-2">
-              <select
-                value={status}
-                onChange={(e) => {
-                  setStatus(e.target.value as OrderStatus);
-                  setSaved(false);
-                }}
-                className="flex-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-50 outline-none focus:border-amber-400"
-              >
-                {STATUS_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt} className="capitalize">
-                    {opt}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                onClick={handleUpdateStatus}
-                disabled={submitting || status === sale.orderStatus}
-                className="cursor-pointer rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-300 disabled:opacity-40"
-              >
-                {submitting ? "Saving…" : "Update"}
-              </button>
+        <Link
+          href={`/admin/sales/${sale.id}/packing-slip`}
+          target="_blank"
+          className="flex w-fit cursor-pointer items-center gap-1.5 text-xs text-zinc-300 underline underline-offset-2 hover:text-amber-400"
+        >
+          <Printer size={12} />
+          Print packing slip
+        </Link>
+
+        <StatusHistoryTimeline sale={sale} />
+
+        {sale.channel === "online" && <ShippingForm sale={sale} onSaved={() => {}} />}
+
+        <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+          <p className="mb-2 text-xs text-zinc-500 uppercase">Update status</p>
+          {TERMINAL_ORDER_STATUSES.includes(currentStatus) ? (
+            <p className="text-sm text-zinc-500">
+              This order is {ORDER_STATUS_LABELS[currentStatus].toLowerCase()} — no further status
+              changes are possible.
+            </p>
+          ) : options.length === 0 ? (
+            <p className="text-sm text-zinc-500">No further status changes are possible.</p>
+          ) : confirmingRestock ? (
+            <div className="rounded-lg border border-red-400/30 bg-red-400/5 p-3">
+              <p className="flex items-center gap-1.5 text-sm font-semibold text-red-300">
+                <AlertTriangle size={14} />
+                Confirm: mark as {ORDER_STATUS_LABELS[nextStatus as OrderStatus]}
+              </p>
+              {restockSummary.length > 0 ? (
+                <>
+                  <p className="mt-2 text-xs text-zinc-400">This will restore to stock:</p>
+                  <ul className="mt-1 flex flex-col gap-0.5 text-sm text-zinc-200">
+                    {restockSummary.map((r) => (
+                      <li key={r.productName}>
+                        {r.productName}: +{r.amount} {r.kind === "imported" ? "unit(s)" : "ml"}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <p className="mt-2 text-xs text-zinc-400">
+                  This order has nothing to restock (all lines already at 0).
+                </p>
+              )}
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => commitStatusChange(nextStatus as OrderStatus)}
+                  disabled={submitting}
+                  className="cursor-pointer rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400 disabled:opacity-40"
+                >
+                  {submitting ? "Working…" : `Yes, mark as ${ORDER_STATUS_LABELS[nextStatus as OrderStatus]}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingRestock(false)}
+                  disabled={submitting}
+                  className="cursor-pointer rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:text-zinc-50"
+                >
+                  Back
+                </button>
+              </div>
             </div>
-            {status === "cancelled" && sale.orderStatus !== "cancelled" && (
-              <p className="mt-2 text-xs text-amber-400">
-                Cancelling restores this order&apos;s oil ml / units to stock automatically
-                (logged as a &quot;return&quot; movement) — no separate Stock Adjustment needed.
-              </p>
-            )}
-            {saved && (
-              <p className="mt-2 text-xs text-green-400">
-                {status === "cancelled" ? "Cancelled — stock restored." : "Status updated."}
-              </p>
-            )}
-            {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
-          </div>
-        )}
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <select
+                  value={nextStatus}
+                  onChange={(e) => {
+                    setNextStatus(e.target.value as OrderStatus);
+                    setSaved(false);
+                  }}
+                  className="flex-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-50 outline-none focus:border-amber-400"
+                >
+                  <option value="">Select next status…</option>
+                  {options.map((opt) => (
+                    <option key={opt} value={opt}>
+                      {ORDER_STATUS_LABELS[opt]}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={handleUpdateClick}
+                  disabled={submitting || !nextStatus}
+                  className="cursor-pointer rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-300 disabled:opacity-40"
+                >
+                  {submitting ? "Saving…" : "Update"}
+                </button>
+              </div>
+              <input
+                className={`${inputClass} mt-2`}
+                placeholder="Note (optional)"
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </>
+          )}
+          {saved && !confirmingRestock && (
+            <p className="mt-2 text-xs text-green-400">Status updated.</p>
+          )}
+          {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+        </div>
       </div>
     </Modal>
   );

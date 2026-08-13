@@ -2,19 +2,31 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { salesCollection } from "@/lib/firestore/admin-collections";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
-import { restockCancelledSale } from "@/lib/server/restockCancelledSale";
+import { updateOrderStatus } from "@/lib/server/orderFulfillment";
+import { isValidStatusTransition, normalizeOrderStatus } from "@/lib/orderFulfillment";
 import { toErrorResponse } from "@/lib/server/apiError";
 
 const bodySchema = z.object({
-  orderStatus: z.enum(["paid", "packed", "shipped", "delivered", "cancelled"]),
+  orderStatus: z.enum([
+    "pending",
+    "confirmed",
+    "packed",
+    "shipped",
+    "out_for_delivery",
+    "delivered",
+    "cancelled",
+    "returned",
+  ]),
+  note: z.string().trim().max(500).nullable().optional(),
 });
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  let decoded;
   try {
-    await requireRole(request, ["admin"]);
+    decoded = await requireRole(request, ["admin"]);
   } catch (err) {
     if (err instanceof AuthError) {
       return NextResponse.json({ error: err.message }, { status: err.status });
@@ -37,28 +49,30 @@ export async function PATCH(
   const snap = await ref.get();
   const sale = snap.data();
   if (!snap.exists || !sale) {
-    return NextResponse.json({ error: "Sale not found" }, { status: 404 });
+    return NextResponse.json({ error: "Order not found" }, { status: 404 });
   }
-  if (sale.channel !== "online") {
+
+  // Fast, friendly failure up front — updateOrderStatus re-checks this
+  // itself inside the transaction, which is the actual authority.
+  const currentStatus = normalizeOrderStatus(sale.orderStatus);
+  if (!isValidStatusTransition(currentStatus, parsed.data.orderStatus)) {
     return NextResponse.json(
-      { error: "Only online orders can have their status updated." },
-      { status: 400 },
+      { error: `Cannot move this order from "${currentStatus}" to "${parsed.data.orderStatus}".` },
+      { status: 409 },
     );
   }
 
-  if (parsed.data.orderStatus === "cancelled") {
-    if (sale.orderStatus === "cancelled") {
-      return NextResponse.json({ ok: true });
-    }
-    try {
-      await restockCancelledSale(id);
-    } catch (err) {
-      return toErrorResponse(err, "admin/sales/status/cancel", "Could not cancel the order.");
-    }
-    return NextResponse.json({ ok: true });
+  try {
+    await updateOrderStatus({
+      saleId: id,
+      newStatus: parsed.data.orderStatus,
+      actingUid: decoded.uid,
+      actingName: decoded.name ?? null,
+      note: parsed.data.note ?? null,
+    });
+  } catch (err) {
+    return toErrorResponse(err, "admin/sales/status", "Could not update this order's status.");
   }
-
-  await ref.update({ orderStatus: parsed.data.orderStatus });
 
   return NextResponse.json({ ok: true });
 }
