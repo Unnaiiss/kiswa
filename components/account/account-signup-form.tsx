@@ -70,7 +70,10 @@ export function AccountSignupForm({ redirectParam }: { redirectParam?: string })
       footer={
         <p>
           Already have an account?{" "}
-          <Link href={loginHref(redirectParam)} className="text-kiswa-gold hover:text-kiswa-gold-soft">
+          <Link
+            href={loginHref(redirectParam)}
+            className="text-kiswa-gold underline underline-offset-2 hover:text-kiswa-gold-soft"
+          >
             Sign in
           </Link>
         </p>
@@ -107,7 +110,7 @@ export function AccountSignupForm({ redirectParam }: { redirectParam?: string })
 
         <div>
           <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
-            Phone <span className="text-kiswa-ink-muted/60">(optional)</span>
+            Phone <span className="text-kiswa-ink-muted/90">(optional)</span>
           </label>
           <input
             type="tel"

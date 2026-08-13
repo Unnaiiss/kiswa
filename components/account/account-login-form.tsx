@@ -55,7 +55,10 @@ export function AccountLoginForm({ redirectParam }: { redirectParam?: string }) 
       footer={
         <p>
           New here?{" "}
-          <Link href={signupHref(redirectParam)} className="text-kiswa-gold hover:text-kiswa-gold-soft">
+          <Link
+            href={signupHref(redirectParam)}
+            className="text-kiswa-gold underline underline-offset-2 hover:text-kiswa-gold-soft"
+          >
             Create an account
           </Link>
         </p>
@@ -84,7 +87,7 @@ export function AccountLoginForm({ redirectParam }: { redirectParam?: string }) 
             </label>
             <Link
               href="/account/forgot-password"
-              className="text-xs text-kiswa-gold hover:text-kiswa-gold-soft"
+              className="text-xs text-kiswa-gold underline underline-offset-2 hover:text-kiswa-gold-soft"
             >
               Forgot password?
             </Link>

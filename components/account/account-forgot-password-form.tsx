@@ -63,7 +63,10 @@ export function AccountForgotPasswordForm() {
       subtitle="We'll email you a link to choose a new one"
       footer={
         <p>
-          <Link href="/account/login" className="text-kiswa-gold hover:text-kiswa-gold-soft">
+          <Link
+            href="/account/login"
+            className="text-kiswa-gold underline underline-offset-2 hover:text-kiswa-gold-soft"
+          >
             Back to sign in
           </Link>
         </p>

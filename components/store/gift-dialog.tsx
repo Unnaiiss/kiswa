@@ -117,7 +117,7 @@ export function GiftDialog({
                 <div className="mb-1.5 flex items-center justify-between">
                   <label className="text-xs uppercase tracking-wide text-kiswa-ink-muted">
                     Gift message{" "}
-                    <span className="text-kiswa-ink-muted/60">(optional)</span>
+                    <span className="text-kiswa-ink-muted/90">(optional)</span>
                   </label>
                   <span className="text-xs text-kiswa-ink-muted">
                     {details.message.length}/{MESSAGE_MAX}
@@ -136,7 +136,7 @@ export function GiftDialog({
               <div>
                 <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
                   Your name{" "}
-                  <span className="text-kiswa-ink-muted/60">(optional)</span>
+                  <span className="text-kiswa-ink-muted/90">(optional)</span>
                 </label>
                 <input
                   className={inputClass}

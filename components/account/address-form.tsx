@@ -183,7 +183,7 @@ export function AddressForm({
 
       <div>
         <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
-          Address line 2 <span className="text-kiswa-ink-muted/60">(optional)</span>
+          Address line 2 <span className="text-kiswa-ink-muted/90">(optional)</span>
         </label>
         <input
           className={inputClass}
@@ -254,7 +254,7 @@ export function AddressForm({
 
       <div>
         <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
-          Landmark <span className="text-kiswa-ink-muted/60">(optional)</span>
+          Landmark <span className="text-kiswa-ink-muted/90">(optional)</span>
         </label>
         <input
           className={inputClass}
