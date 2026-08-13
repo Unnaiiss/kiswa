@@ -7,16 +7,47 @@ import {
 import { OrderInvoice } from "@/components/store/order-invoice";
 
 interface SuccessPageProps {
-  searchParams: Promise<{ orderId?: string }>;
+  // orderId: the Razorpay flow — a pendingOrders doc id, resolved to a sale
+  // below once its payment has been verified (possibly not yet, hence the
+  // "confirming" interim state). saleId: Cash on Delivery — recordSale runs
+  // synchronously with no payment to verify, so there's no pendingOrder at
+  // all, just the real sale id straight away. Exactly one is ever set.
+  searchParams: Promise<{ orderId?: string; saleId?: string }>;
 }
 
 export default async function CheckoutSuccessPage({
   searchParams,
 }: SuccessPageProps) {
-  const { orderId } = await searchParams;
-  if (!orderId) notFound();
+  const { orderId, saleId } = await searchParams;
+  if (!orderId && !saleId) notFound();
 
-  const pendingSnap = await pendingOrdersCollection().doc(orderId).get();
+  if (saleId) {
+    const saleSnap = await salesCollection().doc(saleId).get();
+    const sale = saleSnap.data();
+    if (!saleSnap.exists || !sale) notFound();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- discarded on purpose, see comment further below
+    const { createdAt, statusHistory, shipping, ...saleForInvoice } = sale;
+    return (
+      <main className="mx-auto flex max-w-2xl flex-1 flex-col items-center px-6 py-24 text-center">
+        <p className="text-xs uppercase tracking-[0.4em] text-kiswa-gold-soft">Order confirmed</p>
+        <h1 className="mt-3 font-display text-4xl text-kiswa-ink">
+          Thank you, {sale.customerName.split(" ")[0]}
+        </h1>
+        <p className="mt-4 text-kiswa-ink-muted">Your invoice number is</p>
+        <p className="mt-1 font-display text-3xl tracking-widest text-kiswa-gold">
+          {sale.invoiceNo}
+        </p>
+        {sale.paymentMethod === "cod" && (
+          <p className="mt-3 max-w-sm text-sm text-kiswa-ink-muted">
+            Pay in cash (or UPI/card, if your courier supports it) when your order is delivered.
+          </p>
+        )}
+        <OrderInvoice sale={saleForInvoice} createdAt={createdAt.toDate()} />
+      </main>
+    );
+  }
+
+  const pendingSnap = await pendingOrdersCollection().doc(orderId!).get();
   const pending = pendingSnap.data();
   if (!pendingSnap.exists || !pending) notFound();
 

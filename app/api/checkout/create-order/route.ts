@@ -7,6 +7,7 @@ import {
   pendingOrdersCollection,
 } from "@/lib/firestore/admin-collections";
 import { getCustomerSession } from "@/lib/server/getCustomerSession";
+import { getAddressById, toDeliveryAddressSnapshot } from "@/lib/server/customerAddresses";
 import type { ComboDoc, ProductDoc } from "@/lib/firestore/types";
 import { createRazorpayOrder, razorpayPublicKeyId } from "@/lib/server/razorpay";
 import {
@@ -61,14 +62,12 @@ const itemSchema = z.discriminatedUnion("kind", [productItemSchema, comboItemSch
 
 const requestSchema = z.object({
   items: z.array(itemSchema).min(1, "Your bag is empty"),
-  customerName: z.string().trim().min(1, "Name is required"),
-  customerPhone: z
-    .string()
-    .trim()
-    .regex(/^[6-9][0-9]{9}$/, "Enter a valid 10-digit Indian mobile number"),
-  shippingAddress: shippingAddressSchema,
-  giftShippingAddress: giftShippingAddressSchema.nullable().default(null),
+  // References one of the SIGNED-IN customer's own saved addresses — never
+  // a freeform address blob from the client. Re-read from Firestore below,
+  // scoped to the verified session's own uid.
+  addressId: z.string().min(1, "Choose a delivery address"),
   hidePrices: z.boolean().default(false),
+  giftShippingAddress: giftShippingAddressSchema.nullable().default(null),
 });
 
 interface ComponentQty {
@@ -105,20 +104,26 @@ function comboComponentsPerUnit(
   return [...grouped.values()];
 }
 
+/**
+ * Checkout is signed-in-customer only (see /(store)/checkout/page.tsx's own
+ * server-side redirect-to-login gate) — a delivery address always comes
+ * from the customer's own saved address book, never a freeform field, so
+ * there's no meaningful "guest checkout" left to support here. Every
+ * amount is computed fresh from live Firestore data below; nothing is ever
+ * trusted from the client except WHICH products/variants/combos and
+ * WHICH saved address — never their price or contents.
+ */
 export async function POST(request: Request) {
-  // Public + unauthenticated by design (guest checkout) and creates a real
-  // Razorpay order per call — the single most expensive unauthenticated
-  // action in the app, so it gets the tightest limit.
   const limited = rateLimit(request, "checkout:create-order", {
     limit: 10,
     windowMs: 10 * 60 * 1000,
   });
   if (limited) return limited;
 
-  // Guest checkout stays guest — this just links the resulting order back to
-  // the account when the customer happens to be signed in while checking
-  // out, same as any other order-linking in this pass. Never required.
   const session = await getCustomerSession();
+  if (!session) {
+    return NextResponse.json({ error: "Please sign in to check out." }, { status: 401 });
+  }
 
   const json = await request.json().catch(() => null);
   const parsed = requestSchema.safeParse(json);
@@ -129,6 +134,14 @@ export async function POST(request: Request) {
     );
   }
   const input = parsed.data;
+
+  const address = await getAddressById(session.uid, input.addressId);
+  if (!address) {
+    return NextResponse.json(
+      { error: "That address couldn't be found. Please choose or add one." },
+      { status: 400 },
+    );
+  }
 
   // Fetch every combo referenced up front — needed both to validate/expand
   // choose-any selections and to price the line (always comboPriceInr, never
@@ -288,9 +301,9 @@ export async function POST(request: Request) {
 
   await pendingOrdersCollection().doc(razorpayOrder.id).set({
     items: pendingItems,
-    customerName: input.customerName,
-    customerPhone: input.customerPhone,
-    shippingAddress: input.shippingAddress,
+    customerName: address.fullName,
+    customerPhone: address.phone,
+    shippingAddress: null,
     amountPaise,
     status: "created",
     saleId: null,
@@ -298,8 +311,8 @@ export async function POST(request: Request) {
     createdAt: FieldValue.serverTimestamp(),
     giftShippingAddress: input.giftShippingAddress,
     hidePrices: input.hidePrices,
-    customerUid: session?.uid ?? null,
-    deliveryAddress: null,
+    customerUid: session.uid,
+    deliveryAddress: toDeliveryAddressSnapshot(address),
     source: "razorpay",
     referenceCode: null,
     expiresAt: null,

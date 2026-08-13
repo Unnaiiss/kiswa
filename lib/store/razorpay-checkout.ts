@@ -6,6 +6,20 @@ export interface RazorpayHandlerResponse {
   razorpay_signature: string;
 }
 
+/** The shape Razorpay's Checkout.js actually passes to a "payment.failed"
+ * listener — payment_id/order_id live under error.metadata (payment_id can
+ * be null if the failure happened before Razorpay even generated one). */
+export interface RazorpayPaymentFailedResponse {
+  error?: {
+    code?: string;
+    description?: string;
+    metadata?: {
+      order_id?: string;
+      payment_id?: string | null;
+    };
+  };
+}
+
 export interface RazorpayCheckoutOptions {
   key: string;
   amount: number;
@@ -21,7 +35,7 @@ export interface RazorpayCheckoutOptions {
 
 interface RazorpayCheckoutInstance {
   open: () => void;
-  on: (event: "payment.failed", handler: (response: unknown) => void) => void;
+  on: (event: "payment.failed", handler: (response: RazorpayPaymentFailedResponse) => void) => void;
 }
 
 declare global {

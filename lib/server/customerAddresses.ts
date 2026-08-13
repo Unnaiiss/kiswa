@@ -1,9 +1,28 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import { customerAddressesCollection } from "@/lib/firestore/admin-collections";
-import type { Address, AddressDoc } from "@/lib/firestore/types";
+import type { Address, AddressDoc, DeliveryAddressSnapshot } from "@/lib/firestore/types";
 
 export class AddressNotFoundError extends Error {}
+
+/** Strips a saved Address down to the plain snapshot shape a sale/pendingOrder
+ * stores (lib/firestore/types.ts's DeliveryAddressSnapshot) — a copy, not a
+ * live reference, since the customer's saved address can be edited/deleted
+ * after the order is placed. */
+export function toDeliveryAddressSnapshot(address: Address): DeliveryAddressSnapshot {
+  return {
+    label: address.label,
+    fullName: address.fullName,
+    phone: address.phone,
+    line1: address.line1,
+    line2: address.line2,
+    city: address.city,
+    district: address.district,
+    state: address.state,
+    pincode: address.pincode,
+    landmark: address.landmark,
+  };
+}
 
 /** Newest first, with the default address always pinned to the top
  * regardless of age — matches how most delivery-address pickers present
@@ -16,6 +35,19 @@ export async function listAddresses(uid: string): Promise<Address[]> {
     return b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime();
   });
   return addresses;
+}
+
+/** A single address, scoped to the caller-supplied uid — used by checkout
+ * (create-order, cod) to resolve a customer's chosen addressId into a real
+ * address server-side, never trusting a client-submitted address blob
+ * directly. Returns null both when the id doesn't exist and when it belongs
+ * to a different customer (same no-leak shape as getCustomerOrder), so a
+ * probed id can't distinguish the two. */
+export async function getAddressById(uid: string, addressId: string): Promise<Address | null> {
+  const snap = await customerAddressesCollection(uid).doc(addressId).get();
+  const data = snap.data();
+  if (!snap.exists || !data) return null;
+  return { id: snap.id, ...data };
 }
 
 type AddressInput = Omit<AddressDoc, "createdAt" | "updatedAt">;

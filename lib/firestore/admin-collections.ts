@@ -3,6 +3,7 @@ import {
   addressConverter,
   announcementBarConverter,
   bannerConverter,
+  checkoutSettingsConverter,
   comboConverter,
   customerConverter,
   giftSectionConverter,
@@ -10,6 +11,7 @@ import {
   invoiceCounterConverter,
   notificationSettingsConverter,
   ourStorySectionConverter,
+  paymentAttemptConverter,
   pendingOrderConverter,
   productConverter,
   refundFlagConverter,
@@ -117,4 +119,17 @@ export function notificationSettingsDocRef() {
   return siteContentCollection()
     .doc("notificationSettings")
     .withConverter(notificationSettingsConverter);
+}
+
+export function checkoutSettingsDocRef() {
+  return siteContentCollection()
+    .doc("checkoutSettings")
+    .withConverter(checkoutSettingsConverter);
+}
+
+// One doc per Razorpay payment attempt (captured or failed) — see
+// PaymentAttemptDoc's own comment for why the doc id is always the
+// razorpayPaymentId itself, never auto-generated.
+export function paymentAttemptsCollection() {
+  return adminDb.collection("paymentAttempts").withConverter(paymentAttemptConverter);
 }

@@ -77,7 +77,7 @@ export const recordSaleInputSchema = z.object({
   customerPhone: z.string().min(1),
   items: z.array(saleItemInputSchema).min(1),
   discount: z.number().nonnegative().default(0),
-  paymentMethod: z.enum(["razorpay", "cash", "upi", "card"]),
+  paymentMethod: z.enum(["razorpay", "cash", "upi", "card", "cod"]),
   paymentStatus: z.enum(["pending", "paid", "failed", "refunded"]),
   razorpayOrderId: z.string().nullable().default(null),
   razorpayPaymentId: z.string().nullable().default(null),

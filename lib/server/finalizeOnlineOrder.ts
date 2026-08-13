@@ -1,6 +1,7 @@
 import { FieldValue } from "firebase-admin/firestore";
 import { adminDb } from "@/lib/firebase/admin";
 import {
+  paymentAttemptsCollection,
   pendingOrdersCollection,
   refundFlagsCollection,
 } from "@/lib/firestore/admin-collections";
@@ -87,6 +88,21 @@ export async function finalizeOnlineOrder(
     });
 
     await pendingRef.update({ status: "completed", saleId, invoiceNo });
+    // Best-effort audit log, not required to be atomic with the sale
+    // itself — the sale is already safely recorded above regardless of
+    // whether this write succeeds. Doc id is the payment id, so a
+    // duplicate delivery (verify + webhook racing, or a retried webhook)
+    // just overwrites the same doc rather than creating a second entry.
+    await paymentAttemptsCollection()
+      .doc(razorpayPaymentId)
+      .set({
+        razorpayOrderId,
+        razorpayPaymentId,
+        status: "captured",
+        reason: null,
+        createdAt: FieldValue.serverTimestamp(),
+      })
+      .catch(() => {});
     return { status: "completed", saleId, invoiceNo };
   } catch (err) {
     // recordSale's transactional stock re-check rejected this sale — a

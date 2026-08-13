@@ -1,4 +1,4 @@
-import type { Sale, SaleItem, StockMovement, VariantType } from "@/lib/firestore/types";
+import type { PaymentMethod, Sale, SaleItem, StockMovement, VariantType } from "@/lib/firestore/types";
 import { formatVariantLabel } from "@/lib/pricing";
 
 /** Sale-driven stock movements for a date range, grouped by the sale
@@ -356,4 +356,55 @@ export function oilUsageBreakdown(
       a.productName.localeCompare(b.productName) ||
       a.variantLabel.localeCompare(b.variantLabel),
   );
+}
+
+/** Revenue and order count per PaymentMethod, for the Reports "payment
+ * method split" table. Sales predating 'cod' can never carry that value, so
+ * every bucket present in PaymentMethod is safe to seed at zero. */
+export function paymentMethodSplit(sales: Sale[]): Record<PaymentMethod, ChannelStats> {
+  const split: Record<PaymentMethod, ChannelStats> = {
+    razorpay: { revenue: 0, count: 0 },
+    cash: { revenue: 0, count: 0 },
+    upi: { revenue: 0, count: 0 },
+    card: { revenue: 0, count: 0 },
+    cod: { revenue: 0, count: 0 },
+  };
+  for (const sale of sales) {
+    split[sale.paymentMethod].revenue += sale.total;
+    split[sale.paymentMethod].count += 1;
+  }
+  return split;
+}
+
+/** COD vs every other (prepaid) payment method — a coarser cut of
+ * paymentMethodSplit for the headline "how much of online revenue is still
+ * cash-on-delivery" stat. */
+export function codVsPrepaidSplit(sales: Sale[]): Record<"cod" | "prepaid", ChannelStats> {
+  const split: Record<"cod" | "prepaid", ChannelStats> = {
+    cod: { revenue: 0, count: 0 },
+    prepaid: { revenue: 0, count: 0 },
+  };
+  for (const sale of sales) {
+    const bucket = sale.paymentMethod === "cod" ? "cod" : "prepaid";
+    split[bucket].revenue += sale.total;
+    split[bucket].count += 1;
+  }
+  return split;
+}
+
+export interface RefundsSummary {
+  count: number;
+  totalAmountInr: number;
+  restockedCount: number;
+}
+
+/** Sales carrying a refund record in this range — no separate query needed,
+ * since refund is a field on the sale itself (see lib/server/refundSale.ts). */
+export function refundsSummary(sales: Sale[]): RefundsSummary {
+  const withRefund = sales.filter((s) => s.refund);
+  return {
+    count: withRefund.length,
+    totalAmountInr: withRefund.reduce((sum, s) => sum + (s.refund?.amountInr ?? 0), 0),
+    restockedCount: withRefund.filter((s) => s.refund?.restocked).length,
+  };
 }

@@ -7,12 +7,14 @@ import { useAnnouncementBar } from "@/lib/admin/useAnnouncementBar";
 import { useImportedSection } from "@/lib/admin/useImportedSection";
 import { useSiteSettings } from "@/lib/admin/useSiteSettings";
 import { useNotificationSettings } from "@/lib/admin/useNotificationSettings";
+import { useCheckoutSettings } from "@/lib/admin/useCheckoutSettings";
 import { GiftSectionForm } from "@/components/admin/home-sections/gift-section-form";
 import { OurStoryForm } from "@/components/admin/home-sections/our-story-form";
 import { AnnouncementBarForm } from "@/components/admin/home-sections/announcement-bar-form";
 import { ImportedSectionForm } from "@/components/admin/home-sections/imported-section-form";
 import { BrandSettingsForm } from "@/components/admin/home-sections/brand-settings-form";
 import { NotificationSettingsForm } from "@/components/admin/home-sections/notification-settings-form";
+import { CheckoutSettingsForm } from "@/components/admin/home-sections/checkout-settings-form";
 import { ONLINE_PAYMENTS_ENABLED } from "@/lib/config/featureFlags";
 
 export default function AdminHomeSectionsPage() {
@@ -22,6 +24,7 @@ export default function AdminHomeSectionsPage() {
   const { importedSection, loading: importedLoading } = useImportedSection();
   const { siteSettings, loading: siteSettingsLoading } = useSiteSettings();
   const { statusChangeWhatsAppEnabled, loading: notificationLoading } = useNotificationSettings();
+  const { codEnabled, loading: checkoutSettingsLoading } = useCheckoutSettings();
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
@@ -87,6 +90,13 @@ export default function AdminHomeSectionsPage() {
       ) : (
         <NotificationSettingsForm statusChangeWhatsAppEnabled={statusChangeWhatsAppEnabled} />
       )}
+
+      {ONLINE_PAYMENTS_ENABLED &&
+        (checkoutSettingsLoading ? (
+          <p className="text-sm text-zinc-500">Loading…</p>
+        ) : (
+          <CheckoutSettingsForm codEnabled={codEnabled} />
+        ))}
     </div>
   );
 }

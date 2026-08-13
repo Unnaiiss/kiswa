@@ -119,7 +119,12 @@ export interface StockMovement extends StockMovementDoc {
 }
 
 export type SaleChannel = "online" | "offline";
-export type PaymentMethod = "razorpay" | "cash" | "upi" | "card";
+/** 'cod' (Cash on Delivery) is online-channel only — recorded immediately at
+ * order time like any other sale (stock deducted, invoice issued), but with
+ * paymentStatus 'pending' until an admin marks it paid on delivery (see
+ * PATCH /api/admin/sales/[id]/mark-paid) — unlike 'razorpay', where
+ * recordSale never runs at all until payment is already verified. */
+export type PaymentMethod = "razorpay" | "cash" | "upi" | "card" | "cod";
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 /** Fulfillment progress — deliberately separate from PaymentStatus above
  * (money) and SaleChannel (how the sale was made). 'paid' was the old name
@@ -177,6 +182,29 @@ export interface ShippingDetails {
   dispatchDate: TimestampLike | null;
   expectedDeliveryDate: TimestampLike | null;
   deliveryNotes: string | null;
+}
+
+/** An admin-recorded refund against a sale — see lib/server/refundSale.ts's
+ * recordRefund, the only code path that ever writes this. Actual money
+ * movement always happens in the Razorpay dashboard (or in person, for
+ * cash/UPI/card/COD) — this is purely KISWA's own record of it, not a
+ * payment-gateway integration. 'pending' vs 'completed' lets an admin log
+ * "refund initiated" before it's actually landed and flip it once
+ * confirmed; recording again overwrites the previous record rather than
+ * appending — this app tracks the CURRENT refund state per sale, not a
+ * history of multiple partial refunds. `restocked` reflects whether THIS
+ * refund action also restored stock (via the same computeRestockDraws /
+ * order-status-transition machinery cancel/return already uses) — a
+ * goodwill refund where the customer keeps the item sets this false and
+ * never touches stock. */
+export interface RefundRecord {
+  status: "pending" | "completed";
+  amountInr: number;
+  reason: string;
+  restocked: boolean;
+  recordedByUid: string;
+  recordedByName: string | null;
+  recordedAt: TimestampLike;
 }
 
 /** One fragrance/variant drawn from a combo, expanded and snapshotted at
@@ -327,6 +355,9 @@ export interface SaleDoc {
   /** Courier/tracking info — see ShippingDetails. Null (or missing, on
    * sales predating this field) until an admin first fills any of it in. */
   shipping?: ShippingDetails | null;
+  /** Set the moment an admin records a refund against this sale — see
+   * RefundRecord. Null/missing means no refund has been recorded. */
+  refund?: RefundRecord | null;
 }
 
 export interface Sale extends SaleDoc {
@@ -443,7 +474,14 @@ export type PendingOrderStatus =
   | "created"
   | "processing"
   | "completed"
-  | "refund_flagged";
+  | "refund_flagged"
+  /** The payment attempt against this order failed or was reported failed
+   * by the client (see app/api/checkout/payment-failed/route.ts) or
+   * Razorpay's own payment.failed webhook event — recordSale never ran, no
+   * stock was touched. Set only from 'created'/'processing', never
+   * overwriting a 'completed' order (a late/duplicate failed-webhook
+   * delivery for an order that separately succeeded must not un-complete it). */
+  | "failed";
 
 export interface PendingOrderProductItem {
   kind: "product";
@@ -483,9 +521,11 @@ export interface PendingOrderDoc {
   items: PendingOrderItem[];
   customerName: string;
   customerPhone: string;
-  /** Required for the Razorpay flow; null for a WhatsApp draft, which uses
-   * deliveryAddress instead (or neither, if the customer had no saved
-   * address). */
+  /** The older, narrower Razorpay-checkout-only address shape — always
+   * null now that checkout is logged-in-only and resolves an addressId
+   * into deliveryAddress below instead (see app/api/checkout/create-order/
+   * route.ts). Only ever non-null on pendingOrders docs created before that
+   * change (a guest Razorpay checkout with a freeform shipping form). */
   shippingAddress: ShippingAddress | null;
   amountPaise: number;
   status: PendingOrderStatus;
@@ -500,8 +540,11 @@ export interface PendingOrderDoc {
    * app/api/account/whatsapp-order/route.ts). Optional/missing on docs
    * predating this field (always null in that case). */
   customerUid?: string | null;
-  /** Snapshot of the customer's chosen saved address — WhatsApp-drafts
-   * only; the Razorpay flow uses shippingAddress instead. */
+  /** Snapshot of the customer's chosen saved address — set for BOTH a
+   * WhatsApp draft and a Razorpay pending order now that checkout is
+   * logged-in-only (create-order resolves the submitted addressId into
+   * this via toDeliveryAddressSnapshot). Missing/null on pendingOrders
+   * docs predating that change. */
   deliveryAddress?: DeliveryAddressSnapshot | null;
   source?: PendingOrderSource;
   /** Short human-readable code included in the WhatsApp message so staff
@@ -539,6 +582,37 @@ export interface RefundFlagDoc {
 }
 
 export interface RefundFlag extends RefundFlagDoc {
+  id: string;
+}
+
+/**
+ * One doc per Razorpay payment attempt (captured OR failed) — the
+ * "correctness" audit trail: every attempt logged with its Razorpay IDs and
+ * status, regardless of whether it ever became a sale. Doc id is the
+ * Razorpay payment id itself (never a client-suppliable value — always
+ * derived from a verified webhook payload, a client's own reported
+ * payment.failed error, or finalizeOnlineOrder's own successful
+ * verification), so a duplicate webhook delivery for the same payment
+ * naturally overwrites in place rather than creating a second log entry.
+ * Distinct from pendingOrders/{razorpayOrderId} (one draft per ORDER,
+ * created before any payment attempt) — a single order can generate
+ * multiple payment attempts (e.g. a card decline followed by a successful
+ * UPI retry within the same Checkout.js session), each getting its own doc
+ * here. Written by lib/server/finalizeOnlineOrder.ts (status "captured")
+ * and app/api/checkout/payment-failed/route.ts + the webhook's
+ * payment.failed handler (status "failed").
+ */
+export interface PaymentAttemptDoc {
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  status: "captured" | "failed";
+  /** Razorpay's own error description/code for a failed attempt; null for
+   * a captured one. */
+  reason: string | null;
+  createdAt: TimestampLike;
+}
+
+export interface PaymentAttempt extends PaymentAttemptDoc {
   id: string;
 }
 
@@ -733,6 +807,23 @@ export interface NotificationSettingsDoc {
 }
 
 export interface NotificationSettings extends NotificationSettingsDoc {
+  id: string;
+}
+
+/** Admin on/off switch for offering Cash on Delivery at checkout — same
+ * siteContent pattern as notificationSettings above. OFF by default (no
+ * doc yet = codEnabled false, same "missing means off" convention as
+ * NotificationSettingsDoc). Read publicly (server-side, by the checkout
+ * page) to decide whether to even show the COD option; enforced again
+ * server-side in app/api/checkout/cod/route.ts regardless of what the
+ * client sends, same "never trust the client" discipline as every other
+ * order-recording route. */
+export interface CheckoutSettingsDoc {
+  codEnabled: boolean;
+  updatedAt: TimestampLike;
+}
+
+export interface CheckoutSettings extends CheckoutSettingsDoc {
   id: string;
 }
 

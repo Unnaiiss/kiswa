@@ -109,6 +109,16 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Audit log of Razorpay payment attempts (captured + failed), doc id ==
+    // razorpayPaymentId — admin-only, same reasoning as stockMovements/sales
+    // above (this is Reports' failed-payment-count source). Writes only
+    // ever happen server-side (finalizeOnlineOrder, the webhook, and
+    // /api/checkout/payment-failed all use firebase-admin).
+    match /paymentAttempts/{attemptId} {
+      allow read: if hasRole('admin');
+      allow write: if false;
+    }
+
     // Public can read active homepage carousel banners; staff/admin can read
     // all (including inactive) for the admin panel. Writes go through
     // /api/admin/banners (firebase-admin, admin-only).

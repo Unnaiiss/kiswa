@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import { Download } from "lucide-react";
 import { useSalesInRange } from "@/lib/admin/useSalesInRange";
 import { useSaleMovementsInRange } from "@/lib/admin/useSaleMovementsInRange";
+import { usePaymentAttemptsInRange } from "@/lib/admin/usePaymentAttemptsInRange";
 import {
   channelSplit,
+  codVsPrepaidSplit,
   comboRevenue,
   comboUnitsSold,
   daysAgo,
@@ -14,6 +16,8 @@ import {
   mlConsumedByChannel,
   oilSprayRevenueSplit,
   oilUsageBreakdown,
+  paymentMethodSplit,
+  refundsSummary,
   revenueByProductType,
   totalItemsSold,
   totalMlConsumed,
@@ -41,6 +45,7 @@ export default function AdminReportsPage() {
   const { sales, loading } = useSalesInRange(from, to, 5000);
   const { movementsBySaleId, loading: movementsLoading } =
     useSaleMovementsInRange(from, to, 5000);
+  const { attempts, loading: attemptsLoading } = usePaymentAttemptsInRange(from, to, 5000);
 
   const revenue = useMemo(() => totalRevenue(sales), [sales]);
   const itemsSold = useMemo(() => totalItemsSold(sales), [sales]);
@@ -62,6 +67,13 @@ export default function AdminReportsPage() {
   const comboRev = useMemo(() => comboRevenue(sales), [sales]);
   const comboRows = useMemo(() => comboUnitsSold(sales), [sales]);
   const typeStats = useMemo(() => revenueByProductType(sales), [sales]);
+  const methodSplit = useMemo(() => paymentMethodSplit(sales), [sales]);
+  const codPrepaid = useMemo(() => codVsPrepaidSplit(sales), [sales]);
+  const refunds = useMemo(() => refundsSummary(sales), [sales]);
+  const failedPayments = useMemo(
+    () => attempts.filter((a) => a.status === "failed").length,
+    [attempts],
+  );
 
   function handleExport() {
     const csv = salesToCsv(sales);
@@ -106,7 +118,7 @@ export default function AdminReportsPage() {
         />
       </div>
 
-      {loading || movementsLoading ? (
+      {loading || movementsLoading || attemptsLoading ? (
         <p className="text-sm text-zinc-500">Loading report…</p>
       ) : (
         <>
@@ -145,6 +157,12 @@ export default function AdminReportsPage() {
               <p className="mt-2 text-2xl font-bold text-zinc-50">
                 {formatInr(comboRev)}
               </p>
+            </div>
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+              <p className="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+                Failed payments
+              </p>
+              <p className="mt-2 text-2xl font-bold text-zinc-50">{failedPayments}</p>
             </div>
           </div>
 
@@ -276,6 +294,76 @@ export default function AdminReportsPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+
+          <SplitBar
+            title="COD vs prepaid (revenue)"
+            segments={[
+              { label: "Cash on Delivery", value: codPrepaid.cod.revenue, color: "bg-orange-400" },
+              { label: "Prepaid", value: codPrepaid.prepaid.revenue, color: "bg-emerald-400" },
+            ]}
+          />
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+            <h2 className="mb-4 text-sm font-semibold text-zinc-50">
+              Payment method split
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-zinc-800 text-left text-xs uppercase tracking-wide text-zinc-500">
+                    <th className="py-2 pr-3 font-medium">Method</th>
+                    <th className="py-2 pr-3 text-right font-medium">Orders</th>
+                    <th className="py-2 text-right font-medium">Revenue</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-800/60">
+                  {(
+                    [
+                      ["razorpay", "Razorpay"],
+                      ["cod", "Cash on Delivery"],
+                      ["cash", "Cash (POS)"],
+                      ["upi", "UPI (POS)"],
+                      ["card", "Card (POS)"],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <tr key={key}>
+                      <td className="py-2 pr-3 text-zinc-300">{label}</td>
+                      <td className="py-2 pr-3 text-right text-zinc-300">
+                        {methodSplit[key].count}
+                      </td>
+                      <td className="py-2 text-right font-medium text-zinc-50">
+                        {formatInr(methodSplit[key].revenue)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+            <h2 className="mb-4 text-sm font-semibold text-zinc-50">Refunds</h2>
+            {refunds.count === 0 ? (
+              <p className="text-sm text-zinc-500">No refunds recorded in this range.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <p className="text-xs text-zinc-500 uppercase">Orders refunded</p>
+                  <p className="mt-1 text-xl font-bold text-zinc-50">{refunds.count}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-zinc-500 uppercase">Total refunded</p>
+                  <p className="mt-1 text-xl font-bold text-zinc-50">
+                    {formatInr(refunds.totalAmountInr)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-zinc-500 uppercase">With stock restored</p>
+                  <p className="mt-1 text-xl font-bold text-zinc-50">{refunds.restockedCount}</p>
+                </div>
               </div>
             )}
           </div>

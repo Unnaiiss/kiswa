@@ -172,6 +172,175 @@ function ShippingForm({ sale, onSaved }: { sale: Sale; onSaved: () => void }) {
   );
 }
 
+function MarkPaidButton({ sale }: { sale: Sale }) {
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  if (sale.paymentMethod !== "cod" || sale.paymentStatus !== "pending") return null;
+
+  async function handleClick() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      await adminFetch(`/api/admin/sales/${sale.id}/mark-paid`, { method: "POST" });
+      setSaved(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="mt-1 flex items-center gap-2">
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={submitting}
+        className="cursor-pointer rounded-lg bg-green-500/15 px-3 py-1 text-xs font-semibold text-green-300 hover:bg-green-500/25 disabled:opacity-40"
+      >
+        {submitting ? "Saving…" : "Mark as paid"}
+      </button>
+      {error && <p className="text-xs text-red-400">{error}</p>}
+      {saved && !error && <p className="text-xs text-green-400">Marked paid.</p>}
+    </div>
+  );
+}
+
+function RefundForm({ sale }: { sale: Sale }) {
+  const existing = sale.refund;
+  const currentStatus = normalizeOrderStatus(sale.orderStatus);
+  const alreadyTerminal = TERMINAL_ORDER_STATUSES.includes(currentStatus);
+
+  const [open, setOpen] = useState(false);
+  const [status, setStatus] = useState<"pending" | "completed">(existing?.status ?? "completed");
+  const [amountInr, setAmountInr] = useState(String(existing?.amountInr ?? sale.total));
+  const [reason, setReason] = useState(existing?.reason ?? "");
+  const [restock, setRestock] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+
+  async function handleSubmit() {
+    setError(null);
+    setSaved(false);
+    const amount = Number(amountInr);
+    if (!amount || amount <= 0) {
+      setError("Enter a valid refund amount.");
+      return;
+    }
+    if (!reason.trim()) {
+      setError("A reason is required.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await adminFetch(`/api/admin/sales/${sale.id}/refund`, {
+        method: "POST",
+        body: JSON.stringify({ status, amountInr: amount, reason: reason.trim(), restock }),
+      });
+      setSaved(true);
+      setOpen(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
+      <p className="mb-2 text-xs text-zinc-500 uppercase">Refund</p>
+      {existing && (
+        <div className="mb-2 text-sm">
+          <p className="text-zinc-50">
+            {formatInr(existing.amountInr)} · {existing.status}
+            {existing.restocked ? " · restocked" : ""}
+          </p>
+          <p className="text-zinc-400 italic">{existing.reason}</p>
+          <p className="text-xs text-zinc-500">
+            by {existing.recordedByName || existing.recordedByUid} ·{" "}
+            {existing.recordedAt.toDate().toLocaleString("en-IN")}
+          </p>
+        </div>
+      )}
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="cursor-pointer rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-zinc-300 hover:text-zinc-50"
+        >
+          {existing ? "Update refund record" : "Record a refund"}
+        </button>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as "pending" | "completed")}
+              className={inputClass}
+            >
+              <option value="completed">Completed</option>
+              <option value="pending">Pending</option>
+            </select>
+            <input
+              className={inputClass}
+              type="number"
+              min={1}
+              max={sale.total}
+              placeholder="Amount (₹)"
+              value={amountInr}
+              onChange={(e) => setAmountInr(e.target.value)}
+            />
+          </div>
+          <input
+            className={inputClass}
+            placeholder="Reason"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+          />
+          <label className="flex items-center gap-2 text-xs text-zinc-300">
+            <input
+              type="checkbox"
+              checked={restock}
+              onChange={(e) => setRestock(e.target.checked)}
+              disabled={alreadyTerminal}
+            />
+            Restore stock (marks order {currentStatus === "delivered" ? "returned" : "cancelled"})
+          </label>
+          {alreadyTerminal && (
+            <p className="text-xs text-zinc-500">
+              This order is already {ORDER_STATUS_LABELS[currentStatus].toLowerCase()} — stock was already
+              restored by that.
+            </p>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting}
+              className="cursor-pointer rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white hover:bg-red-400 disabled:opacity-40"
+            >
+              {submitting ? "Saving…" : "Save refund"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              disabled={submitting}
+              className="cursor-pointer rounded-lg border border-zinc-700 px-4 py-2 text-sm text-zinc-300 hover:text-zinc-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
+      {saved && !error && <p className="mt-2 text-xs text-green-400">Refund recorded.</p>}
+    </div>
+  );
+}
+
 export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void }) {
   const currentStatus = normalizeOrderStatus(sale.orderStatus);
   const options = nextValidStatuses(currentStatus);
@@ -243,6 +412,7 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
             <p className="text-zinc-50 capitalize">
               {sale.paymentMethod} · {sale.paymentStatus}
             </p>
+            <MarkPaidButton sale={sale} />
           </div>
         </div>
 
@@ -457,6 +627,8 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
         <StatusHistoryTimeline sale={sale} />
 
         {sale.channel === "online" && <ShippingForm sale={sale} onSaved={() => {}} />}
+
+        <RefundForm sale={sale} />
 
         <div className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
           <p className="mb-2 text-xs text-zinc-500 uppercase">Update status</p>

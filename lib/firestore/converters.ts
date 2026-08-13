@@ -10,6 +10,7 @@ import type {
   AnnouncementBarDoc,
   AppUserDoc,
   BannerDoc,
+  CheckoutSettingsDoc,
   ComboDoc,
   CustomerDoc,
   GiftSectionDoc,
@@ -17,6 +18,7 @@ import type {
   InvoiceCounter,
   NotificationSettingsDoc,
   OurStorySectionDoc,
+  PaymentAttemptDoc,
   PendingOrderDoc,
   ProductDoc,
   RefundFlagDoc,
@@ -55,3 +57,5 @@ export const siteSettingsConverter = makeConverter<SiteSettingsDoc>();
 export const customerConverter = makeConverter<CustomerDoc>();
 export const pendingOrderConverter = makeConverter<PendingOrderDoc>();
 export const notificationSettingsConverter = makeConverter<NotificationSettingsDoc>();
+export const checkoutSettingsConverter = makeConverter<CheckoutSettingsDoc>();
+export const paymentAttemptConverter = makeConverter<PaymentAttemptDoc>();

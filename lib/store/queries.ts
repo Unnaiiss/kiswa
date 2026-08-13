@@ -1,6 +1,7 @@
 import {
   announcementBarDocRef,
   bannersCollection,
+  checkoutSettingsDocRef,
   combosCollection,
   giftSectionDocRef,
   importedSectionDocRef,
@@ -299,6 +300,17 @@ export async function getImportedSection(): Promise<StoreImportedSection | null>
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { updatedAt, ...rest } = data;
     return { id: snap.id, ...rest };
+  });
+}
+
+/** Whether to offer Cash on Delivery at checkout — never returns null (a
+ * missing doc means "never configured", which is the same as OFF), so
+ * every read site can just check the boolean with no extra null-handling. */
+export async function getCheckoutSettings(): Promise<{ codEnabled: boolean }> {
+  return safeRead("getCheckoutSettings", { codEnabled: false }, async () => {
+    const snap = await checkoutSettingsDocRef().get();
+    const data = snap.data();
+    return { codEnabled: data?.codEnabled ?? false };
   });
 }
 

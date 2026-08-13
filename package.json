@@ -19,7 +19,8 @@
     "test:checkout": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-checkout-stock-conflict.ts\"",
     "test:oil-report": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-oil-consumed-report.ts\"",
     "test:whatsapp-order": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-whatsapp-order-stock.ts\"",
-    "test:cancel-restock": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-cancel-restock.ts\""
+    "test:cancel-restock": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-cancel-restock.ts\"",
+    "test:online-payments": "npx firebase-tools@latest emulators:exec --only firestore \"tsx scripts/test-online-payments.ts\""
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
