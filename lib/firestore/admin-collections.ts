@@ -8,6 +8,7 @@ import {
   giftSectionConverter,
   importedSectionConverter,
   invoiceCounterConverter,
+  notificationSettingsConverter,
   ourStorySectionConverter,
   pendingOrderConverter,
   productConverter,
@@ -110,4 +111,10 @@ export function importedSectionDocRef() {
 
 export function siteSettingsDocRef() {
   return siteContentCollection().doc("siteSettings").withConverter(siteSettingsConverter);
+}
+
+export function notificationSettingsDocRef() {
+  return siteContentCollection()
+    .doc("notificationSettings")
+    .withConverter(notificationSettingsConverter);
 }

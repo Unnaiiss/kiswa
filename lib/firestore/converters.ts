@@ -15,6 +15,7 @@ import type {
   GiftSectionDoc,
   ImportedSectionDoc,
   InvoiceCounter,
+  NotificationSettingsDoc,
   OurStorySectionDoc,
   PendingOrderDoc,
   ProductDoc,
@@ -53,3 +54,4 @@ export const importedSectionConverter = makeConverter<ImportedSectionDoc>();
 export const siteSettingsConverter = makeConverter<SiteSettingsDoc>();
 export const customerConverter = makeConverter<CustomerDoc>();
 export const pendingOrderConverter = makeConverter<PendingOrderDoc>();
+export const notificationSettingsConverter = makeConverter<NotificationSettingsDoc>();

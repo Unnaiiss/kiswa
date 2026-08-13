@@ -7,10 +7,16 @@ import { formatInr } from "@/lib/pricing";
 import { itemVariantLabel } from "@/lib/admin/salesAggregation";
 
 interface OrderInvoiceProps {
-  // createdAt is a Firestore Timestamp instance on SaleDoc — not a plain
-  // object, so it can't cross the server/client boundary. It's passed
-  // separately below, already converted to a plain Date.
-  sale: Omit<SaleDoc, "createdAt">;
+  // createdAt, statusHistory, and shipping all carry real Firestore
+  // Timestamp instances (statusHistory per-entry, shipping's dispatchDate/
+  // expectedDeliveryDate) — not plain objects, so none can cross the
+  // server/client boundary un-converted. This component doesn't render any
+  // of them (delivery status has its own component — see
+  // components/account/delivery-timeline.tsx), so callers should omit all
+  // three rather than convert them; createdAt alone is passed separately
+  // below, already converted to a plain Date, since this component does
+  // render the order date.
+  sale: Omit<SaleDoc, "createdAt" | "statusHistory" | "shipping">;
   createdAt: Date;
 }
 

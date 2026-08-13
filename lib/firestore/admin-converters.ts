@@ -15,6 +15,7 @@ import type {
   GiftSectionDoc,
   ImportedSectionDoc,
   InvoiceCounter,
+  NotificationSettingsDoc,
   OurStorySectionDoc,
   PendingOrderDoc,
   ProductDoc,
@@ -51,3 +52,4 @@ export const comboConverter = makeConverter<ComboDoc>();
 export const announcementBarConverter = makeConverter<AnnouncementBarDoc>();
 export const importedSectionConverter = makeConverter<ImportedSectionDoc>();
 export const siteSettingsConverter = makeConverter<SiteSettingsDoc>();
+export const notificationSettingsConverter = makeConverter<NotificationSettingsDoc>();

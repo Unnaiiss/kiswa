@@ -6,11 +6,13 @@ import { useOurStorySection } from "@/lib/admin/useOurStorySection";
 import { useAnnouncementBar } from "@/lib/admin/useAnnouncementBar";
 import { useImportedSection } from "@/lib/admin/useImportedSection";
 import { useSiteSettings } from "@/lib/admin/useSiteSettings";
+import { useNotificationSettings } from "@/lib/admin/useNotificationSettings";
 import { GiftSectionForm } from "@/components/admin/home-sections/gift-section-form";
 import { OurStoryForm } from "@/components/admin/home-sections/our-story-form";
 import { AnnouncementBarForm } from "@/components/admin/home-sections/announcement-bar-form";
 import { ImportedSectionForm } from "@/components/admin/home-sections/imported-section-form";
 import { BrandSettingsForm } from "@/components/admin/home-sections/brand-settings-form";
+import { NotificationSettingsForm } from "@/components/admin/home-sections/notification-settings-form";
 import { ONLINE_PAYMENTS_ENABLED } from "@/lib/config/featureFlags";
 
 export default function AdminHomeSectionsPage() {
@@ -19,6 +21,7 @@ export default function AdminHomeSectionsPage() {
   const { announcementBar, loading: announcementLoading } = useAnnouncementBar();
   const { importedSection, loading: importedLoading } = useImportedSection();
   const { siteSettings, loading: siteSettingsLoading } = useSiteSettings();
+  const { statusChangeWhatsAppEnabled, loading: notificationLoading } = useNotificationSettings();
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
@@ -77,6 +80,12 @@ export default function AdminHomeSectionsPage() {
         <p className="text-sm text-zinc-500">Loading…</p>
       ) : (
         <ImportedSectionForm importedSection={importedSection} />
+      )}
+
+      {notificationLoading ? (
+        <p className="text-sm text-zinc-500">Loading…</p>
+      ) : (
+        <NotificationSettingsForm statusChangeWhatsAppEnabled={statusChangeWhatsAppEnabled} />
       )}
     </div>
   );

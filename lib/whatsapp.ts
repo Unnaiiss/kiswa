@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { formatInr } from "@/lib/pricing";
 import type { CartItem } from "@/lib/cart/types";
+import type { OrderStatus } from "@/lib/firestore/types";
 
 /** Single source of truth for the KISWA WhatsApp number — read this
  * everywhere instead of hardcoding the digits in individual components. */
@@ -125,4 +126,62 @@ export function buildCartOrderMessage(
 
 export function buildGenericInquiryMessage(): string {
   return "Hi KISWA, I have a question";
+}
+
+const STATUS_UPDATE_LINES: Record<OrderStatus, (invoiceNo: string) => string> = {
+  pending: (inv) => `Your order ${inv} has been received and is awaiting confirmation.`,
+  confirmed: (inv) => `Your order ${inv} is confirmed and being prepared.`,
+  packed: (inv) => `Your order ${inv} has been packed and is ready to ship.`,
+  shipped: (inv) => `Your order ${inv} has shipped!`,
+  out_for_delivery: (inv) => `Your order ${inv} is out for delivery today.`,
+  delivered: (inv) => `Your order ${inv} has been delivered. We hope you love it!`,
+  cancelled: (inv) => `Your order ${inv} has been cancelled.`,
+  returned: (inv) => `Your order ${inv} has been marked as returned.`,
+};
+
+/**
+ * A prewritten status-update message for the admin order panel's "Notify
+ * customer" button (see components/admin/sales/sale-detail.tsx) — purely a
+ * convenience for opening a wa.me link pre-filled with the right text; no
+ * message is ever sent server-side, the admin still reviews and taps send
+ * themselves. Only gated by lib/firestore/types.ts's NotificationSettingsDoc
+ * (off by default) at the UI level, not by anything here.
+ */
+export function buildStatusUpdateMessage(params: {
+  customerName: string;
+  invoiceNo: string;
+  status: OrderStatus;
+  courierName?: string | null;
+  trackingNumber?: string | null;
+  trackingUrl?: string | null;
+}): string {
+  const { customerName, invoiceNo, status, courierName, trackingNumber, trackingUrl } = params;
+  const lines = [
+    `Hi ${customerName || "there"},`,
+    "",
+    STATUS_UPDATE_LINES[status](invoiceNo),
+  ];
+
+  if (status === "shipped" || status === "out_for_delivery") {
+    if (courierName) lines.push(`Courier: ${courierName}`);
+    if (trackingNumber) lines.push(`Tracking number: ${trackingNumber}`);
+    if (trackingUrl) lines.push(`Track here: ${trackingUrl}`);
+  }
+
+  lines.push("", "— Team KISWA");
+  return lines.join("\n");
+}
+
+/** Builds a wa.me link to MESSAGE a customer directly (as opposed to
+ * buildWhatsAppUrl, which always links to KISWA's own number for the
+ * customer to message in) — used by the admin order panel's "Notify
+ * customer" button. Returns null for a phone that isn't a valid 10-digit
+ * Indian mobile (same regex as components/pos/receipt-screen.tsx's own
+ * WhatsApp button), same "don't build a broken link" caution as that
+ * existing usage. Always prefixes "91" — mirrors the receipt screen's own
+ * `91${phone}` convention rather than trusting a stored country code, since
+ * customerPhone is stored as a bare 10-digit number everywhere in this app. */
+export function buildCustomerWhatsAppUrl(phone: string, message: string): string | null {
+  if (!/^[6-9]\d{9}$/.test(phone)) return null;
+  return buildWhatsAppUrl(message, `91${phone}`);
 }

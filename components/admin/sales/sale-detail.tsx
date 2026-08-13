@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { AlertTriangle, Gift, Package, Printer, Truck, User } from "lucide-react";
+import { AlertTriangle, Gift, MessageCircle, Package, Printer, Truck, User } from "lucide-react";
 import { Modal } from "@/components/admin/modal";
 import { adminFetch } from "@/lib/admin/apiClient";
 import { itemVariantLabel, saleHasCombo, saleHasGift } from "@/lib/admin/salesAggregation";
 import { useCustomerDoc } from "@/lib/admin/useCustomerDoc";
+import { useNotificationSettings } from "@/lib/admin/useNotificationSettings";
 import {
   computeRestockDraws,
   normalizeOrderStatus,
@@ -16,6 +17,7 @@ import {
   TERMINAL_ORDER_STATUSES,
 } from "@/lib/orderFulfillment";
 import { formatInr } from "@/lib/pricing";
+import { buildCustomerWhatsAppUrl, buildStatusUpdateMessage } from "@/lib/whatsapp";
 import type { OrderStatus, Sale } from "@/lib/firestore/types";
 
 const inputClass =
@@ -180,6 +182,7 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const { customer: linkedCustomer } = useCustomerDoc(sale.customerUid);
+  const { statusChangeWhatsAppEnabled } = useNotificationSettings();
 
   const giftItems = sale.items.filter((item) => item.isGift);
   const comboItems = sale.items.filter((item) => item.comboId);
@@ -541,7 +544,32 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
             </>
           )}
           {saved && !confirmingRestock && (
-            <p className="mt-2 text-xs text-green-400">Status updated.</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <p className="text-xs text-green-400">Status updated.</p>
+              {statusChangeWhatsAppEnabled && nextStatus && (() => {
+                const message = buildStatusUpdateMessage({
+                  customerName: sale.customerName,
+                  invoiceNo: sale.invoiceNo,
+                  status: nextStatus as OrderStatus,
+                  courierName: sale.shipping?.courierName,
+                  trackingNumber: sale.shipping?.trackingNumber,
+                  trackingUrl: sale.shipping?.trackingUrl,
+                });
+                const url = buildCustomerWhatsAppUrl(sale.customerPhone, message);
+                if (!url) return null;
+                return (
+                  <a
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex cursor-pointer items-center gap-1.5 rounded-lg bg-green-500/15 px-3 py-1.5 text-xs font-semibold text-green-300 hover:bg-green-500/25"
+                  >
+                    <MessageCircle size={13} />
+                    Notify customer via WhatsApp
+                  </a>
+                );
+              })()}
+            </div>
           )}
           {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
         </div>

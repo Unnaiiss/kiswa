@@ -677,6 +677,25 @@ export interface ImportedSection extends ImportedSectionDoc {
   id: string;
 }
 
+/**
+ * Admin on/off switch for the "notify customer on status change" convenience
+ * feature — same siteContent pattern as the sections above. OFF by default.
+ * This is deliberately NOT an automated notification system: even when
+ * enabled, nothing is ever sent server-side. It only controls whether the
+ * admin order panel (components/admin/sales/sale-detail.tsx) shows a
+ * "Notify customer" wa.me button after a status change — the admin still has
+ * to tap it and hit send in WhatsApp themselves. See lib/whatsapp.ts's
+ * buildStatusUpdateMessage.
+ */
+export interface NotificationSettingsDoc {
+  statusChangeWhatsAppEnabled: boolean;
+  updatedAt: TimestampLike;
+}
+
+export interface NotificationSettings extends NotificationSettingsDoc {
+  id: string;
+}
+
 export type ComboType = "fixed" | "choose-any";
 
 /** One fixed component of a 'fixed' combo — productName/variantLabel are

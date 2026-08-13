@@ -10,6 +10,7 @@ export function StoreFooter() {
   const footerLinks = [
     { href: "/shop", label: "Shop" },
     { href: "/#our-story", label: "Our Story" },
+    { href: "/track", label: "Track Order" },
     ...(settings.email ? [{ href: `mailto:${settings.email}`, label: "Contact" }] : []),
   ];
 

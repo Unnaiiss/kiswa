@@ -68,9 +68,12 @@ export default async function CheckoutSuccessPage({
   const sale = saleSnap.data();
   if (!saleSnap.exists || !sale) notFound();
 
-  // sale.createdAt is a Firestore Timestamp instance — not a plain object,
-  // so it can't be passed to the OrderInvoice client component as-is.
-  const { createdAt, ...saleForInvoice } = sale;
+  // sale.createdAt, statusHistory (per-entry), and shipping (dispatchDate/
+  // expectedDeliveryDate) all carry real Firestore Timestamp instances —
+  // not plain objects, so none can be passed to the OrderInvoice client
+  // component as-is; OrderInvoice doesn't render any of them anyway.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- discarded on purpose, see comment above
+  const { createdAt, statusHistory, shipping, ...saleForInvoice } = sale;
 
   return (
     <main className="mx-auto flex max-w-2xl flex-1 flex-col items-center px-6 py-24 text-center">
