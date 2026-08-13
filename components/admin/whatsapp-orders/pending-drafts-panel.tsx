@@ -196,37 +196,49 @@ export function PendingDraftsPanel() {
   const productsById = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const combosById = useMemo(() => new Map(combos.map((c) => [c.id, c])), [combos]);
 
-  if (loading || drafts.length === 0) return null;
+  // The live drafts list drops a draft the instant its status moves off
+  // "created" (see usePendingWhatsAppDrafts) — including the moment a
+  // conversion succeeds. If it was the only open draft, `drafts` becomes
+  // empty on the SAME render that's supposed to show the "Order recorded"
+  // confirmation, so that confirmation (and the detail modal, if somehow
+  // still open) must render unconditionally, outside the "nothing to show"
+  // early return below — otherwise the admin's own successful conversion
+  // dismisses their own confirmation before they ever see it.
+  const showList = !loading && drafts.length > 0;
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-      <p className="mb-3 text-sm font-semibold text-zinc-50">
-        Pending WhatsApp orders <span className="text-zinc-500">({drafts.length})</span>
-      </p>
-      <div className="flex flex-col gap-2">
-        {drafts.map((draft) => {
-          const itemCount = draft.items.reduce((n, i) => n + i.qty, 0);
-          return (
-            <button
-              key={draft.id}
-              type="button"
-              onClick={() => setSelected(draft)}
-              className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-left transition-colors hover:border-amber-400/40"
-            >
-              <div>
-                <p className="text-sm font-medium text-zinc-50">
-                  {draft.referenceCode} · {draft.customerName}
-                </p>
-                <p className="text-xs text-zinc-500">
-                  {itemCount} item{itemCount === 1 ? "" : "s"} ·{" "}
-                  {draft.expiresAt ? timeUntil(draft.expiresAt.toDate()) : ""}
-                </p>
-              </div>
-              <p className="shrink-0 text-sm font-semibold text-zinc-50">{formatInr(draft.amountPaise / 100)}</p>
-            </button>
-          );
-        })}
-      </div>
+    <>
+      {showList && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <p className="mb-3 text-sm font-semibold text-zinc-50">
+            Pending WhatsApp orders <span className="text-zinc-500">({drafts.length})</span>
+          </p>
+          <div className="flex flex-col gap-2">
+            {drafts.map((draft) => {
+              const itemCount = draft.items.reduce((n, i) => n + i.qty, 0);
+              return (
+                <button
+                  key={draft.id}
+                  type="button"
+                  onClick={() => setSelected(draft)}
+                  className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-left transition-colors hover:border-amber-400/40"
+                >
+                  <div>
+                    <p className="text-sm font-medium text-zinc-50">
+                      {draft.referenceCode} · {draft.customerName}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      {itemCount} item{itemCount === 1 ? "" : "s"} ·{" "}
+                      {draft.expiresAt ? timeUntil(draft.expiresAt.toDate()) : ""}
+                    </p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-zinc-50">{formatInr(draft.amountPaise / 100)}</p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {selected && (
         <DraftDetail
@@ -250,6 +262,6 @@ export function PendingDraftsPanel() {
           </div>
         </Modal>
       )}
-    </div>
+    </>
   );
 }

@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
+import { adminDb } from "@/lib/firebase/admin";
 import { combosCollection, pendingOrdersCollection, productsCollection } from "@/lib/firestore/admin-collections";
 import { recordSale } from "@/lib/server/recordSale";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
 import { livePriceForVariant } from "@/lib/server/productLookup";
 import { toErrorResponse } from "@/lib/server/apiError";
-import type { ComboDoc, ProductDoc } from "@/lib/firestore/types";
+import type { ComboDoc, PendingOrderDoc, ProductDoc } from "@/lib/firestore/types";
 
 /**
  * Converts a customer-linked WhatsApp draft (created by
@@ -17,11 +18,26 @@ import type { ComboDoc, ProductDoc } from "@/lib/firestore/types";
  * WhatsApp re-key screen, passing the draft's customerUid and
  * deliveryAddress through so the resulting sale is linked back to the
  * account. Rejects an already-converted or expired draft.
+ *
+ * The draft is claimed via an atomic 'created' -> 'processing' transaction
+ * BEFORE any pricing/recordSale work happens — mirroring
+ * lib/server/finalizeOnlineOrder.ts's lock for the Razorpay flow. A plain
+ * read-then-later-update (the original shape of this route) is a real
+ * TOCTOU race: two concurrent "Convert to sale" requests for the same
+ * draft could both pass a `status !== "created"` check before either one
+ * writes "completed", each independently calling recordSale — creating two
+ * separate sales and double-decrementing stock. Confirmed via a 5-way
+ * parallel-request test before this fix (5/5 succeeded, one draft became 5
+ * sales) and fixed here the same way finalizeOnlineOrder already was.
  */
 
 const bodySchema = z.object({
   paymentMethod: z.enum(["cash", "upi", "card"]),
 });
+
+type LockResult =
+  | { ok: true; data: PendingOrderDoc }
+  | { ok: false; status: number; error: string };
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   let decoded;
@@ -42,23 +58,34 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const ref = pendingOrdersCollection().doc(id);
-  const snap = await ref.get();
-  const draft = snap.data();
-  if (!snap.exists || !draft) {
-    return NextResponse.json({ error: "Draft not found" }, { status: 404 });
+
+  // Lock: atomically move 'created' -> 'processing', or report whatever
+  // state the draft is already in — this is the ONLY thing standing between
+  // two racing requests, so it must be a single transaction, not a
+  // read-then-later-write pair.
+  const lock = await adminDb.runTransaction<LockResult>(async (tx) => {
+    const snap = await tx.get(ref);
+    const data = snap.data();
+    if (!snap.exists || !data) return { ok: false, status: 404, error: "Draft not found" };
+    if (data.source !== "whatsapp") return { ok: false, status: 400, error: "Not a WhatsApp draft" };
+    if (data.status !== "created") {
+      return {
+        ok: false,
+        status: 409,
+        error: data.status === "completed" ? "This draft was already converted." : "This draft can no longer be converted.",
+      };
+    }
+    if (data.expiresAt && data.expiresAt.toDate() < new Date()) {
+      return { ok: false, status: 409, error: "This draft has expired." };
+    }
+    tx.update(ref, { status: "processing" });
+    return { ok: true, data };
+  });
+
+  if (!lock.ok) {
+    return NextResponse.json({ error: lock.error }, { status: lock.status });
   }
-  if (draft.source !== "whatsapp") {
-    return NextResponse.json({ error: "Not a WhatsApp draft" }, { status: 400 });
-  }
-  if (draft.status !== "created") {
-    return NextResponse.json(
-      { error: draft.status === "completed" ? "This draft was already converted." : "This draft can no longer be converted." },
-      { status: 409 },
-    );
-  }
-  if (draft.expiresAt && draft.expiresAt.toDate() < new Date()) {
-    return NextResponse.json({ error: "This draft has expired." }, { status: 409 });
-  }
+  const draft = lock.data;
 
   // Re-derive prices from live data — never trust the draft's own snapshot,
   // same discipline as every other order-recording route in this app.
@@ -150,6 +177,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
     return NextResponse.json({ saleId, invoiceNo, subtotal, total: subtotal });
   } catch (err) {
+    // recordSale rejected this (e.g. stock ran out between the draft being
+    // created and converted) — no sale was created, so release the lock
+    // back to 'created' rather than leaving the draft stuck in 'processing'
+    // forever. Unlike finalizeOnlineOrder's Razorpay flow, no payment has
+    // been captured at this point, so there's nothing to refund-flag — a
+    // fresh "Convert to sale" click is a safe, ordinary retry.
+    await ref.update({ status: "created" }).catch(() => {});
     return toErrorResponse(err, "admin/whatsapp-orders/convert", "Could not convert this draft.");
   }
 }
