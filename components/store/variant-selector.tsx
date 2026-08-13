@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { Droplet, Gift, Minus, Plus, SprayCan } from "lucide-react";
 import type { VariantType } from "@/lib/firestore/types";
@@ -49,6 +50,7 @@ export function VariantSelector({
   giftMode?: boolean;
 }) {
   const { items, addItem, open } = useCart();
+  const router = useRouter();
 
   // Every variant of this product is bottled from the same oil pool, so oil
   // already committed to OTHER lines of this product in the cart (any
@@ -159,6 +161,22 @@ export function VariantSelector({
     setJustAdded(true);
     open();
     setTimeout(() => setJustAdded(false), 1500);
+  }
+
+  // One-tap purchase path, only offered when Razorpay/COD checkout is live —
+  // adds this line then goes straight to /checkout instead of opening the
+  // cart drawer. Same auth gate as every other order-placing action (see
+  // cart-drawer.tsx/WhatsApp button above): a blocked guest gets the sign-in
+  // prompt instead of navigating, since /checkout itself would just bounce
+  // them to /account/login anyway.
+  function handleBuyNow() {
+    if (!selectedVariant || outOfStock) return;
+    if (orderBlocked) {
+      openPrompt();
+      return;
+    }
+    addItem(cartItemBase(), qty);
+    router.push("/checkout");
   }
 
   function handleGiftConfirm(details: GiftDetails) {
@@ -357,6 +375,22 @@ export function VariantSelector({
           </>
         )}
       </div>
+
+      {/* Buy Now — a one-tap purchase path straight to /checkout, only
+       * offered once Razorpay/COD checkout is actually live; not shown in
+       * gift mode, since a gift needs the GiftDialog's recipient/message
+       * details first. Deliberately styled as a secondary (outlined) action
+       * so it doesn't compete with Add to Bag's role as the default. */}
+      {ONLINE_PAYMENTS_ENABLED && !giftMode && (
+        <button
+          type="button"
+          disabled={outOfStock}
+          onClick={handleBuyNow}
+          className="-mt-4 w-full cursor-pointer rounded-full border border-kiswa-gold py-3 text-sm font-medium tracking-wide text-kiswa-gold transition-colors hover:bg-kiswa-gold/10 disabled:cursor-not-allowed disabled:border-kiswa-border disabled:text-kiswa-ink-muted"
+        >
+          Buy Now
+        </button>
+      )}
 
       {giftMode && (
         <button

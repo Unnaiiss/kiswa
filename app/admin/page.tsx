@@ -4,6 +4,7 @@ import { useDashboardData } from "@/lib/admin/useDashboardData";
 import { StatCard } from "@/components/admin/dashboard/stat-card";
 import { SalesChart } from "@/components/admin/dashboard/sales-chart";
 import { OrdersNeedingActionPanel } from "@/components/admin/dashboard/orders-needing-action-panel";
+import { PaymentModeIndicator } from "@/components/admin/payment-mode-indicator";
 import {
   LowStockPanel,
   RefundFlagsPanel,
@@ -27,6 +28,7 @@ export default function AdminDashboardPage() {
         </p>
       </div>
 
+      <PaymentModeIndicator compact />
       <RefundFlagsPanel />
       <OrdersNeedingActionPanel />
 
