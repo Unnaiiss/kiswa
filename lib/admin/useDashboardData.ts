@@ -31,6 +31,7 @@ export interface LowStockAlert {
 
 export interface DashboardData {
   loading: boolean;
+  error: string | null;
   today: {
     online: { revenue: number; count: number };
     offline: { revenue: number; count: number };
@@ -52,9 +53,9 @@ export function useDashboardData(): DashboardData {
   // trailing 30-day chart are fully covered by one listener.
   const queryStart = monthStart < chartStart ? monthStart : chartStart;
 
-  const { sales, loading: salesLoading } = useSalesInRange(queryStart, now);
-  const { products, loading: productsLoading } = useAllProducts();
-  const { movementsBySaleId, loading: movementsLoading } =
+  const { sales, loading: salesLoading, error: salesError } = useSalesInRange(queryStart, now);
+  const { products, loading: productsLoading, error: productsError } = useAllProducts();
+  const { movementsBySaleId, loading: movementsLoading, error: movementsError } =
     useSaleMovementsInRange(queryStart, now);
 
   const today = useMemo(() => {
@@ -95,6 +96,7 @@ export function useDashboardData(): DashboardData {
 
   return {
     loading: salesLoading || productsLoading || movementsLoading,
+    error: salesError ?? productsError ?? movementsError ?? null,
     today,
     month,
     chartData,

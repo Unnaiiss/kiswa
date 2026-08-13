@@ -7,6 +7,7 @@ import { PackageCheck } from "lucide-react";
 import { db } from "@/lib/firebase/client";
 import { useAuthReady } from "@/lib/firebase/useAuthReady";
 import { saleConverter } from "@/lib/firestore/converters";
+import { QueryErrorBanner } from "@/components/admin/query-error-banner";
 import type { Sale } from "@/lib/firestore/types";
 import { normalizeOrderStatus } from "@/lib/orderFulfillment";
 
@@ -20,6 +21,7 @@ import { normalizeOrderStatus } from "@/lib/orderFulfillment";
 export function OrdersNeedingActionPanel() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -33,9 +35,13 @@ export function OrdersNeedingActionPanel() {
       q,
       (snap) => {
         setSales(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady]);
@@ -43,6 +49,7 @@ export function OrdersNeedingActionPanel() {
   const pendingCount = sales.filter((s) => normalizeOrderStatus(s.orderStatus) === "pending").length;
   const confirmedCount = sales.filter((s) => normalizeOrderStatus(s.orderStatus) === "confirmed").length;
 
+  if (error) return <QueryErrorBanner error={error} />;
   if (loading) return null;
   if (sales.length === 0) return null;
 

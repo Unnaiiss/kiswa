@@ -8,9 +8,10 @@ import { StockInForm } from "@/components/admin/stock/stock-in-form";
 import { AdjustmentForm } from "@/components/admin/stock/adjustment-form";
 import { StocktakeForm } from "@/components/admin/stock/stocktake-form";
 import { MovementHistory } from "@/components/admin/stock/movement-history";
+import { QueryErrorBanner } from "@/components/admin/query-error-banner";
 
 export default function AdminStockPage() {
-  const { products, loading } = useAllProducts();
+  const { products, loading, error } = useAllProducts();
   const [dialog, setDialog] = useState<"in" | "adjust" | null>(null);
   const [stocktakeRow, setStocktakeRow] = useState<StockRow | null>(null);
 
@@ -42,6 +43,8 @@ export default function AdminStockPage() {
           </button>
         </div>
       </div>
+
+      {error && <QueryErrorBanner error={error} />}
 
       <section>
         <StockTable

@@ -20,6 +20,7 @@ export function useSaleMovementsInRange(from: Date, to: Date, limit = 5000) {
     () => new Map(),
   );
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   const fromTime = from.getTime();
@@ -48,12 +49,16 @@ export function useSaleMovementsInRange(from: Date, to: Date, limit = 5000) {
           map.set(movement.referenceId, list);
         }
         setMovementsBySaleId(map);
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady, fromTime, toTime, limit]);
 
-  return { movementsBySaleId, loading };
+  return { movementsBySaleId, loading, error };
 }

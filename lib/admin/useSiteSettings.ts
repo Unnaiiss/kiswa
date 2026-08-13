@@ -11,6 +11,7 @@ import type { SiteSettings } from "@/lib/firestore/types";
 export function useSiteSettings() {
   const [siteSettings, setSiteSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -20,12 +21,16 @@ export function useSiteSettings() {
       ref,
       (snap) => {
         setSiteSettings(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady]);
 
-  return { siteSettings, loading };
+  return { siteSettings, loading, error };
 }

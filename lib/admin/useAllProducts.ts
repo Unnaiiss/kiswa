@@ -11,6 +11,7 @@ import type { Product } from "@/lib/firestore/types";
 export function useAllProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -20,12 +21,16 @@ export function useAllProducts() {
       ref,
       (snap) => {
         setProducts(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady]);
 
-  return { products, loading };
+  return { products, loading, error };
 }

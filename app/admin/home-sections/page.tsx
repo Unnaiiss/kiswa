@@ -15,16 +15,19 @@ import { BrandSettingsForm } from "@/components/admin/home-sections/brand-settin
 import { NotificationSettingsForm } from "@/components/admin/home-sections/notification-settings-form";
 import { CheckoutSettingsForm } from "@/components/admin/home-sections/checkout-settings-form";
 import { PaymentModeIndicator } from "@/components/admin/payment-mode-indicator";
+import { QueryErrorBanner } from "@/components/admin/query-error-banner";
 import { ONLINE_PAYMENTS_ENABLED } from "@/lib/config/featureFlags";
 
 export default function AdminHomeSectionsPage() {
-  const { giftSection, loading: giftLoading } = useGiftSection();
-  const { ourStorySection, loading: ourStoryLoading } = useOurStorySection();
-  const { announcementBar, loading: announcementLoading } = useAnnouncementBar();
-  const { importedSection, loading: importedLoading } = useImportedSection();
-  const { siteSettings, loading: siteSettingsLoading } = useSiteSettings();
-  const { statusChangeWhatsAppEnabled, loading: notificationLoading } = useNotificationSettings();
-  const { codEnabled, loading: checkoutSettingsLoading } = useCheckoutSettings();
+  const { giftSection, loading: giftLoading, error: giftError } = useGiftSection();
+  const { ourStorySection, loading: ourStoryLoading, error: ourStoryError } = useOurStorySection();
+  const { announcementBar, loading: announcementLoading, error: announcementError } = useAnnouncementBar();
+  const { importedSection, loading: importedLoading, error: importedError } = useImportedSection();
+  const { siteSettings, loading: siteSettingsLoading, error: siteSettingsError } = useSiteSettings();
+  const { statusChangeWhatsAppEnabled, loading: notificationLoading, error: notificationError } = useNotificationSettings();
+  const { codEnabled, loading: checkoutSettingsLoading, error: checkoutSettingsError } = useCheckoutSettings();
+  const dataError =
+    giftError ?? ourStoryError ?? announcementError ?? importedError ?? siteSettingsError ?? notificationError ?? checkoutSettingsError;
 
   return (
     <div className="flex flex-col gap-6 p-4 sm:p-6">
@@ -39,6 +42,8 @@ export default function AdminHomeSectionsPage() {
        * there's nothing to edit here. Same indicator also shown at the top
        * of the Dashboard (components/admin/payment-mode-indicator.tsx). */}
       <PaymentModeIndicator />
+
+      {dataError && <QueryErrorBanner error={dataError} />}
 
       {siteSettingsLoading ? (
         <p className="text-sm text-zinc-500">Loading…</p>

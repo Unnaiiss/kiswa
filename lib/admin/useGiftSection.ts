@@ -11,6 +11,7 @@ import type { GiftSection } from "@/lib/firestore/types";
 export function useGiftSection() {
   const [giftSection, setGiftSection] = useState<GiftSection | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -22,12 +23,16 @@ export function useGiftSection() {
       ref,
       (snap) => {
         setGiftSection(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady]);
 
-  return { giftSection, loading };
+  return { giftSection, loading, error };
 }

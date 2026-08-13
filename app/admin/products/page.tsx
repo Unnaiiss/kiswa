@@ -5,10 +5,11 @@ import { Plus } from "lucide-react";
 import { useAllProducts } from "@/lib/admin/useAllProducts";
 import { ProductTable } from "@/components/admin/products/product-table";
 import { ProductForm } from "@/components/admin/products/product-form";
+import { QueryErrorBanner } from "@/components/admin/query-error-banner";
 import type { Product } from "@/lib/firestore/types";
 
 export default function AdminProductsPage() {
-  const { products, loading } = useAllProducts();
+  const { products, loading, error } = useAllProducts();
   const [dialog, setDialog] = useState<
     { mode: "create" } | { mode: "edit"; product: Product } | null
   >(null);
@@ -31,6 +32,8 @@ export default function AdminProductsPage() {
           Add Product
         </button>
       </div>
+
+      {error && <QueryErrorBanner error={error} />}
 
       <ProductTable
         products={products}

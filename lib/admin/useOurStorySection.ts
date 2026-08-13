@@ -11,6 +11,7 @@ import type { OurStorySection } from "@/lib/firestore/types";
 export function useOurStorySection() {
   const [ourStorySection, setOurStorySection] = useState<OurStorySection | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -22,12 +23,16 @@ export function useOurStorySection() {
       ref,
       (snap) => {
         setOurStorySection(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady]);
 
-  return { ourStorySection, loading };
+  return { ourStorySection, loading, error };
 }

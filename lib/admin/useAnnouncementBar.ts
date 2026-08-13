@@ -11,6 +11,7 @@ import type { AnnouncementBar } from "@/lib/firestore/types";
 export function useAnnouncementBar() {
   const [announcementBar, setAnnouncementBar] = useState<AnnouncementBar | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -22,12 +23,16 @@ export function useAnnouncementBar() {
       ref,
       (snap) => {
         setAnnouncementBar(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady]);
 
-  return { announcementBar, loading };
+  return { announcementBar, loading, error };
 }

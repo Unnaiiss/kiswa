@@ -30,6 +30,7 @@ export function useStockMovements({
 }: UseStockMovementsOptions) {
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -47,12 +48,16 @@ export function useStockMovements({
       q,
       (snap) => {
         setMovements(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady, productId, limit]);
 
-  return { movements, loading };
+  return { movements, loading, error };
 }

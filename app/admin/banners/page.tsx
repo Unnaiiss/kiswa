@@ -7,12 +7,14 @@ import { useAllCombos } from "@/lib/admin/useAllCombos";
 import { useAllProducts } from "@/lib/admin/useAllProducts";
 import { BannerTable } from "@/components/admin/banners/banner-table";
 import { BannerForm } from "@/components/admin/banners/banner-form";
+import { QueryErrorBanner } from "@/components/admin/query-error-banner";
 import type { Banner } from "@/lib/firestore/types";
 
 export default function AdminBannersPage() {
-  const { banners, loading } = useAllBanners();
-  const { combos } = useAllCombos();
-  const { products } = useAllProducts();
+  const { banners, loading, error: bannersError } = useAllBanners();
+  const { combos, error: combosError } = useAllCombos();
+  const { products, error: productsError } = useAllProducts();
+  const dataError = bannersError ?? combosError ?? productsError;
   const [dialog, setDialog] = useState<
     { mode: "create" } | { mode: "edit"; banner: Banner } | null
   >(null);
@@ -35,6 +37,8 @@ export default function AdminBannersPage() {
           Add Banner
         </button>
       </div>
+
+      {dataError && <QueryErrorBanner error={dataError} />}
 
       <BannerTable
         banners={banners}

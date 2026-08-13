@@ -6,6 +6,7 @@ import { AlertTriangle, TrendingUp } from "lucide-react";
 import { db } from "@/lib/firebase/client";
 import { useAuthReady } from "@/lib/firebase/useAuthReady";
 import { refundFlagConverter } from "@/lib/firestore/converters";
+import { QueryErrorBanner } from "@/components/admin/query-error-banner";
 import type { RefundFlag } from "@/lib/firestore/types";
 import type { TopVariantEntry } from "@/lib/admin/salesAggregation";
 import type { LowStockAlert } from "@/lib/admin/useDashboardData";
@@ -78,6 +79,7 @@ export function LowStockPanel({ alerts }: { alerts: LowStockAlert[] }) {
 export function RefundFlagsPanel() {
   const [flags, setFlags] = useState<RefundFlag[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -90,13 +92,18 @@ export function RefundFlagsPanel() {
       q,
       (snap) => {
         setFlags(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady]);
 
+  if (error) return <QueryErrorBanner error={error} />;
   if (loading || flags.length === 0) return null;
 
   return (

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Clock, User } from "lucide-react";
 import { usePendingWhatsAppDrafts } from "@/lib/admin/usePendingWhatsAppDrafts";
+import { QueryErrorBanner } from "@/components/admin/query-error-banner";
 import { useActiveProducts } from "@/lib/pos/useActiveProducts";
 import { useActiveCombos } from "@/lib/pos/useActiveCombos";
 import { livePriceForVariant } from "@/lib/products";
@@ -187,7 +188,7 @@ function DraftDetail({
  * "review, then convert" flow this doesn't need re-entry for. Renders
  * nothing at all when there are no open drafts. */
 export function PendingDraftsPanel() {
-  const { drafts, loading } = usePendingWhatsAppDrafts();
+  const { drafts, loading, error } = usePendingWhatsAppDrafts();
   const { products } = useActiveProducts();
   const { combos } = useActiveCombos();
   const [selected, setSelected] = useState<PendingOrder | null>(null);
@@ -208,6 +209,7 @@ export function PendingDraftsPanel() {
 
   return (
     <>
+      {error && <QueryErrorBanner error={error} />}
       {showList && (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
           <p className="mb-3 text-sm font-semibold text-zinc-50">

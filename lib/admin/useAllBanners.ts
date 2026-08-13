@@ -11,6 +11,7 @@ import type { Banner } from "@/lib/firestore/types";
 export function useAllBanners() {
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -23,12 +24,16 @@ export function useAllBanners() {
       ref,
       (snap) => {
         setBanners(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady]);
 
-  return { banners, loading };
+  return { banners, loading, error };
 }

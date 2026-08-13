@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useStockMovements } from "@/lib/admin/useStockMovements";
+import { QueryErrorBanner } from "@/components/admin/query-error-banner";
 import type { Product, StockMovementReason } from "@/lib/firestore/types";
 
 const REASON_LABEL: Record<StockMovementReason, string> = {
@@ -23,7 +24,7 @@ export function MovementHistory({ products }: { products: Product[] }) {
   );
   const [productId, setProductId] = useState<string>("");
 
-  const { movements, loading } = useStockMovements({
+  const { movements, loading, error } = useStockMovements({
     productId: productId || undefined,
   });
 
@@ -43,6 +44,8 @@ export function MovementHistory({ products }: { products: Product[] }) {
           ))}
         </select>
       </div>
+
+      {error && <QueryErrorBanner error={error} />}
 
       {loading ? (
         <p className="text-sm text-zinc-500">Loading movements…</p>

@@ -11,6 +11,7 @@ import {
 import { adminFetch } from "@/lib/admin/apiClient";
 import { SalesTable } from "@/components/admin/sales/sales-table";
 import { SaleDetail } from "@/components/admin/sales/sale-detail";
+import { QueryErrorBanner } from "@/components/admin/query-error-banner";
 import type { OrderStatus, PaymentMethod, SaleChannel } from "@/lib/firestore/types";
 
 const inputClass =
@@ -43,7 +44,7 @@ export default function AdminSalesPage() {
   const from = useMemo(() => new Date(`${fromStr}T00:00:00`), [fromStr]);
   const to = useMemo(() => new Date(`${toStr}T23:59:59.999`), [toStr]);
 
-  const { sales, loading } = useSalesInRange(from, to);
+  const { sales, loading, error } = useSalesInRange(from, to);
 
   const filtered = useMemo(
     () =>
@@ -114,6 +115,8 @@ export default function AdminSalesPage() {
           All sales across both channels, {filtered.length} shown.
         </p>
       </div>
+
+      {error && <QueryErrorBanner error={error} />}
 
       <div className="flex flex-wrap items-center gap-3">
         <input

@@ -11,6 +11,7 @@ import type { ImportedSection } from "@/lib/firestore/types";
 export function useImportedSection() {
   const [importedSection, setImportedSection] = useState<ImportedSection | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -22,12 +23,16 @@ export function useImportedSection() {
       ref,
       (snap) => {
         setImportedSection(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady]);
 
-  return { importedSection, loading };
+  return { importedSection, loading, error };
 }

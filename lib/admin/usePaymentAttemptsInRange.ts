@@ -23,6 +23,7 @@ import type { PaymentAttempt } from "@/lib/firestore/types";
 export function usePaymentAttemptsInRange(from: Date, to: Date, limit = 2000) {
   const [attempts, setAttempts] = useState<PaymentAttempt[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   const fromTime = from.getTime();
@@ -42,12 +43,16 @@ export function usePaymentAttemptsInRange(from: Date, to: Date, limit = 2000) {
       q,
       (snap) => {
         setAttempts(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady, fromTime, toTime, limit]);
 
-  return { attempts, loading };
+  return { attempts, loading, error };
 }

@@ -13,6 +13,7 @@ import type { NotificationSettings } from "@/lib/firestore/types";
 export function useNotificationSettings() {
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -24,12 +25,16 @@ export function useNotificationSettings() {
       ref,
       (snap) => {
         setSettings(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady]);
 
-  return { statusChangeWhatsAppEnabled: settings?.statusChangeWhatsAppEnabled ?? false, loading };
+  return { statusChangeWhatsAppEnabled: settings?.statusChangeWhatsAppEnabled ?? false, loading, error };
 }

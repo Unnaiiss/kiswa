@@ -5,10 +5,11 @@ import { Plus } from "lucide-react";
 import { useAllCombos } from "@/lib/admin/useAllCombos";
 import { ComboTable } from "@/components/admin/combos/combo-table";
 import { ComboForm } from "@/components/admin/combos/combo-form";
+import { QueryErrorBanner } from "@/components/admin/query-error-banner";
 import type { Combo } from "@/lib/firestore/types";
 
 export default function AdminCombosPage() {
-  const { combos, loading } = useAllCombos();
+  const { combos, loading, error } = useAllCombos();
   const [dialog, setDialog] = useState<
     { mode: "create" } | { mode: "edit"; combo: Combo } | null
   >(null);
@@ -31,6 +32,8 @@ export default function AdminCombosPage() {
           Add Combo
         </button>
       </div>
+
+      {error && <QueryErrorBanner error={error} />}
 
       <ComboTable
         combos={combos}

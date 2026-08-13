@@ -23,6 +23,7 @@ import type { Sale } from "@/lib/firestore/types";
 export function useSalesInRange(from: Date, to: Date, limit = 1000) {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   const fromTime = from.getTime();
@@ -42,12 +43,16 @@ export function useSalesInRange(from: Date, to: Date, limit = 1000) {
       q,
       (snap) => {
         setSales(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady, fromTime, toTime, limit]);
 
-  return { sales, loading };
+  return { sales, loading, error };
 }

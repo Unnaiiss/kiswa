@@ -5,6 +5,7 @@ import { StatCard } from "@/components/admin/dashboard/stat-card";
 import { SalesChart } from "@/components/admin/dashboard/sales-chart";
 import { OrdersNeedingActionPanel } from "@/components/admin/dashboard/orders-needing-action-panel";
 import { PaymentModeIndicator } from "@/components/admin/payment-mode-indicator";
+import { QueryErrorBanner } from "@/components/admin/query-error-banner";
 import {
   LowStockPanel,
   RefundFlagsPanel,
@@ -16,7 +17,7 @@ function formatMl(value: number): string {
 }
 
 export default function AdminDashboardPage() {
-  const { loading, today, month, chartData, top5, lowStockAlerts } =
+  const { loading, error, today, month, chartData, top5, lowStockAlerts } =
     useDashboardData();
 
   return (
@@ -29,6 +30,7 @@ export default function AdminDashboardPage() {
       </div>
 
       <PaymentModeIndicator compact />
+      {error && <QueryErrorBanner error={error} />}
       <RefundFlagsPanel />
       <OrdersNeedingActionPanel />
 

@@ -11,6 +11,7 @@ import type { Combo } from "@/lib/firestore/types";
 export function useAllCombos() {
   const [combos, setCombos] = useState<Combo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -23,12 +24,16 @@ export function useAllCombos() {
       ref,
       (snap) => {
         setCombos(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady]);
 
-  return { combos, loading };
+  return { combos, loading, error };
 }

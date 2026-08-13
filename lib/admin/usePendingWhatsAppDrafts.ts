@@ -17,6 +17,7 @@ import type { PendingOrder } from "@/lib/firestore/types";
 export function usePendingWhatsAppDrafts() {
   const [drafts, setDrafts] = useState<PendingOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -36,12 +37,16 @@ export function usePendingWhatsAppDrafts() {
             .map((d) => ({ id: d.id, ...d.data() }))
             .filter((d) => !d.expiresAt || d.expiresAt.toDate() > now),
         );
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady]);
 
-  return { drafts, loading };
+  return { drafts, loading, error };
 }

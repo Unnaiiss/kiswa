@@ -27,6 +27,7 @@ import { downloadCsv, salesToCsv } from "@/lib/admin/csv";
 import { formatInr } from "@/lib/pricing";
 import { StatCard } from "@/components/admin/dashboard/stat-card";
 import { SplitBar } from "@/components/admin/reports/split-bar";
+import { QueryErrorBanner } from "@/components/admin/query-error-banner";
 
 const inputClass =
   "rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-50 outline-none focus:border-amber-400";
@@ -42,10 +43,11 @@ export default function AdminReportsPage() {
   const from = useMemo(() => new Date(`${fromStr}T00:00:00`), [fromStr]);
   const to = useMemo(() => new Date(`${toStr}T23:59:59.999`), [toStr]);
 
-  const { sales, loading } = useSalesInRange(from, to, 5000);
-  const { movementsBySaleId, loading: movementsLoading } =
+  const { sales, loading, error: salesError } = useSalesInRange(from, to, 5000);
+  const { movementsBySaleId, loading: movementsLoading, error: movementsError } =
     useSaleMovementsInRange(from, to, 5000);
-  const { attempts, loading: attemptsLoading } = usePaymentAttemptsInRange(from, to, 5000);
+  const { attempts, loading: attemptsLoading, error: attemptsError } = usePaymentAttemptsInRange(from, to, 5000);
+  const dataError = salesError ?? movementsError ?? attemptsError;
 
   const revenue = useMemo(() => totalRevenue(sales), [sales]);
   const itemsSold = useMemo(() => totalItemsSold(sales), [sales]);
@@ -99,6 +101,8 @@ export default function AdminReportsPage() {
           Export CSV
         </button>
       </div>
+
+      {dataError && <QueryErrorBanner error={dataError} />}
 
       <div className="flex flex-wrap items-center gap-3">
         <input

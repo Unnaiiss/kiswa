@@ -13,6 +13,7 @@ import type { CheckoutSettings } from "@/lib/firestore/types";
 export function useCheckoutSettings() {
   const [settings, setSettings] = useState<CheckoutSettings | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const authReady = useAuthReady();
 
   useEffect(() => {
@@ -24,12 +25,16 @@ export function useCheckoutSettings() {
       ref,
       (snap) => {
         setSettings(snap.exists() ? { id: snap.id, ...snap.data() } : null);
+        setError(null);
         setLoading(false);
       },
-      () => setLoading(false),
+      (err) => {
+        setError(`Firestore error (${err.code}): ${err.message}`);
+        setLoading(false);
+      },
     );
     return unsubscribe;
   }, [authReady]);
 
-  return { codEnabled: settings?.codEnabled ?? false, loading };
+  return { codEnabled: settings?.codEnabled ?? false, loading, error };
 }
