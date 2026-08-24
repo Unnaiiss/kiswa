@@ -1,9 +1,12 @@
+import { Suspense } from "react";
 import { Inter, Playfair_Display } from "next/font/google";
 import { CartProvider } from "@/components/store/cart-provider";
 import { CartDrawer } from "@/components/store/cart-drawer";
 import { StoreHeader } from "@/components/store/header";
 import { StoreFooter } from "@/components/store/footer";
 import { WhatsAppFloatButton } from "@/components/store/whatsapp-float-button";
+import { MetaPixel } from "@/components/store/meta-pixel";
+import { CookieNotice } from "@/components/store/cookie-notice";
 import { SiteSettingsProvider } from "@/lib/store/site-settings-context";
 import { getActiveProducts, getAnnouncementBar, getSiteSettings } from "@/lib/store/queries";
 
@@ -54,6 +57,9 @@ export default async function StoreLayout({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
       />
+      <Suspense fallback={null}>
+        <MetaPixel />
+      </Suspense>
       <SiteSettingsProvider settings={siteSettings}>
         <CartProvider>
           <StoreHeader products={products} announcementBar={announcementBar} />
@@ -61,6 +67,7 @@ export default async function StoreLayout({
           <StoreFooter />
           <CartDrawer />
           <WhatsAppFloatButton />
+          <CookieNotice />
         </CartProvider>
       </SiteSettingsProvider>
     </div>

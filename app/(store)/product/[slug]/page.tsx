@@ -5,6 +5,8 @@ import { ProductGallery } from "@/components/store/product-gallery";
 import { VariantSelector } from "@/components/store/variant-selector";
 import { ImportedBuyBox } from "@/components/store/imported-buy-box";
 import { FragranceNotes } from "@/components/store/fragrance-notes";
+import { ProductViewTracker } from "@/components/store/product-view-tracker";
+import { productDisplayPrice } from "@/lib/products";
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;
@@ -49,6 +51,11 @@ export default async function ProductPage({
 
   return (
     <main className="flex-1 px-6 py-16 sm:py-20">
+      <ProductViewTracker
+        productId={product.id}
+        productName={product.name}
+        value={productDisplayPrice(product)}
+      />
       <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-2 lg:gap-20">
         <ProductGallery name={product.name} imageUrls={product.imageUrls} />
 

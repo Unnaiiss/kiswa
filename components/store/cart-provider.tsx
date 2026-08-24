@@ -13,6 +13,7 @@ import type { CartItem, ComboCartDetails, GiftDetails } from "@/lib/cart/types";
 import { makeLineId } from "@/lib/cart/lineId";
 import { mergeCartItems } from "@/lib/cart/mergeCartItems";
 import { useCustomerSession } from "@/lib/auth/useCustomerSession";
+import { trackAddToCart } from "@/lib/analytics/metaPixel";
 
 /** Every cart is now stored under a key scoped to WHO it belongs to — a
  * fixed guest key, or one key per signed-in customer uid — never one
@@ -292,6 +293,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         return next;
       });
       setIsOpen(true);
+      // Single choke point for every "add to bag" path — plain, gift, and
+      // (via addCombo below) combo lines all end up here or its sibling, so
+      // this is the one place AddToCart needs to fire rather than every
+      // call site duplicating it.
+      trackAddToCart({
+        contentId: `${item.productId}:${item.variantId}`,
+        contentName: item.productName,
+        value: item.unitPrice * qty,
+      });
     },
     [],
   );
@@ -318,6 +328,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         },
       ]);
       setIsOpen(true);
+      trackAddToCart({
+        contentId: combo.comboId,
+        contentName: combo.comboTitle,
+        value: unitPrice * qty,
+      });
     },
     [],
   );

@@ -6,6 +6,7 @@ import type { StoreProduct } from "@/lib/store/queries";
 import { formatInr } from "@/lib/pricing";
 import { productDisplayPrice } from "@/lib/products";
 import { ProductImage } from "./product-image";
+import { trackSearch } from "@/lib/analytics/metaPixel";
 import {
   Command,
   CommandDialog,
@@ -75,6 +76,11 @@ export function NavSearch({
         <CommandInput
           value={query}
           onValueChange={setQuery}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && query.trim()) {
+              trackSearch({ searchString: query.trim() });
+            }
+          }}
           placeholder="Search fragrances by name..."
           className="text-kiswa-ink placeholder:text-kiswa-ink-muted"
         />

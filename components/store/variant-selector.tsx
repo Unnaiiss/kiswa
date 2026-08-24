@@ -17,6 +17,7 @@ import {
 import { useSiteSettings } from "@/lib/store/site-settings-context";
 import { ONLINE_PAYMENTS_ENABLED } from "@/lib/config/featureFlags";
 import { useOrderGate } from "@/lib/auth/useOrderGate";
+import { trackContact } from "@/lib/analytics/metaPixel";
 import { useCart } from "./cart-provider";
 import { GiftDialog } from "./gift-dialog";
 import { WhatsAppIcon } from "./whatsapp-icon";
@@ -421,7 +422,9 @@ export function VariantSelector({
             if (orderBlocked) {
               e.preventDefault();
               openPrompt();
+              return;
             }
+            trackContact();
           }}
           className={`flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-medium tracking-wide transition-colors ${
             outOfStock

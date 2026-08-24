@@ -15,6 +15,7 @@ import {
 } from "@/lib/store/razorpay-checkout";
 import { AddressForm } from "@/components/account/address-form";
 import type { PlainAddress } from "@/components/account/address-list";
+import { trackInitiateCheckout } from "@/lib/analytics/metaPixel";
 
 const PHONE_RE = /^[6-9][0-9]{9}$/;
 const PINCODE_RE = /^[1-9][0-9]{5}$/;
@@ -160,6 +161,19 @@ export function CheckoutForm({
 }) {
   const { items, subtotal, clear } = useCart();
   const router = useRouter();
+
+  // Fires once when this page mounts with a real cart — "checkout starts"
+  // means reaching this page, not any later interaction on it (there's no
+  // add-more-items action here, just address/payment selection).
+  useEffect(() => {
+    if (items.length === 0) return;
+    trackInitiateCheckout({
+      contentIds: items.map((i) => (i.combo ? i.combo.comboId : `${i.productId}:${i.variantId}`)),
+      value: subtotal,
+      numItems: items.reduce((n, i) => n + i.qty, 0),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deliberately fire-once-on-mount, not on every cart edit
+  }, []);
 
   const [addresses, setAddresses] = useState(initialAddresses);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(

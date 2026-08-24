@@ -5,6 +5,14 @@ import {
   salesCollection,
 } from "@/lib/firestore/admin-collections";
 import { OrderInvoice } from "@/components/store/order-invoice";
+import { PurchaseTracker } from "@/components/store/purchase-tracker";
+import type { SaleItem } from "@/lib/firestore/types";
+
+/** Product/combo identifiers for the Purchase event's content_ids — never
+ * prices or PII, just what was bought (see lib/analytics/metaPixel.ts). */
+function purchaseContentIds(items: SaleItem[]): string[] {
+  return items.map((item) => item.comboId ?? `${item.productId}:${item.variantId}`);
+}
 
 interface SuccessPageProps {
   // orderId: the Razorpay flow — a pendingOrders doc id, resolved to a sale
@@ -29,6 +37,11 @@ export default async function CheckoutSuccessPage({
     const { createdAt, statusHistory, shipping, ...saleForInvoice } = sale;
     return (
       <main className="mx-auto flex max-w-2xl flex-1 flex-col items-center px-6 py-24 text-center">
+        <PurchaseTracker
+          saleId={saleId}
+          total={sale.total}
+          contentIds={purchaseContentIds(sale.items)}
+        />
         <p className="text-xs uppercase tracking-[0.4em] text-kiswa-gold-soft">Order confirmed</p>
         <h1 className="mt-3 font-display text-4xl text-kiswa-ink">
           Thank you, {sale.customerName.split(" ")[0]}
@@ -108,6 +121,11 @@ export default async function CheckoutSuccessPage({
 
   return (
     <main className="mx-auto flex max-w-2xl flex-1 flex-col items-center px-6 py-24 text-center">
+      <PurchaseTracker
+        saleId={pending.saleId}
+        total={sale.total}
+        contentIds={purchaseContentIds(sale.items)}
+      />
       <p className="text-xs uppercase tracking-[0.4em] text-kiswa-gold-soft">
         Order confirmed
       </p>

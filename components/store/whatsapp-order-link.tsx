@@ -4,6 +4,7 @@ import { useState } from "react";
 import { buildCartOrderMessage, buildWhatsAppUrl } from "@/lib/whatsapp";
 import { useCustomerSession } from "@/lib/auth/useCustomerSession";
 import { REQUIRE_LOGIN_TO_ORDER } from "@/lib/config/featureFlags";
+import { trackContact } from "@/lib/analytics/metaPixel";
 import { SignInToOrderPrompt } from "./sign-in-to-order-prompt";
 import type { CartItem } from "@/lib/cart/types";
 
@@ -55,7 +56,10 @@ export function WhatsAppOrderLink({
         href={buildWhatsAppUrl(buildCartOrderMessage(items, subtotal), whatsappNumber)}
         target="_blank"
         rel="noopener noreferrer"
-        onClick={onNavigate}
+        onClick={() => {
+          trackContact();
+          onNavigate?.();
+        }}
         className={className}
       >
         {children}
@@ -87,6 +91,7 @@ export function WhatsAppOrderLink({
       // handoff over a failed draft creation.
     }
     setSubmitting(false);
+    trackContact();
     window.open(
       buildWhatsAppUrl(buildCartOrderMessage(items, subtotal, referenceCode), whatsappNumber),
       "_blank",
