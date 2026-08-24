@@ -17,7 +17,8 @@ import {
 import { useSiteSettings } from "@/lib/store/site-settings-context";
 import { ONLINE_PAYMENTS_ENABLED } from "@/lib/config/featureFlags";
 import { useOrderGate } from "@/lib/auth/useOrderGate";
-import { trackContact } from "@/lib/analytics/metaPixel";
+import { trackContact, trackViewContent } from "@/lib/analytics/metaPixel";
+import { metaCatalogId } from "@/lib/products";
 import { useCart } from "./cart-provider";
 import { GiftDialog } from "./gift-dialog";
 import { WhatsAppIcon } from "./whatsapp-icon";
@@ -58,6 +59,18 @@ export function ImportedBuyBox({
   useEffect(() => {
     setQty((q) => Math.min(q, Math.max(1, maxQty)));
   }, [maxQty]);
+
+  // Imported products have exactly one sellable SKU ("unit"), so this fires
+  // once on mount rather than reacting to a selection — matches the Meta
+  // commerce catalog's own single imported-variant row.
+  useEffect(() => {
+    trackViewContent({
+      contentId: metaCatalogId(product.id, IMPORTED_VARIANT_ID),
+      contentName: `${product.name} — ${product.sizeLabel}`,
+      value: product.priceInr,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once per distinct product, not on every render
+  }, [product.id]);
 
   const siteUrl = useSiteUrl();
   const { whatsappNumber } = useSiteSettings();

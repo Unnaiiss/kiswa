@@ -14,6 +14,7 @@ import { makeLineId } from "@/lib/cart/lineId";
 import { mergeCartItems } from "@/lib/cart/mergeCartItems";
 import { useCustomerSession } from "@/lib/auth/useCustomerSession";
 import { trackAddToCart } from "@/lib/analytics/metaPixel";
+import { metaCatalogId } from "@/lib/products";
 
 /** Every cart is now stored under a key scoped to WHO it belongs to — a
  * fixed guest key, or one key per signed-in customer uid — never one
@@ -298,7 +299,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       // this is the one place AddToCart needs to fire rather than every
       // call site duplicating it.
       trackAddToCart({
-        contentId: `${item.productId}:${item.variantId}`,
+        contentId: metaCatalogId(item.productId, item.variantId),
         contentName: item.productName,
         value: item.unitPrice * qty,
       });

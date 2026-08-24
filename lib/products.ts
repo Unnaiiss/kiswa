@@ -7,6 +7,16 @@ import { getStartingPrice, maxAdditionalUnits } from "@/lib/pricing";
  * Imported products have no real variant entity (one price, one size). */
 export const IMPORTED_VARIANT_ID = "unit";
 
+/** The ONE place a (productId, variantId) pair becomes the stable
+ * per-SKU identifier used BOTH as the Meta commerce catalog's `id` column
+ * (lib/server/metaCatalog.ts) AND as every Meta Pixel ecommerce event's
+ * content_ids (lib/analytics/metaPixel.ts's call sites) — Meta's dynamic
+ * ads match a pixel event back to a catalog row by exact string equality
+ * on this value, so it must never be built ad hoc at a call site. */
+export function metaCatalogId(productId: string, variantId: string): string {
+  return `${productId}_${variantId}`;
+}
+
 export function isAttarProduct<T extends { productType: ProductType }>(
   product: T,
 ): product is T & { productType: "attar" } {

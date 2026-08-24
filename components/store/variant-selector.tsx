@@ -17,7 +17,8 @@ import {
 import { useSiteSettings } from "@/lib/store/site-settings-context";
 import { ONLINE_PAYMENTS_ENABLED } from "@/lib/config/featureFlags";
 import { useOrderGate } from "@/lib/auth/useOrderGate";
-import { trackContact } from "@/lib/analytics/metaPixel";
+import { trackContact, trackViewContent } from "@/lib/analytics/metaPixel";
+import { metaCatalogId } from "@/lib/products";
 import { useCart } from "./cart-provider";
 import { GiftDialog } from "./gift-dialog";
 import { WhatsAppIcon } from "./whatsapp-icon";
@@ -42,6 +43,7 @@ const TYPE_META: Record<
 export function VariantSelector({
   product,
   giftMode = false,
+  initialVariantId,
 }: {
   /** Always an attar product — the product page renders ImportedBuyBox
    * instead for imported products, which have no variants to select. */
@@ -49,6 +51,11 @@ export function VariantSelector({
   /** True when navigated here from /gift — makes "Send as Gift" the primary
    * CTA instead of "Add to Bag" (both stay available either way). */
   giftMode?: boolean;
+  /** Preselects a variant from a ?variant= query param — e.g. a Meta
+   * catalog ad deep link, so the click lands on the exact SKU it
+   * advertised. Falls back to the first available type/size (unchanged
+   * prior behavior) when absent or not a real active variant. */
+  initialVariantId?: string;
 }) {
   const { items, addItem, open } = useCart();
   const router = useRouter();
@@ -76,7 +83,13 @@ export function VariantSelector({
     [activeVariants],
   );
 
-  const [selectedType, setSelectedType] = useState<VariantType>(types[0]);
+  const initialVariant = initialVariantId
+    ? activeVariants.find((v) => v.variantId === initialVariantId)
+    : undefined;
+
+  const [selectedType, setSelectedType] = useState<VariantType>(
+    initialVariant?.type ?? types[0],
+  );
 
   const sizesForType = useMemo(
     () =>
@@ -87,7 +100,7 @@ export function VariantSelector({
   );
 
   const [selectedSizeMl, setSelectedSizeMl] = useState<number>(
-    sizesForType[0]?.sizeMl,
+    initialVariant?.sizeMl ?? sizesForType[0]?.sizeMl,
   );
 
   const selectedVariant =
@@ -111,6 +124,19 @@ export function VariantSelector({
   useEffect(() => {
     setQty((q) => Math.min(q, Math.max(1, maxQty)));
   }, [maxQty]);
+
+  // Refires on every variant change (not just once on mount) — reflects
+  // the exact SKU currently being viewed, matching the Meta commerce
+  // catalog's per-variant id (lib/products.ts's metaCatalogId) so dynamic
+  // ads retarget the specific size/type this visitor looked at.
+  useEffect(() => {
+    if (!selectedVariant) return;
+    trackViewContent({
+      contentId: metaCatalogId(product.id, selectedVariant.variantId),
+      contentName: `${product.name} — ${TYPE_META[selectedVariant.type].label} ${selectedVariant.sizeMl}ml`,
+      value: selectedVariant.priceInr,
+    });
+  }, [product.id, product.name, selectedVariant]);
 
   function handleTypeChange(type: VariantType) {
     setSelectedType(type);

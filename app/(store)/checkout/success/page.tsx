@@ -6,12 +6,16 @@ import {
 } from "@/lib/firestore/admin-collections";
 import { OrderInvoice } from "@/components/store/order-invoice";
 import { PurchaseTracker } from "@/components/store/purchase-tracker";
+import { metaCatalogId } from "@/lib/products";
 import type { SaleItem } from "@/lib/firestore/types";
 
 /** Product/combo identifiers for the Purchase event's content_ids — never
- * prices or PII, just what was bought (see lib/analytics/metaPixel.ts). */
+ * prices or PII, just what was bought (see lib/analytics/metaPixel.ts). Must
+ * exactly match the Meta commerce catalog's own `id` column
+ * (lib/server/metaCatalog.ts) or dynamic ads can't match this event back to
+ * a catalog row. */
 function purchaseContentIds(items: SaleItem[]): string[] {
-  return items.map((item) => item.comboId ?? `${item.productId}:${item.variantId}`);
+  return items.map((item) => item.comboId ?? metaCatalogId(item.productId, item.variantId));
 }
 
 interface SuccessPageProps {

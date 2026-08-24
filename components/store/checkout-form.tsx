@@ -16,6 +16,7 @@ import {
 import { AddressForm } from "@/components/account/address-form";
 import type { PlainAddress } from "@/components/account/address-list";
 import { trackInitiateCheckout } from "@/lib/analytics/metaPixel";
+import { metaCatalogId } from "@/lib/products";
 
 const PHONE_RE = /^[6-9][0-9]{9}$/;
 const PINCODE_RE = /^[1-9][0-9]{5}$/;
@@ -168,7 +169,7 @@ export function CheckoutForm({
   useEffect(() => {
     if (items.length === 0) return;
     trackInitiateCheckout({
-      contentIds: items.map((i) => (i.combo ? i.combo.comboId : `${i.productId}:${i.variantId}`)),
+      contentIds: items.map((i) => (i.combo ? i.combo.comboId : metaCatalogId(i.productId, i.variantId))),
       value: subtotal,
       numItems: items.reduce((n, i) => n + i.qty, 0),
     });

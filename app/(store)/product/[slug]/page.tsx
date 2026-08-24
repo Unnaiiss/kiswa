@@ -5,12 +5,13 @@ import { ProductGallery } from "@/components/store/product-gallery";
 import { VariantSelector } from "@/components/store/variant-selector";
 import { ImportedBuyBox } from "@/components/store/imported-buy-box";
 import { FragranceNotes } from "@/components/store/fragrance-notes";
-import { ProductViewTracker } from "@/components/store/product-view-tracker";
-import { productDisplayPrice } from "@/lib/products";
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ gift?: string }>;
+  // variant: preselects a variant from a deep link (e.g. a Meta catalog
+  // ad click) — read by VariantSelector, ignored by ImportedBuyBox (which
+  // has only the one "unit" variant, nothing to preselect).
+  searchParams: Promise<{ gift?: string; variant?: string }>;
 }
 
 export async function generateMetadata({
@@ -44,18 +45,13 @@ export default async function ProductPage({
   params,
   searchParams,
 }: ProductPageProps) {
-  const [{ slug }, { gift }] = await Promise.all([params, searchParams]);
+  const [{ slug }, { gift, variant }] = await Promise.all([params, searchParams]);
   const product = await getProductBySlug(slug);
 
   if (!product) notFound();
 
   return (
     <main className="flex-1 px-6 py-16 sm:py-20">
-      <ProductViewTracker
-        productId={product.id}
-        productName={product.name}
-        value={productDisplayPrice(product)}
-      />
       <div className="mx-auto grid max-w-6xl gap-12 lg:grid-cols-2 lg:gap-20">
         <ProductGallery name={product.name} imageUrls={product.imageUrls} />
 
@@ -79,7 +75,7 @@ export default async function ProductPage({
           {product.productType === "imported" ? (
             <ImportedBuyBox product={product} giftMode={gift === "1"} />
           ) : (
-            <VariantSelector product={product} giftMode={gift === "1"} />
+            <VariantSelector product={product} giftMode={gift === "1"} initialVariantId={variant} />
           )}
         </div>
       </div>
