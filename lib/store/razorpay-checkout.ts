@@ -27,7 +27,7 @@ export interface RazorpayCheckoutOptions {
   order_id: string;
   name: string;
   description?: string;
-  prefill?: { name?: string; contact?: string };
+  prefill?: { name?: string; contact?: string; email?: string };
   theme?: { color?: string };
   handler: (response: RazorpayHandlerResponse) => void;
   modal?: { ondismiss?: () => void };

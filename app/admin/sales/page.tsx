@@ -35,6 +35,7 @@ export default function AdminSalesPage() {
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | "all">("all");
   const [orderStatus, setOrderStatus] = useState<OrderStatus | "all">("all");
   const [giftOnly, setGiftOnly] = useState(false);
+  const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkTarget, setBulkTarget] = useState<OrderStatus | "">("");
@@ -46,17 +47,25 @@ export default function AdminSalesPage() {
 
   const { sales, loading, error } = useSalesInRange(from, to);
 
-  const filtered = useMemo(
-    () =>
-      sales.filter((sale) => {
-        if (channel !== "all" && sale.channel !== channel) return false;
-        if (paymentMethod !== "all" && sale.paymentMethod !== paymentMethod) return false;
-        if (orderStatus !== "all" && normalizeOrderStatus(sale.orderStatus) !== orderStatus) return false;
-        if (giftOnly && !saleHasGift(sale)) return false;
-        return true;
-      }),
-    [sales, channel, paymentMethod, orderStatus, giftOnly],
-  );
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return sales.filter((sale) => {
+      if (channel !== "all" && sale.channel !== channel) return false;
+      if (paymentMethod !== "all" && sale.paymentMethod !== paymentMethod) return false;
+      if (orderStatus !== "all" && normalizeOrderStatus(sale.orderStatus) !== orderStatus) return false;
+      if (giftOnly && !saleHasGift(sale)) return false;
+      if (
+        term &&
+        !sale.customerName.toLowerCase().includes(term) &&
+        !sale.customerPhone.toLowerCase().includes(term) &&
+        !(sale.guestEmail ?? "").toLowerCase().includes(term) &&
+        !sale.invoiceNo.toLowerCase().includes(term)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [sales, channel, paymentMethod, orderStatus, giftOnly, search]);
 
   // Live-derived from `sales` (not a snapshotted copy) so the modal reflects
   // a status/shipping update the moment it lands, without needing to close
@@ -119,6 +128,13 @@ export default function AdminSalesPage() {
       {error && <QueryErrorBanner error={error} />}
 
       <div className="flex flex-wrap items-center gap-3">
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search name, phone, email, or invoice…"
+          className={`${inputClass} min-w-[16rem]`}
+        />
         <input
           type="date"
           value={fromStr}

@@ -6,6 +6,7 @@ import {
   CUSTOMER_SESSION_MAX_AGE_MS,
 } from "@/lib/server/customerSessionCookie";
 import { touchCustomerOnLogin } from "@/lib/server/customers";
+import { linkGuestOrdersToCustomer } from "@/lib/server/guestOrderLinking";
 import { sessionBodySchema } from "@/lib/auth/customerValidation";
 import { rateLimit } from "@/lib/server/rateLimit";
 
@@ -59,6 +60,21 @@ export async function POST(request: Request) {
     email: decoded.email ?? null,
     displayName: (decoded.name as string | undefined) ?? null,
   });
+
+  // Every login (not just the first) re-checks for newly-matching guest
+  // orders — a customer might place several guest orders BEFORE ever
+  // verifying their email, or before signing back in on a device where
+  // they'd previously only used a different phone number. Best-effort:
+  // never blocks sign-in over a linking hiccup. decoded.email_verified is
+  // Firebase's own signal (true automatically for Google sign-in; for
+  // email/password it flips true only once the customer actually clicks
+  // the verification link — see the signup form's sendEmailVerification
+  // call) — see lib/server/guestOrderLinking.ts's own doc comment for why
+  // this matters for email specifically but not for phone.
+  await linkGuestOrdersToCustomer({
+    uid: decoded.uid,
+    emailVerified: decoded.email_verified === true,
+  }).catch(() => {});
 
   let sessionCookie: string;
   try {

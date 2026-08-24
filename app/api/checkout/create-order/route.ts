@@ -8,7 +8,8 @@ import {
 } from "@/lib/firestore/admin-collections";
 import { getCustomerSession } from "@/lib/server/getCustomerSession";
 import { getAddressById, toDeliveryAddressSnapshot } from "@/lib/server/customerAddresses";
-import type { ComboDoc, ProductDoc } from "@/lib/firestore/types";
+import { guestCheckoutDetailsSchema } from "@/lib/auth/customerValidation";
+import type { ComboDoc, DeliveryAddressSnapshot, ProductDoc } from "@/lib/firestore/types";
 import { createRazorpayOrder, razorpayPublicKeyId } from "@/lib/server/razorpay";
 import {
   InsufficientStockError,
@@ -62,10 +63,14 @@ const itemSchema = z.discriminatedUnion("kind", [productItemSchema, comboItemSch
 
 const requestSchema = z.object({
   items: z.array(itemSchema).min(1, "Your bag is empty"),
-  // References one of the SIGNED-IN customer's own saved addresses — never
-  // a freeform address blob from the client. Re-read from Firestore below,
-  // scoped to the verified session's own uid.
-  addressId: z.string().min(1, "Choose a delivery address"),
+  // Signed-in customer: references one of their own saved addresses — re-
+  // read from Firestore below, scoped to the verified session's own uid,
+  // never trusted as a freeform blob. Guest (no session): guestDetails
+  // carries the freeform name/phone/email/address instead — exactly one of
+  // the two is used, decided server-side by whether a session exists (see
+  // the handler below), not by which of these the client happened to send.
+  addressId: z.string().min(1).nullable().default(null),
+  guestDetails: guestCheckoutDetailsSchema.nullable().default(null),
   hidePrices: z.boolean().default(false),
   giftShippingAddress: giftShippingAddressSchema.nullable().default(null),
 });
@@ -105,13 +110,15 @@ function comboComponentsPerUnit(
 }
 
 /**
- * Checkout is signed-in-customer only (see /(store)/checkout/page.tsx's own
- * server-side redirect-to-login gate) — a delivery address always comes
- * from the customer's own saved address book, never a freeform field, so
- * there's no meaningful "guest checkout" left to support here. Every
- * amount is computed fresh from live Firestore data below; nothing is ever
- * trusted from the client except WHICH products/variants/combos and
- * WHICH saved address — never their price or contents.
+ * Signed-in customer OR guest — a signed-in customer's delivery address
+ * always comes from their own saved address book (never a freeform field);
+ * a guest submits guestDetails instead, which becomes a one-off
+ * DeliveryAddressSnapshot with no saved-address entity behind it. Which
+ * path applies is decided here, server-side, purely by whether a session
+ * exists — never by which field the client happened to send. Every amount
+ * is computed fresh from live Firestore data below; nothing is ever
+ * trusted from the client except WHICH products/variants/combos and WHICH
+ * saved address/guest details — never their price or contents.
  */
 export async function POST(request: Request) {
   const limited = rateLimit(request, "checkout:create-order", {
@@ -121,9 +128,6 @@ export async function POST(request: Request) {
   if (limited) return limited;
 
   const session = await getCustomerSession();
-  if (!session) {
-    return NextResponse.json({ error: "Please sign in to check out." }, { status: 401 });
-  }
 
   const json = await request.json().catch(() => null);
   const parsed = requestSchema.safeParse(json);
@@ -135,12 +139,52 @@ export async function POST(request: Request) {
   }
   const input = parsed.data;
 
-  const address = await getAddressById(session.uid, input.addressId);
-  if (!address) {
-    return NextResponse.json(
-      { error: "That address couldn't be found. Please choose or add one." },
-      { status: 400 },
-    );
+  // Resolves to a common shape regardless of path, so everything below
+  // (subtotal/pending-order building) is identical for both.
+  let customerName: string;
+  let customerPhone: string;
+  let deliveryAddress: DeliveryAddressSnapshot;
+  let guestEmail: string | null = null;
+  let guestName: string | null = null;
+
+  if (session) {
+    if (!input.addressId) {
+      return NextResponse.json({ error: "Choose a delivery address." }, { status: 400 });
+    }
+    const address = await getAddressById(session.uid, input.addressId);
+    if (!address) {
+      return NextResponse.json(
+        { error: "That address couldn't be found. Please choose or add one." },
+        { status: 400 },
+      );
+    }
+    customerName = address.fullName;
+    customerPhone = address.phone;
+    deliveryAddress = toDeliveryAddressSnapshot(address);
+  } else {
+    if (!input.guestDetails) {
+      return NextResponse.json(
+        { error: "Enter your delivery details, or sign in to use a saved address." },
+        { status: 400 },
+      );
+    }
+    const g = input.guestDetails;
+    customerName = g.name;
+    customerPhone = g.phone;
+    deliveryAddress = {
+      label: "Delivery Address",
+      fullName: g.name,
+      phone: g.phone,
+      line1: g.line1,
+      line2: g.line2 ?? null,
+      city: g.city,
+      district: g.district,
+      state: g.state,
+      pincode: g.pincode,
+      landmark: null,
+    };
+    guestEmail = g.email;
+    guestName = g.name;
   }
 
   // Fetch every combo referenced up front — needed both to validate/expand
@@ -301,8 +345,8 @@ export async function POST(request: Request) {
 
   await pendingOrdersCollection().doc(razorpayOrder.id).set({
     items: pendingItems,
-    customerName: address.fullName,
-    customerPhone: address.phone,
+    customerName,
+    customerPhone,
     shippingAddress: null,
     amountPaise,
     status: "created",
@@ -311,8 +355,10 @@ export async function POST(request: Request) {
     createdAt: FieldValue.serverTimestamp(),
     giftShippingAddress: input.giftShippingAddress,
     hidePrices: input.hidePrices,
-    customerUid: session.uid,
-    deliveryAddress: toDeliveryAddressSnapshot(address),
+    customerUid: session?.uid ?? null,
+    deliveryAddress,
+    guestEmail,
+    guestName,
     source: "razorpay",
     referenceCode: null,
     expiresAt: null,

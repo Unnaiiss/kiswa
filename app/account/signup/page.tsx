@@ -9,13 +9,18 @@ export const metadata: Metadata = {
 };
 
 interface AccountSignupPageProps {
-  searchParams: Promise<{ redirect?: string }>;
+  // email: prefills the form from checkout-success's "Create an account to
+  // track all your orders" CTA — see lib/server/guestOrderLinking.ts for
+  // how a matching future login/verification actually pulls their guest
+  // orders into the new account (this param is purely a form convenience,
+  // not itself part of the linking mechanism).
+  searchParams: Promise<{ redirect?: string; email?: string }>;
 }
 
 export default async function AccountSignupPage({ searchParams }: AccountSignupPageProps) {
   const session = await getCustomerSession();
-  const { redirect: redirectParam } = await searchParams;
+  const { redirect: redirectParam, email } = await searchParams;
   if (session) redirect(sanitizeRedirect(redirectParam, "/"));
 
-  return <AccountSignupForm redirectParam={redirectParam} />;
+  return <AccountSignupForm redirectParam={redirectParam} emailParam={email} />;
 }

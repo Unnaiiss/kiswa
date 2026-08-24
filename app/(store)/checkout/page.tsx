@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { CheckoutForm } from "@/components/store/checkout-form";
 import { CheckoutDisabledNotice } from "@/components/store/checkout-disabled-notice";
 import { ONLINE_PAYMENTS_ENABLED } from "@/lib/config/featureFlags";
@@ -20,16 +19,14 @@ export default async function CheckoutPage() {
     );
   }
 
-  // Checkout is signed-in-customer only, unconditionally (not gated by
-  // REQUIRE_LOGIN_TO_ORDER — that flag controls whether TAPPING the order
-  // button prompts sign-in as a conversion lever; this page's own address
-  // book design inherently needs an account regardless of that flag's
-  // value, so a guest reaching /checkout directly always redirects here).
+  // Guest checkout: unlike the earlier "signed-in-customer only" version of
+  // this page, a visitor with no session is no longer redirected away —
+  // they see CheckoutForm's own guest/sign-in/create-account chooser
+  // instead (see that component). A signed-in customer still gets their
+  // saved address book exactly as before.
   const session = await getCustomerSession();
-  if (!session) redirect("/account/login?redirect=/checkout");
-
   const [addresses, { codEnabled }] = await Promise.all([
-    listAddresses(session.uid),
+    session ? listAddresses(session.uid) : Promise.resolve([]),
     getCheckoutSettings(),
   ]);
   // Timestamps can't cross the RSC boundary into the client AddressForm/
@@ -42,7 +39,11 @@ export default async function CheckoutPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <CheckoutForm initialAddresses={plainAddresses} codEnabled={codEnabled} />
+      <CheckoutForm
+        initialAddresses={plainAddresses}
+        codEnabled={codEnabled}
+        customer={session ? { name: session.name, email: session.email } : null}
+      />
     </main>
   );
 }

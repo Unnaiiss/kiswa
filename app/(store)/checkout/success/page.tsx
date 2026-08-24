@@ -18,6 +18,46 @@ function purchaseContentIds(items: SaleItem[]): string[] {
   return items.map((item) => item.comboId ?? metaCatalogId(item.productId, item.variantId));
 }
 
+/** Only rendered for a genuine guest order (customerUid null) — a
+ * registered customer already has this order in /account/orders, so the
+ * "save this link" messaging would just be confusing clutter for them.
+ * orderToken is optional only because sales recorded before that field
+ * existed don't have one — nothing to show in that (increasingly rare)
+ * case rather than a broken link. */
+function GuestOrderCallout({
+  orderToken,
+  guestEmail,
+}: {
+  orderToken?: string;
+  guestEmail?: string | null;
+}) {
+  if (!orderToken) return null;
+  return (
+    <div className="mt-6 w-full max-w-sm rounded-lg border border-kiswa-gold/30 bg-kiswa-gold/5 p-4 text-left text-sm">
+      <p className="text-kiswa-ink">
+        Save this link to check your order anytime — no account needed:
+      </p>
+      <Link
+        href={`/orders/${orderToken}`}
+        className="mt-1 block cursor-pointer break-all text-kiswa-gold underline underline-offset-2 hover:text-kiswa-gold-soft"
+      >
+        kiswaperfumes.in/orders/{orderToken}
+      </Link>
+      {guestEmail && (
+        <div className="mt-3 border-t border-kiswa-gold/20 pt-3">
+          <p className="text-kiswa-ink-muted">Want to track all your orders in one place?</p>
+          <Link
+            href={`/account/signup?email=${encodeURIComponent(guestEmail)}&redirect=${encodeURIComponent("/account/orders")}`}
+            className="mt-1 inline-block cursor-pointer text-kiswa-gold underline underline-offset-2 hover:text-kiswa-gold-soft"
+          >
+            Create an account to track all your orders
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface SuccessPageProps {
   // orderId: the Razorpay flow — a pendingOrders doc id, resolved to a sale
   // below once its payment has been verified (possibly not yet, hence the
@@ -58,6 +98,9 @@ export default async function CheckoutSuccessPage({
           <p className="mt-3 max-w-sm text-sm text-kiswa-ink-muted">
             Pay in cash (or UPI/card, if your courier supports it) when your order is delivered.
           </p>
+        )}
+        {!sale.customerUid && (
+          <GuestOrderCallout orderToken={sale.orderToken} guestEmail={sale.guestEmail} />
         )}
         <OrderInvoice sale={saleForInvoice} createdAt={createdAt.toDate()} />
       </main>
@@ -140,6 +183,10 @@ export default async function CheckoutSuccessPage({
       <p className="mt-1 font-display text-3xl tracking-widest text-kiswa-gold">
         {sale.invoiceNo}
       </p>
+
+      {!sale.customerUid && (
+        <GuestOrderCallout orderToken={sale.orderToken} guestEmail={sale.guestEmail} />
+      )}
 
       <OrderInvoice sale={saleForInvoice} createdAt={createdAt.toDate()} />
     </main>

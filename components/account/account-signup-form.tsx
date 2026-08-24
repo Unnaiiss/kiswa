@@ -21,10 +21,16 @@ function loginHref(redirectParam?: string) {
     : "/account/login";
 }
 
-export function AccountSignupForm({ redirectParam }: { redirectParam?: string }) {
+export function AccountSignupForm({
+  redirectParam,
+  emailParam,
+}: {
+  redirectParam?: string;
+  emailParam?: string;
+}) {
   const router = useRouter();
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(emailParam ?? "");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [marketingOptIn, setMarketingOptIn] = useState(false);

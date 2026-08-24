@@ -393,9 +393,17 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <p className="text-xs text-zinc-500 uppercase">Customer</p>
+            <p className="flex items-center gap-1.5 text-xs text-zinc-500 uppercase">
+              Customer
+              {!sale.customerUid && sale.guestEmail && (
+                <span className="rounded-full bg-sky-400/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-sky-400 normal-case">
+                  Guest
+                </span>
+              )}
+            </p>
             <p className="text-zinc-50">{sale.customerName}</p>
             <p className="text-zinc-400">{sale.customerPhone}</p>
+            {sale.guestEmail && <p className="text-zinc-400">{sale.guestEmail}</p>}
           </div>
           <div>
             <p className="text-xs text-zinc-500 uppercase">Date</p>

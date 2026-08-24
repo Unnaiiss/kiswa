@@ -74,6 +74,50 @@ export const addressBodySchema = z.object({
 
 export const addressUpdateBodySchema = addressBodySchema.partial();
 
+// Guest checkout — a freeform name/phone/email/address, since a guest has
+// no saved address book to pick from (see components/store/checkout-form.tsx's
+// AddressPicker for the registered-customer equivalent). No `label` (a
+// guest has exactly one address, nothing to name) and no `isDefault`.
+// Deliberately its own schema rather than reusing addressBodySchema: email
+// is required here (a guest address book entry never needs one) and there's
+// no label/isDefault concept for a one-off checkout address.
+export const guestCheckoutDetailsSchema = z.object({
+  name: nameSchema,
+  phone: z.string().trim().regex(ADDRESS_PHONE_RE, "Enter a valid 10-digit Indian mobile number"),
+  email: z.string().trim().email("Enter a valid email address"),
+  line1: z.string().trim().min(1, "Address line 1 is required").max(200),
+  line2: z.string().trim().max(200).nullable().optional(),
+  city: z.string().trim().min(1, "City is required").max(100),
+  district: z.string().trim().min(1, "District is required").max(100),
+  state: z.string().trim().min(1, "State is required").max(100),
+  pincode: z.string().trim().regex(PINCODE_RE, "Enter a valid 6-digit PIN code"),
+});
+
+// Client-side mirror of guestCheckoutDetailsSchema, for the same
+// "immediate feedback without importing zod into a client bundle path that
+// also touches server-only code" reason as addressFieldErrors below.
+export function guestCheckoutFieldErrors(form: {
+  name: string;
+  phone: string;
+  email: string;
+  line1: string;
+  city: string;
+  district: string;
+  state: string;
+  pincode: string;
+}): Partial<Record<keyof typeof form, string>> {
+  const errors: Partial<Record<keyof typeof form, string>> = {};
+  if (!form.name.trim()) errors.name = "Name is required";
+  if (!ADDRESS_PHONE_RE.test(form.phone.trim())) errors.phone = "Enter a valid 10-digit Indian mobile number";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) errors.email = "Enter a valid email address";
+  if (!form.line1.trim()) errors.line1 = "Address line 1 is required";
+  if (!form.city.trim()) errors.city = "City is required";
+  if (!form.district.trim()) errors.district = "District is required";
+  if (!form.state.trim()) errors.state = "State is required";
+  if (!PINCODE_RE.test(form.pincode.trim())) errors.pincode = "Enter a valid 6-digit PIN code";
+  return errors;
+}
+
 // Client-side mirror of addressBodySchema's phone/pincode checks, for the
 // same "immediate feedback without importing the server schema" reason as
 // passwordPolicyError above.

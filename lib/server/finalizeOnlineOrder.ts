@@ -85,6 +85,14 @@ export async function finalizeOnlineOrder(
       hidePrices: pending.hidePrices ?? false,
       customerUid: pending.customerUid ?? null,
       deliveryAddress: pending.deliveryAddress ?? null,
+      guestEmail: pending.guestEmail ?? null,
+      // customerPhone/customerName above already equal the guest's own
+      // details for a guest order (see create-order's guestDetails branch)
+      // — guestPhone/guestName just mirror them onto the dedicated fields
+      // SaleDoc keeps for guest-specific search/linking (see its own doc
+      // comment), only when this really was a guest order.
+      guestPhone: pending.guestEmail ? pending.customerPhone : null,
+      guestName: pending.guestEmail ? pending.customerName : null,
     });
 
     await pendingRef.update({ status: "completed", saleId, invoiceNo });

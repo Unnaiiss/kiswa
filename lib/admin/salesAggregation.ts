@@ -408,3 +408,25 @@ export function refundsSummary(sales: Sale[]): RefundsSummary {
     restockedCount: withRefund.filter((s) => s.refund?.restocked).length,
   };
 }
+
+/** Registered (customerUid set) vs guest (a genuine web guest checkout —
+ * customerUid null AND guestEmail set, see SaleDoc's own doc comment) vs
+ * "other" (POS/offline walk-ins and any pre-guest-checkout online order
+ * with neither) — a POS sale is never "guest" in this sense, it just has
+ * no account at all, so lumping it in with guest checkout would overstate
+ * how many web customers are actually skipping account creation. */
+export function registeredVsGuestSplit(
+  sales: Sale[],
+): Record<"registered" | "guest" | "other", ChannelStats> {
+  const split: Record<"registered" | "guest" | "other", ChannelStats> = {
+    registered: { revenue: 0, count: 0 },
+    guest: { revenue: 0, count: 0 },
+    other: { revenue: 0, count: 0 },
+  };
+  for (const sale of sales) {
+    const bucket = sale.customerUid ? "registered" : sale.guestEmail ? "guest" : "other";
+    split[bucket].revenue += sale.total;
+    split[bucket].count += 1;
+  }
+  return split;
+}

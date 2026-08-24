@@ -18,6 +18,7 @@ import {
   oilUsageBreakdown,
   paymentMethodSplit,
   refundsSummary,
+  registeredVsGuestSplit,
   revenueByProductType,
   totalItemsSold,
   totalMlConsumed,
@@ -72,6 +73,7 @@ export default function AdminReportsPage() {
   const methodSplit = useMemo(() => paymentMethodSplit(sales), [sales]);
   const codPrepaid = useMemo(() => codVsPrepaidSplit(sales), [sales]);
   const refunds = useMemo(() => refundsSummary(sales), [sales]);
+  const registeredVsGuest = useMemo(() => registeredVsGuestSplit(sales), [sales]);
   const failedPayments = useMemo(
     () => attempts.filter((a) => a.status === "failed").length,
     [attempts],
@@ -307,6 +309,16 @@ export default function AdminReportsPage() {
             segments={[
               { label: "Cash on Delivery", value: codPrepaid.cod.revenue, color: "bg-orange-400" },
               { label: "Prepaid", value: codPrepaid.prepaid.revenue, color: "bg-emerald-400" },
+            ]}
+          />
+
+          <SplitBar
+            title="Registered vs guest checkout (orders)"
+            formatValue={(v) => String(v)}
+            segments={[
+              { label: "Registered", value: registeredVsGuest.registered.count, color: "bg-sky-400" },
+              { label: "Guest", value: registeredVsGuest.guest.count, color: "bg-purple-400" },
+              { label: "Other (POS/legacy)", value: registeredVsGuest.other.count, color: "bg-zinc-500" },
             ]}
           />
 

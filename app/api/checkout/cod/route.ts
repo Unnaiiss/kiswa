@@ -6,6 +6,8 @@ import { checkoutSettingsDocRef } from "@/lib/firestore/admin-collections";
 import { recordSale } from "@/lib/server/recordSale";
 import { rateLimit } from "@/lib/server/rateLimit";
 import { toErrorResponse } from "@/lib/server/apiError";
+import { guestCheckoutDetailsSchema } from "@/lib/auth/customerValidation";
+import type { DeliveryAddressSnapshot } from "@/lib/firestore/types";
 
 const productItemSchema = z.object({
   kind: z.literal("product"),
@@ -44,7 +46,8 @@ const giftShippingAddressSchema = shippingAddressSchema.extend({
 
 const requestSchema = z.object({
   items: z.array(z.discriminatedUnion("kind", [productItemSchema, comboItemSchema])).min(1, "Your bag is empty"),
-  addressId: z.string().min(1, "Choose a delivery address"),
+  addressId: z.string().min(1).nullable().default(null),
+  guestDetails: guestCheckoutDetailsSchema.nullable().default(null),
   hidePrices: z.boolean().default(false),
   giftShippingAddress: giftShippingAddressSchema.nullable().default(null),
 });
@@ -65,9 +68,6 @@ export async function POST(request: Request) {
   if (limited) return limited;
 
   const session = await getCustomerSession();
-  if (!session) {
-    return NextResponse.json({ error: "Please sign in to check out." }, { status: 401 });
-  }
 
   const settingsSnap = await checkoutSettingsDocRef().get();
   if (!settingsSnap.data()?.codEnabled) {
@@ -84,19 +84,57 @@ export async function POST(request: Request) {
   }
   const input = parsed.data;
 
-  const address = await getAddressById(session.uid, input.addressId);
-  if (!address) {
-    return NextResponse.json(
-      { error: "That address couldn't be found. Please choose or add one." },
-      { status: 400 },
-    );
+  let customerName: string;
+  let customerPhone: string;
+  let deliveryAddress: DeliveryAddressSnapshot;
+  let guestEmail: string | null = null;
+  let guestName: string | null = null;
+
+  if (session) {
+    if (!input.addressId) {
+      return NextResponse.json({ error: "Choose a delivery address." }, { status: 400 });
+    }
+    const address = await getAddressById(session.uid, input.addressId);
+    if (!address) {
+      return NextResponse.json(
+        { error: "That address couldn't be found. Please choose or add one." },
+        { status: 400 },
+      );
+    }
+    customerName = address.fullName;
+    customerPhone = address.phone;
+    deliveryAddress = toDeliveryAddressSnapshot(address);
+  } else {
+    if (!input.guestDetails) {
+      return NextResponse.json(
+        { error: "Enter your delivery details, or sign in to use a saved address." },
+        { status: 400 },
+      );
+    }
+    const g = input.guestDetails;
+    customerName = g.name;
+    customerPhone = g.phone;
+    deliveryAddress = {
+      label: "Delivery Address",
+      fullName: g.name,
+      phone: g.phone,
+      line1: g.line1,
+      line2: g.line2 ?? null,
+      city: g.city,
+      district: g.district,
+      state: g.state,
+      pincode: g.pincode,
+      landmark: null,
+    };
+    guestEmail = g.email;
+    guestName = g.name;
   }
 
   try {
     const { saleId, invoiceNo } = await recordSale({
       channel: "online",
-      customerName: address.fullName,
-      customerPhone: address.phone,
+      customerName,
+      customerPhone,
       items: input.items,
       discount: 0,
       paymentMethod: "cod",
@@ -109,8 +147,11 @@ export async function POST(request: Request) {
       createdByName: "System (Cash on Delivery order placed)",
       giftShippingAddress: input.giftShippingAddress,
       hidePrices: input.hidePrices,
-      customerUid: session.uid,
-      deliveryAddress: toDeliveryAddressSnapshot(address),
+      customerUid: session?.uid ?? null,
+      deliveryAddress,
+      guestEmail,
+      guestPhone: guestEmail ? customerPhone : null,
+      guestName,
     });
 
     return NextResponse.json({ saleId, invoiceNo });

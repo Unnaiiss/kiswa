@@ -11,6 +11,7 @@ import {
 import { formatVariantLabel } from "@/lib/pricing";
 import { IMPORTED_VARIANT_ID, aggregateProductNeeds } from "@/lib/server/productLookup";
 import { PublicError } from "@/lib/server/publicError";
+import { generateOrderToken } from "@/lib/server/orderToken";
 import type { ComboDoc, ComboSaleComponent, ProductDoc, SaleItem } from "@/lib/firestore/types";
 
 const productSaleItemInputSchema = z.object({
@@ -106,6 +107,13 @@ export const recordSaleInputSchema = z.object({
   // deliveryAddress.
   customerUid: z.string().nullable().default(null),
   deliveryAddress: deliveryAddressSchema.nullable().default(null),
+  // Guest web checkout only — see SaleDoc.guestEmail/guestPhone/guestName's
+  // own doc comment for why these are separate from customerName/
+  // customerPhone above (which stay populated identically regardless).
+  // Null for a registered customer's order and for a POS/offline sale.
+  guestEmail: z.string().nullable().default(null),
+  guestPhone: z.string().nullable().default(null),
+  guestName: z.string().nullable().default(null),
 });
 
 // z.input (not z.infer/z.output) so callers can omit fields that have zod
@@ -497,6 +505,10 @@ export async function recordSale(
         hidePrices: input.hidePrices,
         customerUid: input.customerUid,
         deliveryAddress: input.deliveryAddress,
+        guestEmail: input.guestEmail,
+        guestPhone: input.guestPhone,
+        guestName: input.guestName,
+        orderToken: generateOrderToken(),
         // Seeds the fulfillment audit trail with exactly one entry — every
         // entry after this comes from an explicit admin action via
         // lib/server/orderFulfillment.ts's updateOrderStatus. A real

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminAuth } from "@/lib/firebase/admin";
 import { createCustomerOnSignup } from "@/lib/server/customers";
+import { linkGuestOrdersToCustomer } from "@/lib/server/guestOrderLinking";
 import { signupBodySchema } from "@/lib/auth/customerValidation";
 import { rateLimit } from "@/lib/server/rateLimit";
 
@@ -56,6 +57,14 @@ export async function POST(request: Request) {
   }
 
   await createCustomerOnSignup({ uid, email, name, phone: phone ?? null, marketingOptIn });
+
+  // Phone-only at signup — a brand-new account's email is never verified
+  // yet (see components/account/account-signup-form.tsx's fire-and-forget
+  // sendEmailVerification call), so email-based linking only kicks in
+  // later, the next time this customer signs in after actually verifying
+  // it (see app/api/account/session's own call to this same function).
+  // Best-effort: a linking hiccup must never block account creation.
+  await linkGuestOrdersToCustomer({ uid, emailVerified: false }).catch(() => {});
 
   const customToken = await adminAuth.createCustomToken(uid);
   return NextResponse.json({ ok: true, customToken });

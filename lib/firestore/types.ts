@@ -358,6 +358,29 @@ export interface SaleDoc {
   /** Set the moment an admin records a refund against this sale — see
    * RefundRecord. Null/missing means no refund has been recorded. */
   refund?: RefundRecord | null;
+  /** Set ONLY for a genuine guest web checkout (customerUid null AND placed
+   * through the storefront's own guest form — see components/store/
+   * checkout-form.tsx) — never for a POS/offline "walk-in" sale, which has
+   * no email at all and isn't a "guest" in this sense. Redundant with
+   * customerName/customerPhone above (which stay populated identically, so
+   * every existing UI that reads those needs no changes) — these three
+   * exist so admin can search/filter by them unambiguously and so
+   * lib/server/guestOrderLinking.ts has something to match a new account's
+   * verified email/phone against. guestEmail is also the only place this
+   * app stores an email for an order at all; registered customers' email
+   * lives on their own customers/{uid} doc instead. */
+  guestEmail?: string | null;
+  guestPhone?: string | null;
+  guestName?: string | null;
+  /** High-entropy random token (lib/server/orderToken.ts, 192 bits of
+   * crypto.randomBytes), set on every sale at creation — a dedicated public
+   * "capability" secret for /orders/[token], deliberately separate from the
+   * Firestore doc id (which is an internal implementation detail used in
+   * admin URLs/API paths and never meant to double as a customer-facing
+   * secret). Optional only because sales recorded before this field
+   * existed don't have one and can't retroactively get a working
+   * /orders/ link. */
+  orderToken?: string;
 }
 
 export interface Sale extends SaleDoc {
@@ -521,11 +544,12 @@ export interface PendingOrderDoc {
   items: PendingOrderItem[];
   customerName: string;
   customerPhone: string;
-  /** The older, narrower Razorpay-checkout-only address shape — always
-   * null now that checkout is logged-in-only and resolves an addressId
-   * into deliveryAddress below instead (see app/api/checkout/create-order/
-   * route.ts). Only ever non-null on pendingOrders docs created before that
-   * change (a guest Razorpay checkout with a freeform shipping form). */
+  /** The older, narrower Razorpay-checkout-only address shape. Null for a
+   * logged-in customer's Razorpay order (which resolves an addressId into
+   * deliveryAddress below instead) and for a WhatsApp draft; set again for
+   * a GUEST Razorpay checkout's freeform address form (see app/api/
+   * checkout/create-order/route.ts) — guests have no saved address book to
+   * snapshot into deliveryAddress. */
   shippingAddress: ShippingAddress | null;
   amountPaise: number;
   status: PendingOrderStatus;
@@ -540,11 +564,17 @@ export interface PendingOrderDoc {
    * app/api/account/whatsapp-order/route.ts). Optional/missing on docs
    * predating this field (always null in that case). */
   customerUid?: string | null;
-  /** Snapshot of the customer's chosen saved address — set for BOTH a
-   * WhatsApp draft and a Razorpay pending order now that checkout is
-   * logged-in-only (create-order resolves the submitted addressId into
-   * this via toDeliveryAddressSnapshot). Missing/null on pendingOrders
-   * docs predating that change. */
+  /** Guest checkout only (customerUid null AND source "razorpay") — see
+   * SaleDoc.guestEmail/guestName for why these are separate from
+   * customerName above. Carried through to recordSale by
+   * lib/server/finalizeOnlineOrder.ts once payment is verified. */
+  guestEmail?: string | null;
+  guestName?: string | null;
+  /** Snapshot of the customer's chosen saved address — set for a
+   * logged-in customer's WhatsApp draft or Razorpay order (create-order
+   * resolves the submitted addressId into this via
+   * toDeliveryAddressSnapshot). Null for a guest checkout, which has no
+   * saved address book — see shippingAddress above instead. */
   deliveryAddress?: DeliveryAddressSnapshot | null;
   source?: PendingOrderSource;
   /** Short human-readable code included in the WhatsApp message so staff

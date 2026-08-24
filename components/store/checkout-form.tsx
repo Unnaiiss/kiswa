@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Loader2, MapPin, Plus, ShoppingBag, Star, Truck } from "lucide-react";
+import { Loader2, LogIn, Mail, MapPin, Plus, ShoppingBag, Star, Truck, UserPlus } from "lucide-react";
 import { useCart } from "./cart-provider";
 import { formatInr } from "@/lib/pricing";
 import { INDIAN_STATES } from "@/lib/store/indian-states";
@@ -17,9 +17,34 @@ import { AddressForm } from "@/components/account/address-form";
 import type { PlainAddress } from "@/components/account/address-list";
 import { trackInitiateCheckout } from "@/lib/analytics/metaPixel";
 import { metaCatalogId } from "@/lib/products";
+import { guestCheckoutFieldErrors } from "@/lib/auth/customerValidation";
 
 const PHONE_RE = /^[6-9][0-9]{9}$/;
 const PINCODE_RE = /^[1-9][0-9]{5}$/;
+
+interface GuestDetailsState {
+  name: string;
+  phone: string;
+  email: string;
+  line1: string;
+  line2: string;
+  city: string;
+  district: string;
+  state: string;
+  pincode: string;
+}
+
+const EMPTY_GUEST_DETAILS: GuestDetailsState = {
+  name: "",
+  phone: "",
+  email: "",
+  line1: "",
+  line2: "",
+  city: "",
+  district: "",
+  state: "",
+  pincode: "",
+};
 
 interface GiftFormState {
   name: string;
@@ -153,12 +178,215 @@ function AddressPicker({
   );
 }
 
+/** Shown to a signed-out visitor at the top of checkout — guest listed
+ * first, no dark patterns (all three are equally-sized, equally-styled
+ * cards; "Continue as guest" isn't visually deprioritized). Sign in/Create
+ * account are plain links to the existing standalone auth pages (both
+ * already support ?redirect= back to wherever they were opened from —
+ * see lib/auth/safeRedirect.ts), reusing that flow rather than duplicating
+ * auth UI inline. */
+function CheckoutIdentityChooser({ onGuest }: { onGuest: () => void }) {
+  return (
+    <div>
+      <p className="mb-3 text-xs uppercase tracking-wide text-kiswa-ink-muted">
+        How would you like to check out?
+      </p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <button
+          type="button"
+          onClick={onGuest}
+          className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-kiswa-gold/40 bg-kiswa-gold/5 p-5 text-center transition-colors hover:border-kiswa-gold"
+        >
+          <Mail size={20} className="text-kiswa-gold" />
+          <span className="text-sm font-medium text-kiswa-ink">Continue as guest</span>
+          <span className="text-xs text-kiswa-ink-muted">No account needed</span>
+        </button>
+        <Link
+          href={`/account/login?redirect=${encodeURIComponent("/checkout")}`}
+          className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-kiswa-border bg-kiswa-surface p-5 text-center transition-colors hover:border-kiswa-gold/40"
+        >
+          <LogIn size={20} className="text-kiswa-ink-muted" />
+          <span className="text-sm font-medium text-kiswa-ink">Sign in</span>
+          <span className="text-xs text-kiswa-ink-muted">Use a saved address</span>
+        </Link>
+        <Link
+          href={`/account/signup?redirect=${encodeURIComponent("/checkout")}`}
+          className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-kiswa-border bg-kiswa-surface p-5 text-center transition-colors hover:border-kiswa-gold/40"
+        >
+          <UserPlus size={20} className="text-kiswa-ink-muted" />
+          <span className="text-sm font-medium text-kiswa-ink">Create account</span>
+          <span className="text-xs text-kiswa-ink-muted">Track orders easily</span>
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function guestFieldError(errors: Partial<Record<keyof GuestDetailsState, string>>, key: keyof GuestDetailsState) {
+  return errors[key] ? <p className="mt-1 text-xs text-red-400">{errors[key]}</p> : null;
+}
+
+/** A guest's one-off delivery details — name/phone/email plus the full
+ * address, no saved-address entity behind it (unlike AddressPicker above).
+ * Email is required here specifically for order confirmation + the
+ * /orders/[token] lookup and /track fallback — see checkout-success's
+ * "save this link" messaging. */
+function GuestDetailsForm({
+  value,
+  onChange,
+  errors,
+}: {
+  value: GuestDetailsState;
+  onChange: (next: GuestDetailsState) => void;
+  errors: Partial<Record<keyof GuestDetailsState, string>>;
+}) {
+  function set<K extends keyof GuestDetailsState>(key: K, val: GuestDetailsState[K]) {
+    onChange({ ...value, [key]: val });
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">Full name</label>
+        <input
+          className={inputClass}
+          value={value.name}
+          onChange={(e) => set("name", e.target.value)}
+          placeholder="Your name"
+          autoComplete="name"
+        />
+        {guestFieldError(errors, "name")}
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
+            Mobile number
+          </label>
+          <div className="flex items-center gap-2">
+            <span className="rounded-md border border-kiswa-border bg-kiswa-surface-2 px-3 py-2.5 text-sm text-kiswa-ink-muted">
+              +91
+            </span>
+            <input
+              className={inputClass}
+              value={value.phone}
+              onChange={(e) => set("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
+              placeholder="98765 43210"
+              inputMode="numeric"
+              autoComplete="tel-national"
+            />
+          </div>
+          {guestFieldError(errors, "phone")}
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">Email</label>
+          <input
+            type="email"
+            className={inputClass}
+            value={value.email}
+            onChange={(e) => set("email", e.target.value)}
+            placeholder="you@example.com"
+            autoComplete="email"
+          />
+          {guestFieldError(errors, "email")}
+          <p className="mt-1 text-xs text-kiswa-ink-muted">
+            For your order confirmation and to look up your order later.
+          </p>
+        </div>
+      </div>
+      <div>
+        <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
+          Address line 1
+        </label>
+        <input
+          className={inputClass}
+          value={value.line1}
+          onChange={(e) => set("line1", e.target.value)}
+          placeholder="Flat / house no., building, street"
+          autoComplete="address-line1"
+        />
+        {guestFieldError(errors, "line1")}
+      </div>
+      <div>
+        <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
+          Address line 2 <span className="text-kiswa-ink-muted/90">(optional)</span>
+        </label>
+        <input
+          className={inputClass}
+          value={value.line2}
+          onChange={(e) => set("line2", e.target.value)}
+          placeholder="Area"
+          autoComplete="address-line2"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">City</label>
+          <input
+            className={inputClass}
+            value={value.city}
+            onChange={(e) => set("city", e.target.value)}
+            placeholder="City"
+            autoComplete="address-level2"
+          />
+          {guestFieldError(errors, "city")}
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">District</label>
+          <input
+            className={inputClass}
+            value={value.district}
+            onChange={(e) => set("district", e.target.value)}
+            placeholder="District"
+          />
+          {guestFieldError(errors, "district")}
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
+            PIN code
+          </label>
+          <input
+            className={inputClass}
+            value={value.pincode}
+            onChange={(e) => set("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))}
+            placeholder="400001"
+            inputMode="numeric"
+            autoComplete="postal-code"
+          />
+          {guestFieldError(errors, "pincode")}
+        </div>
+        <div>
+          <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">State</label>
+          <select
+            className={inputClass}
+            value={value.state}
+            onChange={(e) => set("state", e.target.value)}
+            autoComplete="address-level1"
+          >
+            <option value="">Select state</option>
+            {INDIAN_STATES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          {guestFieldError(errors, "state")}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function CheckoutForm({
   initialAddresses,
   codEnabled,
+  customer,
 }: {
   initialAddresses: PlainAddress[];
   codEnabled: boolean;
+  /** Null for a guest (no session at all) — see CheckoutIdentityChooser. */
+  customer: { name: string | null; email: string | null } | null;
 }) {
   const { items, subtotal, clear } = useCart();
   const router = useRouter();
@@ -182,6 +410,14 @@ export function CheckoutForm({
   );
   const [addressError, setAddressError] = useState<string | null>(null);
 
+  // Guest checkout — irrelevant once `customer` is set (a signed-in visitor
+  // always uses AddressPicker above). `guestSelected` gates showing
+  // GuestDetailsForm vs the three-way CheckoutIdentityChooser; both only
+  // ever render when `customer` is null.
+  const [guestSelected, setGuestSelected] = useState(false);
+  const [guestDetails, setGuestDetails] = useState<GuestDetailsState>(EMPTY_GUEST_DETAILS);
+  const [guestErrors, setGuestErrors] = useState<Partial<Record<keyof GuestDetailsState, string>>>({});
+
   const hasGiftItems = useMemo(() => items.some((i) => i.gift), [items]);
   const [deliverToDifferentAddress, setDeliverToDifferentAddress] = useState(false);
   const [giftAddress, setGiftAddress] = useState<GiftFormState>(EMPTY_GIFT_FORM);
@@ -199,11 +435,18 @@ export function CheckoutForm({
 
   function validate(): boolean {
     let ok = true;
-    if (!selectedAddressId) {
-      setAddressError("Choose or add a delivery address");
-      ok = false;
+
+    if (customer) {
+      if (!selectedAddressId) {
+        setAddressError("Choose or add a delivery address");
+        ok = false;
+      } else {
+        setAddressError(null);
+      }
     } else {
-      setAddressError(null);
+      const guestNext = guestCheckoutFieldErrors(guestDetails);
+      setGuestErrors(guestNext);
+      if (Object.keys(guestNext).length > 0) ok = false;
     }
 
     if (hasGiftItems && deliverToDifferentAddress) {
@@ -239,7 +482,20 @@ export function CheckoutForm({
               giftWrap: i.gift?.giftWrap ?? false,
             },
       ),
-      addressId: selectedAddressId,
+      addressId: customer ? selectedAddressId : null,
+      guestDetails: customer
+        ? null
+        : {
+            name: guestDetails.name.trim(),
+            phone: guestDetails.phone.trim(),
+            email: guestDetails.email.trim(),
+            line1: guestDetails.line1.trim(),
+            line2: guestDetails.line2.trim() || null,
+            city: guestDetails.city.trim(),
+            district: guestDetails.district.trim(),
+            state: guestDetails.state.trim(),
+            pincode: guestDetails.pincode.trim(),
+          },
       hidePrices: hasGiftItems ? hidePrices : false,
       giftShippingAddress:
         hasGiftItems && deliverToDifferentAddress
@@ -348,7 +604,9 @@ export function CheckoutForm({
         order_id: data.orderId,
         name: "KISWA",
         description: "Order payment",
-        prefill: { name: selected?.fullName, contact: selected?.phone },
+        prefill: customer
+          ? { name: selected?.fullName, contact: selected?.phone }
+          : { name: guestDetails.name, contact: guestDetails.phone, email: guestDetails.email },
         theme: { color: "#d4af37" },
         handler: (response) => {
           void verifyPayment(response, data.orderId);
@@ -441,30 +699,55 @@ export function CheckoutForm({
           </h1>
         </div>
 
-        <div>
-          <div className="mb-3 flex items-center justify-between">
-            <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-kiswa-ink-muted">
-              <MapPin size={13} />
-              Deliver to
-            </p>
-            <Link
-              href="/account/addresses"
-              target="_blank"
-              className="text-xs text-kiswa-gold underline underline-offset-2 hover:text-kiswa-gold-soft"
-            >
-              Manage addresses
-            </Link>
-          </div>
-          <AddressPicker
-            addresses={addresses}
-            selectedId={selectedAddressId}
-            onSelect={setSelectedAddressId}
-            onAddressesChange={setAddresses}
-          />
-          {addressError && <p className="mt-2 text-xs text-red-400">{addressError}</p>}
-        </div>
+        {!customer && !guestSelected && (
+          <CheckoutIdentityChooser onGuest={() => setGuestSelected(true)} />
+        )}
 
-        {hasGiftItems && (
+        {customer && (
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-kiswa-ink-muted">
+                <MapPin size={13} />
+                Deliver to
+              </p>
+              <Link
+                href="/account/addresses"
+                target="_blank"
+                className="text-xs text-kiswa-gold underline underline-offset-2 hover:text-kiswa-gold-soft"
+              >
+                Manage addresses
+              </Link>
+            </div>
+            <AddressPicker
+              addresses={addresses}
+              selectedId={selectedAddressId}
+              onSelect={setSelectedAddressId}
+              onAddressesChange={setAddresses}
+            />
+            {addressError && <p className="mt-2 text-xs text-red-400">{addressError}</p>}
+          </div>
+        )}
+
+        {!customer && guestSelected && (
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-kiswa-ink-muted">
+                <MapPin size={13} />
+                Your details
+              </p>
+              <button
+                type="button"
+                onClick={() => setGuestSelected(false)}
+                className="cursor-pointer text-xs text-kiswa-ink-muted underline underline-offset-2 hover:text-kiswa-ink"
+              >
+                Back
+              </button>
+            </div>
+            <GuestDetailsForm value={guestDetails} onChange={setGuestDetails} errors={guestErrors} />
+          </div>
+        )}
+
+        {hasGiftItems && (customer || guestSelected) && (
           <div className="flex flex-col gap-4 rounded-lg border border-kiswa-gold/30 bg-kiswa-gold/5 p-5">
             <p className="text-xs uppercase tracking-[0.3em] text-kiswa-gold-soft">Gift options</p>
 
@@ -594,49 +877,53 @@ export function CheckoutForm({
           </div>
         )}
 
-        {serverError && (
-          <p className="rounded-md border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
-            {serverError}
-          </p>
-        )}
+        {(customer || guestSelected) && (
+          <>
+            {serverError && (
+              <p className="rounded-md border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
+                {serverError}
+              </p>
+            )}
 
-        <div className="flex flex-col gap-3">
-          <motion.button
-            type="button"
-            onClick={handlePayRazorpay}
-            disabled={submitting}
-            whileTap={{ scale: 0.98 }}
-            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-kiswa-gold py-3.5 text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {submitting && payingWith === "razorpay" && <Loader2 size={16} className="animate-spin" />}
-            {razorpayLabel}
-          </motion.button>
-          <p className="text-center text-xs text-kiswa-ink-muted">
-            UPI, cards, netbanking and wallets — securely processed by Razorpay.
-          </p>
-
-          {codEnabled && (
-            <>
+            <div className="flex flex-col gap-3">
               <motion.button
                 type="button"
-                onClick={handleCod}
+                onClick={handlePayRazorpay}
                 disabled={submitting}
                 whileTap={{ scale: 0.98 }}
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-kiswa-border py-3.5 text-sm font-medium tracking-wide text-kiswa-ink transition-colors hover:border-kiswa-gold/50 disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-kiswa-gold py-3.5 text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {submitting && payingWith === "cod" ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Truck size={16} />
-                )}
-                Cash on Delivery
+                {submitting && payingWith === "razorpay" && <Loader2 size={16} className="animate-spin" />}
+                {razorpayLabel}
               </motion.button>
               <p className="text-center text-xs text-kiswa-ink-muted">
-                Pay in cash (or UPI/card, if your courier supports it) when your order arrives.
+                UPI, cards, netbanking and wallets — securely processed by Razorpay.
               </p>
-            </>
-          )}
-        </div>
+
+              {codEnabled && (
+                <>
+                  <motion.button
+                    type="button"
+                    onClick={handleCod}
+                    disabled={submitting}
+                    whileTap={{ scale: 0.98 }}
+                    className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-kiswa-border py-3.5 text-sm font-medium tracking-wide text-kiswa-ink transition-colors hover:border-kiswa-gold/50 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {submitting && payingWith === "cod" ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Truck size={16} />
+                    )}
+                    Cash on Delivery
+                  </motion.button>
+                  <p className="text-center text-xs text-kiswa-ink-muted">
+                    Pay in cash (or UPI/card, if your courier supports it) when your order arrives.
+                  </p>
+                </>
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="h-fit rounded-lg border border-kiswa-border bg-kiswa-surface p-6">
