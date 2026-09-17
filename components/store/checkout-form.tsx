@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Loader2, LogIn, Mail, MapPin, Plus, ShoppingBag, Star, Truck, UserPlus } from "lucide-react";
+import { Loader2, MapPin, Plus, ShoppingBag, Star, Truck } from "lucide-react";
 import { useCart } from "./cart-provider";
 import { formatInr } from "@/lib/pricing";
 import { INDIAN_STATES } from "@/lib/store/indian-states";
@@ -174,50 +174,6 @@ function AddressPicker({
         <Plus size={16} />
         Add a new address
       </button>
-    </div>
-  );
-}
-
-/** Shown to a signed-out visitor at the top of checkout — guest listed
- * first, no dark patterns (all three are equally-sized, equally-styled
- * cards; "Continue as guest" isn't visually deprioritized). Sign in/Create
- * account are plain links to the existing standalone auth pages (both
- * already support ?redirect= back to wherever they were opened from —
- * see lib/auth/safeRedirect.ts), reusing that flow rather than duplicating
- * auth UI inline. */
-function CheckoutIdentityChooser({ onGuest }: { onGuest: () => void }) {
-  return (
-    <div>
-      <p className="mb-3 text-xs uppercase tracking-wide text-kiswa-ink-muted">
-        How would you like to check out?
-      </p>
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <button
-          type="button"
-          onClick={onGuest}
-          className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-kiswa-gold/40 bg-kiswa-gold/5 p-5 text-center transition-colors hover:border-kiswa-gold"
-        >
-          <Mail size={20} className="text-kiswa-gold" />
-          <span className="text-sm font-medium text-kiswa-ink">Continue as guest</span>
-          <span className="text-xs text-kiswa-ink-muted">No account needed</span>
-        </button>
-        <Link
-          href={`/account/login?redirect=${encodeURIComponent("/checkout")}`}
-          className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-kiswa-border bg-kiswa-surface p-5 text-center transition-colors hover:border-kiswa-gold/40"
-        >
-          <LogIn size={20} className="text-kiswa-ink-muted" />
-          <span className="text-sm font-medium text-kiswa-ink">Sign in</span>
-          <span className="text-xs text-kiswa-ink-muted">Use a saved address</span>
-        </Link>
-        <Link
-          href={`/account/signup?redirect=${encodeURIComponent("/checkout")}`}
-          className="flex cursor-pointer flex-col items-center gap-2 rounded-lg border border-kiswa-border bg-kiswa-surface p-5 text-center transition-colors hover:border-kiswa-gold/40"
-        >
-          <UserPlus size={20} className="text-kiswa-ink-muted" />
-          <span className="text-sm font-medium text-kiswa-ink">Create account</span>
-          <span className="text-xs text-kiswa-ink-muted">Track orders easily</span>
-        </Link>
-      </div>
     </div>
   );
 }
@@ -411,10 +367,10 @@ export function CheckoutForm({
   const [addressError, setAddressError] = useState<string | null>(null);
 
   // Guest checkout — irrelevant once `customer` is set (a signed-in visitor
-  // always uses AddressPicker above). `guestSelected` gates showing
-  // GuestDetailsForm vs the three-way CheckoutIdentityChooser; both only
-  // ever render when `customer` is null.
-  const [guestSelected, setGuestSelected] = useState(false);
+  // always uses AddressPicker above). A signed-out visitor goes straight to
+  // GuestDetailsForm with no intermediate "how would you like to check out"
+  // choice; "Sign in instead" next to it is a plain link back to the
+  // standalone login page for anyone who wants their saved address.
   const [guestDetails, setGuestDetails] = useState<GuestDetailsState>(EMPTY_GUEST_DETAILS);
   const [guestErrors, setGuestErrors] = useState<Partial<Record<keyof GuestDetailsState, string>>>({});
 
@@ -699,10 +655,6 @@ export function CheckoutForm({
           </h1>
         </div>
 
-        {!customer && !guestSelected && (
-          <CheckoutIdentityChooser onGuest={() => setGuestSelected(true)} />
-        )}
-
         {customer && (
           <div>
             <div className="mb-3 flex items-center justify-between">
@@ -728,26 +680,25 @@ export function CheckoutForm({
           </div>
         )}
 
-        {!customer && guestSelected && (
+        {!customer && (
           <div>
             <div className="mb-3 flex items-center justify-between">
               <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-kiswa-ink-muted">
                 <MapPin size={13} />
                 Your details
               </p>
-              <button
-                type="button"
-                onClick={() => setGuestSelected(false)}
-                className="cursor-pointer text-xs text-kiswa-ink-muted underline underline-offset-2 hover:text-kiswa-ink"
+              <Link
+                href={`/account/login?redirect=${encodeURIComponent("/checkout")}`}
+                className="text-xs text-kiswa-gold underline underline-offset-2 hover:text-kiswa-gold-soft"
               >
-                Back
-              </button>
+                Sign in instead
+              </Link>
             </div>
             <GuestDetailsForm value={guestDetails} onChange={setGuestDetails} errors={guestErrors} />
           </div>
         )}
 
-        {hasGiftItems && (customer || guestSelected) && (
+        {hasGiftItems && (
           <div className="flex flex-col gap-4 rounded-lg border border-kiswa-gold/30 bg-kiswa-gold/5 p-5">
             <p className="text-xs uppercase tracking-[0.3em] text-kiswa-gold-soft">Gift options</p>
 
@@ -877,53 +828,49 @@ export function CheckoutForm({
           </div>
         )}
 
-        {(customer || guestSelected) && (
-          <>
-            {serverError && (
-              <p className="rounded-md border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
-                {serverError}
-              </p>
-            )}
+        {serverError && (
+          <p className="rounded-md border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
+            {serverError}
+          </p>
+        )}
 
-            <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-3">
+          <motion.button
+            type="button"
+            onClick={handlePayRazorpay}
+            disabled={submitting}
+            whileTap={{ scale: 0.98 }}
+            className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-kiswa-gold py-3.5 text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {submitting && payingWith === "razorpay" && <Loader2 size={16} className="animate-spin" />}
+            {razorpayLabel}
+          </motion.button>
+          <p className="text-center text-xs text-kiswa-ink-muted">
+            UPI, cards, netbanking and wallets — securely processed by Razorpay.
+          </p>
+
+          {codEnabled && (
+            <>
               <motion.button
                 type="button"
-                onClick={handlePayRazorpay}
+                onClick={handleCod}
                 disabled={submitting}
                 whileTap={{ scale: 0.98 }}
-                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full bg-kiswa-gold py-3.5 text-sm font-medium tracking-wide text-kiswa-void transition-colors hover:bg-kiswa-gold-soft disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-kiswa-border py-3.5 text-sm font-medium tracking-wide text-kiswa-ink transition-colors hover:border-kiswa-gold/50 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {submitting && payingWith === "razorpay" && <Loader2 size={16} className="animate-spin" />}
-                {razorpayLabel}
+                {submitting && payingWith === "cod" ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Truck size={16} />
+                )}
+                Cash on Delivery
               </motion.button>
               <p className="text-center text-xs text-kiswa-ink-muted">
-                UPI, cards, netbanking and wallets — securely processed by Razorpay.
+                Pay in cash (or UPI/card, if your courier supports it) when your order arrives.
               </p>
-
-              {codEnabled && (
-                <>
-                  <motion.button
-                    type="button"
-                    onClick={handleCod}
-                    disabled={submitting}
-                    whileTap={{ scale: 0.98 }}
-                    className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-full border border-kiswa-border py-3.5 text-sm font-medium tracking-wide text-kiswa-ink transition-colors hover:border-kiswa-gold/50 disabled:cursor-not-allowed disabled:opacity-70"
-                  >
-                    {submitting && payingWith === "cod" ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Truck size={16} />
-                    )}
-                    Cash on Delivery
-                  </motion.button>
-                  <p className="text-center text-xs text-kiswa-ink-muted">
-                    Pay in cash (or UPI/card, if your courier supports it) when your order arrives.
-                  </p>
-                </>
-              )}
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
 
       <div className="h-fit rounded-lg border border-kiswa-border bg-kiswa-surface p-6">
