@@ -3,10 +3,10 @@
 import { useRef, useState } from "react";
 import { GripVertical, ImagePlus, Link as LinkIcon, Loader2, X } from "lucide-react";
 import { auth } from "@/lib/firebase/client";
+import { resizeImage } from "@/lib/admin/resizeImage";
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_DIMENSION = 1600;
 
 interface UploadingFile {
   id: string;
@@ -27,48 +27,6 @@ interface ImageUploaderProps {
 
 const inputClass =
   "w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-zinc-50 placeholder:text-zinc-600 outline-none focus:border-amber-400";
-
-/** Downscales to at most MAX_DIMENSION on the long edge (never upscales),
- * so the storefront doesn't ship full-resolution supplier photos. PNGs stay
- * PNG (may be a deliberate cutout with transparency); everything else
- * re-encodes as JPEG, which every browser's canvas can produce reliably
- * (unlike WEBP encoding, which isn't universally supported). */
-function resizeImage(file: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const objectUrl = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(objectUrl);
-      let { width, height } = img;
-      const longEdge = Math.max(width, height);
-      if (longEdge > MAX_DIMENSION) {
-        const scale = MAX_DIMENSION / longEdge;
-        width = Math.round(width * scale);
-        height = Math.round(height * scale);
-      }
-      const canvas = document.createElement("canvas");
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) {
-        reject(new Error("Could not process image"));
-        return;
-      }
-      ctx.drawImage(img, 0, 0, width, height);
-      const outputType = file.type === "image/png" ? "image/png" : "image/jpeg";
-      canvas.toBlob(
-        (blob) => (blob ? resolve(blob) : reject(new Error("Could not process image"))),
-        outputType,
-        0.86,
-      );
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(objectUrl);
-      reject(new Error("Could not read image"));
-    };
-    img.src = objectUrl;
-  });
-}
 
 function uploadWithProgress(
   endpoint: string,

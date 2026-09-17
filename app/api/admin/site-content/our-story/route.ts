@@ -4,6 +4,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { ourStorySectionDocRef } from "@/lib/firestore/admin-collections";
 import { deleteBannerImage, saveBannerImage } from "@/lib/server/bannerImages";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
+import { InvalidImageUploadError } from "@/lib/server/imageStorage";
 
 const boolField = z.enum(["true", "false"]).optional();
 
@@ -62,26 +63,37 @@ export async function PATCH(request: Request) {
     return currentUrl ?? null;
   }
 
-  const oilCardImageUrl = await resolveImage(
-    "oilDesktopImage",
-    input.removeOilDesktopImage === "true",
-    current?.oilCardImageUrl,
-  );
-  const oilCardImageUrlMobile = await resolveImage(
-    "oilMobileImage",
-    input.removeOilMobileImage === "true",
-    current?.oilCardImageUrlMobile,
-  );
-  const sprayCardImageUrl = await resolveImage(
-    "sprayDesktopImage",
-    input.removeSprayDesktopImage === "true",
-    current?.sprayCardImageUrl,
-  );
-  const sprayCardImageUrlMobile = await resolveImage(
-    "sprayMobileImage",
-    input.removeSprayMobileImage === "true",
-    current?.sprayCardImageUrlMobile,
-  );
+  let oilCardImageUrl: string | null;
+  let oilCardImageUrlMobile: string | null;
+  let sprayCardImageUrl: string | null;
+  let sprayCardImageUrlMobile: string | null;
+  try {
+    oilCardImageUrl = await resolveImage(
+      "oilDesktopImage",
+      input.removeOilDesktopImage === "true",
+      current?.oilCardImageUrl,
+    );
+    oilCardImageUrlMobile = await resolveImage(
+      "oilMobileImage",
+      input.removeOilMobileImage === "true",
+      current?.oilCardImageUrlMobile,
+    );
+    sprayCardImageUrl = await resolveImage(
+      "sprayDesktopImage",
+      input.removeSprayDesktopImage === "true",
+      current?.sprayCardImageUrl,
+    );
+    sprayCardImageUrlMobile = await resolveImage(
+      "sprayMobileImage",
+      input.removeSprayMobileImage === "true",
+      current?.sprayCardImageUrlMobile,
+    );
+  } catch (err) {
+    if (err instanceof InvalidImageUploadError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    throw err;
+  }
 
   await ref.set({
     oilCardImageUrl,

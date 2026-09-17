@@ -4,6 +4,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { bannersCollection, combosCollection } from "@/lib/firestore/admin-collections";
 import { deleteBannerImage, saveBannerImage } from "@/lib/server/bannerImages";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
+import { InvalidImageUploadError } from "@/lib/server/imageStorage";
 
 const commonFields = {
   order: z.coerce.number().int().nonnegative(),
@@ -158,20 +159,26 @@ export async function PATCH(
   }
 
   const desktopImage = formData.get("desktopImage");
-  let imageUrl = currentImage.imageUrl;
-  if (desktopImage instanceof File && desktopImage.size > 0) {
-    imageUrl = await saveBannerImage(desktopImage);
-    await deleteBannerImage(currentImage.imageUrl);
-  }
-
   const mobileImage = formData.get("mobileImage");
+  let imageUrl = currentImage.imageUrl;
   let imageUrlMobile = currentImage.imageUrlMobile;
-  if (mobileImage instanceof File && mobileImage.size > 0) {
-    imageUrlMobile = await saveBannerImage(mobileImage);
-    await deleteBannerImage(currentImage.imageUrlMobile);
-  } else if (input.removeMobileImage === "true") {
-    await deleteBannerImage(currentImage.imageUrlMobile);
-    imageUrlMobile = null;
+  try {
+    if (desktopImage instanceof File && desktopImage.size > 0) {
+      imageUrl = await saveBannerImage(desktopImage);
+      await deleteBannerImage(currentImage.imageUrl);
+    }
+    if (mobileImage instanceof File && mobileImage.size > 0) {
+      imageUrlMobile = await saveBannerImage(mobileImage);
+      await deleteBannerImage(currentImage.imageUrlMobile);
+    } else if (input.removeMobileImage === "true") {
+      await deleteBannerImage(currentImage.imageUrlMobile);
+      imageUrlMobile = null;
+    }
+  } catch (err) {
+    if (err instanceof InvalidImageUploadError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    throw err;
   }
 
   await ref.update({

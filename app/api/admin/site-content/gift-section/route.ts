@@ -4,6 +4,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { giftSectionDocRef } from "@/lib/firestore/admin-collections";
 import { deleteBannerImage, saveBannerImage } from "@/lib/server/bannerImages";
 import { AuthError, requireRole } from "@/lib/server/authGuard";
+import { InvalidImageUploadError } from "@/lib/server/imageStorage";
 
 const fieldsSchema = z.object({
   heading: z.string().trim().min(1, "Heading is required"),
@@ -46,23 +47,29 @@ export async function PATCH(request: Request) {
   const input = parsed.data;
 
   const desktopImage = formData.get("desktopImage");
+  const mobileImage = formData.get("mobileImage");
   let imageUrl = current?.imageUrl ?? null;
-  if (desktopImage instanceof File && desktopImage.size > 0) {
-    imageUrl = await saveBannerImage(desktopImage);
-    if (current?.imageUrl) await deleteBannerImage(current.imageUrl);
+  let imageUrlMobile = current?.imageUrlMobile ?? null;
+  try {
+    if (desktopImage instanceof File && desktopImage.size > 0) {
+      imageUrl = await saveBannerImage(desktopImage);
+      if (current?.imageUrl) await deleteBannerImage(current.imageUrl);
+    }
+    if (mobileImage instanceof File && mobileImage.size > 0) {
+      imageUrlMobile = await saveBannerImage(mobileImage);
+      if (current?.imageUrlMobile) await deleteBannerImage(current.imageUrlMobile);
+    } else if (input.removeMobileImage === "true") {
+      if (current?.imageUrlMobile) await deleteBannerImage(current.imageUrlMobile);
+      imageUrlMobile = null;
+    }
+  } catch (err) {
+    if (err instanceof InvalidImageUploadError) {
+      return NextResponse.json({ error: err.message }, { status: 400 });
+    }
+    throw err;
   }
   if (!imageUrl) {
     return NextResponse.json({ error: "A desktop image is required" }, { status: 400 });
-  }
-
-  const mobileImage = formData.get("mobileImage");
-  let imageUrlMobile = current?.imageUrlMobile ?? null;
-  if (mobileImage instanceof File && mobileImage.size > 0) {
-    imageUrlMobile = await saveBannerImage(mobileImage);
-    if (current?.imageUrlMobile) await deleteBannerImage(current.imageUrlMobile);
-  } else if (input.removeMobileImage === "true") {
-    if (current?.imageUrlMobile) await deleteBannerImage(current.imageUrlMobile);
-    imageUrlMobile = null;
   }
 
   await ref.set({

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Modal } from "@/components/admin/modal";
 import { adminFetchFormData } from "@/lib/admin/apiClient";
+import { resizeImageToFile } from "@/lib/admin/resizeImage";
 import { useAllProducts } from "@/lib/admin/useAllProducts";
 import { isComboCurrentlyValid } from "@/lib/combos";
 import type { Banner, BannerButtonPosition, BannerType, Combo } from "@/lib/firestore/types";
@@ -311,7 +312,18 @@ export function BannerForm({ mode, banner, combos, defaultOrder, onClose, onSave
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setDesktopFile(e.target.files?.[0] ?? null)}
+                onChange={async (e) => {
+                  const picked = e.target.files?.[0];
+                  if (!picked) {
+                    setDesktopFile(null);
+                    return;
+                  }
+                  try {
+                    setDesktopFile(await resizeImageToFile(picked));
+                  } catch {
+                    setDesktopFile(picked);
+                  }
+                }}
                 className="w-full cursor-pointer text-sm text-zinc-400 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-2 file:text-sm file:text-zinc-50 hover:file:bg-zinc-700"
               />
               {desktopFile && desktopFile.size > MAX_RECOMMENDED_BYTES && (
@@ -350,9 +362,18 @@ export function BannerForm({ mode, banner, combos, defaultOrder, onClose, onSave
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => {
-                  setMobileFile(e.target.files?.[0] ?? null);
-                  if (e.target.files?.[0]) setRemoveMobileImage(false);
+                onChange={async (e) => {
+                  const picked = e.target.files?.[0];
+                  if (!picked) {
+                    setMobileFile(null);
+                    return;
+                  }
+                  setRemoveMobileImage(false);
+                  try {
+                    setMobileFile(await resizeImageToFile(picked));
+                  } catch {
+                    setMobileFile(picked);
+                  }
                 }}
                 className="w-full cursor-pointer text-sm text-zinc-400 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-2 file:text-sm file:text-zinc-50 hover:file:bg-zinc-700"
               />

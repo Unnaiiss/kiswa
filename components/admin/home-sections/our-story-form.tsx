@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { adminFetchFormData } from "@/lib/admin/apiClient";
+import { resizeImageToFile } from "@/lib/admin/resizeImage";
 import type { OurStorySection } from "@/lib/firestore/types";
 
 const MAX_RECOMMENDED_BYTES = 1_000_000;
@@ -61,9 +62,23 @@ function ImageSlot({
       <input
         type="file"
         accept="image/*"
-        onChange={(e) =>
-          onChange({ file: e.target.files?.[0] ?? null, remove: false })
-        }
+        onChange={async (e) => {
+          const picked = e.target.files?.[0];
+          if (!picked) {
+            onChange({ file: null, remove: false });
+            return;
+          }
+          // Downscale before upload (same as the product gallery uploader)
+          // so a full-resolution supplier/AI-generated photo doesn't hit the
+          // server's 5MB cap — fall back to the original file if resizing
+          // fails for any reason, since the server still enforces the cap.
+          try {
+            const resized = await resizeImageToFile(picked);
+            onChange({ file: resized, remove: false });
+          } catch {
+            onChange({ file: picked, remove: false });
+          }
+        }}
         className="w-full cursor-pointer text-sm text-zinc-400 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-zinc-800 file:px-3 file:py-2 file:text-sm file:text-zinc-50 hover:file:bg-zinc-700"
       />
       {state.file && state.file.size > MAX_RECOMMENDED_BYTES && (
