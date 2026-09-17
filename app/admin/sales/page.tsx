@@ -187,7 +187,7 @@ export default function AdminSalesPage() {
             type="checkbox"
             checked={giftOnly}
             onChange={(e) => setGiftOnly(e.target.checked)}
-            className="size-4 rounded border-zinc-700 bg-zinc-950 accent-amber-400"
+            className="size-4 rounded border-zinc-700 bg-canvas accent-amber-400"
           />
           Gift orders only
         </label>

@@ -48,18 +48,30 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* ---- KISWA storefront theme (scoped to the (store) route group) ---- */
+/* ---- KISWA storefront theme (scoped to the (store) route group) ----
+   Colors are aliased (`@theme inline`) to plain --kiswa-* variables rather
+   than declared directly, so their actual values can differ between :root
+   (light, the default) and .dark below — every existing bg-kiswa-void /
+   text-kiswa-ink / etc. utility class across ~60 storefront files keeps
+   working unchanged, since Tailwind always compiles a utility to
+   `var(--color-kiswa-void)` and never inlines the literal color. */
+@theme inline {
+  --color-kiswa-void: var(--kiswa-void);
+  --color-kiswa-surface: var(--kiswa-surface);
+  --color-kiswa-surface-2: var(--kiswa-surface-2);
+  --color-kiswa-border: var(--kiswa-border);
+  --color-kiswa-ink: var(--kiswa-ink);
+  --color-kiswa-ink-muted: var(--kiswa-ink-muted);
+  --color-kiswa-gold: var(--kiswa-gold);
+  --color-kiswa-gold-soft: var(--kiswa-gold-soft);
+  --color-kiswa-gold-dim: var(--kiswa-gold-dim);
+  --color-kiswa-maroon: var(--kiswa-maroon);
+  /* Admin/POS's theme-relative "darkest backdrop" role — see the :root/.dark
+     blocks below for why this is a separate token from zinc-950. */
+  --color-canvas: var(--canvas);
+}
+
 @theme {
-  --color-kiswa-void: #0c0a09;
-  --color-kiswa-surface: #17130e;
-  --color-kiswa-surface-2: #201a12;
-  --color-kiswa-border: #2b241a;
-  --color-kiswa-ink: #f6f1e6;
-  --color-kiswa-ink-muted: #a99a83;
-  --color-kiswa-gold: #d4af37;
-  --color-kiswa-gold-soft: #e8c96a;
-  --color-kiswa-gold-dim: #8a6d28;
-  --color-kiswa-maroon: #4a1220;
   --font-display: var(--font-playfair);
   --font-body: var(--font-inter);
   /* Sticky header height — used by the homepage hero to cancel the header's
@@ -109,6 +121,46 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* ---- KISWA storefront light palette — warm ivory/cream with a deeper,
+     more legible gold (dark mode's brighter gold reads too washed-out
+     against a light background) ---- */
+  --kiswa-void: #faf7f0;
+  --kiswa-surface: #f2ebdc;
+  --kiswa-surface-2: #ece2cb;
+  --kiswa-border: #e2d4b0;
+  --kiswa-ink: #241a10;
+  --kiswa-ink-muted: #7d6c52;
+  --kiswa-gold: #a67c22;
+  --kiswa-gold-soft: #c69a3f;
+  --kiswa-gold-dim: #cdb488;
+  --kiswa-maroon: #4a1220;
+
+  /* ---- Admin/POS light palette ----
+     Overrides the specific Tailwind zinc shades admin/POS actually use for
+     theme-relative roles (panel/border/muted-text) — deliberately NOT
+     zinc-500 (the visual midpoint, reads fine unchanged in both themes) or
+     zinc-950 (used exclusively as fixed-dark button text on gold
+     backgrounds, e.g. `bg-amber-400 text-zinc-950` — overriding it would
+     invert that text to near-white and break every CTA button). --canvas is
+     a NEW token for the one role zinc-950 also plays (the page/panel's
+     darkest backdrop, `bg-zinc-950` — see components/admin/admin-shell.tsx
+     etc.) that genuinely does need to flip; those call sites use bg-canvas
+     instead of bg-zinc-950 specifically so the two roles can flip
+     independently. amber-400 (the gold accent used for buttons/highlights/
+     links throughout admin/POS) is also deepened here for the same
+     text-legibility reason as kiswa-gold above. */
+  --color-zinc-50: oklch(14.1% 0.005 285.823);
+  --color-zinc-100: oklch(21% 0.006 285.885);
+  --color-zinc-200: oklch(27.4% 0.006 286.033);
+  --color-zinc-300: oklch(37% 0.013 285.805);
+  --color-zinc-400: oklch(44.2% 0.017 285.786);
+  --color-zinc-600: oklch(70.5% 0.015 286.067);
+  --color-zinc-700: oklch(87.1% 0.006 286.286);
+  --color-zinc-800: oklch(92% 0.004 286.32);
+  --color-zinc-900: oklch(96.7% 0.001 286.375);
+  --color-amber-400: oklch(66.6% 0.179 58.318);
+  --canvas: oklch(98.5% 0 none);
 }
 
 .dark {
@@ -143,6 +195,37 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
+  /* ---- KISWA storefront dark palette — the original, pre-theming look,
+     reproduced exactly so switching to dark mode is pixel-identical to what
+     every visitor already sees today. ---- */
+  --kiswa-void: #0c0a09;
+  --kiswa-surface: #17130e;
+  --kiswa-surface-2: #201a12;
+  --kiswa-border: #2b241a;
+  --kiswa-ink: #f6f1e6;
+  --kiswa-ink-muted: #a99a83;
+  --kiswa-gold: #d4af37;
+  --kiswa-gold-soft: #e8c96a;
+  --kiswa-gold-dim: #8a6d28;
+  --kiswa-maroon: #4a1220;
+
+  /* Admin/POS dark palette — Tailwind's own default zinc/amber shades,
+     restated explicitly (rather than left to fall through) so this block is
+     the complete, self-contained source of truth for dark mode, matching
+     today's look exactly. See the :root block above for why zinc-500/950
+     are absent and --canvas exists. */
+  --color-zinc-50: oklch(98.5% 0 none);
+  --color-zinc-100: oklch(96.7% 0.001 286.375);
+  --color-zinc-200: oklch(92% 0.004 286.32);
+  --color-zinc-300: oklch(87.1% 0.006 286.286);
+  --color-zinc-400: oklch(70.5% 0.015 286.067);
+  --color-zinc-600: oklch(44.2% 0.017 285.786);
+  --color-zinc-700: oklch(37% 0.013 285.805);
+  --color-zinc-800: oklch(27.4% 0.006 286.033);
+  --color-zinc-900: oklch(21% 0.006 285.885);
+  --color-amber-400: oklch(82.8% 0.189 84.429);
+  --canvas: oklch(14.1% 0.005 285.823);
 }
 
 @layer base {

@@ -28,7 +28,7 @@ export function ProductGrid({
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-950/95 p-4 backdrop-blur">
+      <div className="sticky top-0 z-10 border-b border-zinc-800 bg-canvas/95 p-4 backdrop-blur">
         <div className="relative">
           <Search
             className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-zinc-500"

@@ -160,7 +160,7 @@ export function BannerTable({ banners, combos, products, loading, onEdit }: Bann
               >
                 <GripVertical size={18} />
               </span>
-              <div className="flex h-14 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
+              <div className="flex h-14 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-800 bg-canvas">
                 {thumbSrc ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={thumbSrc} alt={title} className="h-full w-full object-cover" />

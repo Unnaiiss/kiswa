@@ -91,7 +91,7 @@ export function VariantPickerSheet({
                           onClick={() => onSelect(product, variant)}
                           className={`flex min-h-16 flex-col items-start justify-center rounded-xl border px-4 py-3 text-left transition-colors ${
                             unavailable
-                              ? "cursor-not-allowed border-zinc-800 bg-zinc-950 opacity-40"
+                              ? "cursor-not-allowed border-zinc-800 bg-canvas opacity-40"
                               : "cursor-pointer border-zinc-700 bg-zinc-800 active:border-amber-400 active:bg-zinc-700"
                           }`}
                         >

@@ -223,7 +223,7 @@ export function PendingDraftsPanel() {
                   key={draft.id}
                   type="button"
                   onClick={() => setSelected(draft)}
-                  className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-left transition-colors hover:border-amber-400/40"
+                  className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-canvas px-4 py-3 text-left transition-colors hover:border-amber-400/40"
                 >
                   <div>
                     <p className="text-sm font-medium text-zinc-50">

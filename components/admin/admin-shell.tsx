@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { logout } from "@/lib/auth/session";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { SessionClaims } from "@/lib/server/sessionCookie";
 
 const NAV_ITEMS = [
@@ -82,7 +83,7 @@ export function AdminShell({
   }
 
   return (
-    <div className="flex h-dvh flex-col bg-zinc-950 text-zinc-50 md:flex-row">
+    <div className="flex h-dvh flex-col bg-canvas text-zinc-50 md:flex-row">
       <header className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3 md:hidden">
         <button
           type="button"
@@ -95,7 +96,7 @@ export function AdminShell({
         <p className="text-sm font-semibold tracking-[0.2em] text-amber-400 uppercase">
           Kiswa Admin
         </p>
-        <div className="size-9" />
+        <ThemeToggle className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-zinc-400 hover:text-amber-400" />
       </header>
 
       {mobileNavOpen && (
@@ -104,7 +105,7 @@ export function AdminShell({
             className="fixed inset-0 bg-black/70"
             onClick={() => setMobileNavOpen(false)}
           />
-          <div className="relative flex w-64 flex-col border-r border-zinc-800 bg-zinc-950">
+          <div className="relative flex w-64 flex-col border-r border-zinc-800 bg-canvas">
             <div className="flex items-center justify-between px-4 py-3">
               <p className="text-sm font-semibold tracking-[0.2em] text-amber-400 uppercase">
                 Kiswa Admin
@@ -124,10 +125,11 @@ export function AdminShell({
       )}
 
       <aside className="hidden w-60 shrink-0 flex-col border-r border-zinc-800 md:flex">
-        <div className="px-4 py-5">
+        <div className="flex items-center justify-between px-4 py-5">
           <p className="text-sm font-semibold tracking-[0.2em] text-amber-400 uppercase">
             Kiswa Admin
           </p>
+          <ThemeToggle className="flex size-8 cursor-pointer items-center justify-center rounded-lg text-zinc-400 hover:text-amber-400" />
         </div>
         <div className="flex-1 overflow-y-auto">
           <NavLinks />

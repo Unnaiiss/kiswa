@@ -174,7 +174,7 @@ export function ImageUploader({ images, onChange, uploadEndpoint }: ImageUploade
                 type="button"
                 onClick={() => removeImage(idx)}
                 aria-label="Remove image"
-                className="absolute right-1 top-1 cursor-pointer rounded-full bg-zinc-950/80 p-1 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-400"
+                className="absolute right-1 top-1 cursor-pointer rounded-full bg-canvas/80 p-1 text-zinc-300 opacity-0 transition-opacity group-hover:opacity-100 hover:text-red-400"
               >
                 <X size={14} />
               </button>

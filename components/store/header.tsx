@@ -8,6 +8,7 @@ import { NavSearch } from "./nav-search";
 import { MenuDrawer } from "./menu-drawer";
 import { AnnouncementBar } from "./announcement-bar";
 import { AccountMenu } from "./account-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 import type { StoreAnnouncementBar, StoreProduct } from "@/lib/store/queries";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +63,8 @@ export function StoreHeader({
           </Link>
 
           <div className="flex items-center justify-end gap-1">
+            <ThemeToggle className="flex h-11 w-11 cursor-pointer items-center justify-center text-kiswa-gold transition-colors hover:text-kiswa-gold-soft" />
+
             <button
               type="button"
               onClick={() => setSearchOpen(true)}

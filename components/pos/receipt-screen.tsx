@@ -69,7 +69,7 @@ export function ReceiptScreen({ receipt, onNewSale }: ReceiptScreenProps) {
   }
 
   return (
-    <main className="flex min-h-dvh flex-col items-center bg-zinc-950 px-4 py-8 text-zinc-50">
+    <main className="flex min-h-dvh flex-col items-center bg-canvas px-4 py-8 text-zinc-50">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center gap-2 text-center print:hidden">
           <CheckCircle2 className="text-green-500" size={44} />

@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { LogOut, ShoppingBag, X } from "lucide-react";
 import { auth } from "@/lib/firebase/client";
 import { logout } from "@/lib/auth/session";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useActiveProducts } from "@/lib/pos/useActiveProducts";
 import { useActiveCombos } from "@/lib/pos/useActiveCombos";
 import { isComboFulfillable } from "@/lib/combos";
@@ -401,13 +402,14 @@ export function BillingScreen({ staffName }: { staffName: string }) {
   );
 
   return (
-    <div className="flex h-dvh flex-col bg-zinc-950 text-zinc-50">
+    <div className="flex h-dvh flex-col bg-canvas text-zinc-50">
       <header className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3">
         <p className="text-sm font-semibold tracking-[0.2em] text-amber-400 uppercase">
           Kiswa POS
         </p>
         <div className="flex items-center gap-3 text-sm text-zinc-400">
           <span className="hidden sm:inline">{staffName}</span>
+          <ThemeToggle className="flex size-8 cursor-pointer items-center justify-center rounded-full border border-zinc-800 hover:border-amber-400 hover:text-amber-400" />
           <button
             type="button"
             onClick={async () => {
@@ -426,7 +428,7 @@ export function BillingScreen({ staffName }: { staffName: string }) {
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-1 flex-col overflow-hidden">
           {combos.length > 0 && (
-            <div className="shrink-0 overflow-x-auto border-b border-zinc-800 bg-zinc-950 p-3">
+            <div className="shrink-0 overflow-x-auto border-b border-zinc-800 bg-canvas p-3">
               <div className="flex gap-3">
                 {combos.map((combo) => (
                   <div key={combo.id} className="w-32 shrink-0">
@@ -484,7 +486,7 @@ export function BillingScreen({ staffName }: { staffName: string }) {
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              className="fixed inset-x-0 bottom-0 z-40 flex h-[92vh] flex-col rounded-t-2xl border-t border-zinc-800 bg-zinc-950 lg:hidden"
+              className="fixed inset-x-0 bottom-0 z-40 flex h-[92vh] flex-col rounded-t-2xl border-t border-zinc-800 bg-canvas lg:hidden"
             >
               <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3">
                 <h2 className="text-lg font-semibold">Current Bill</h2>

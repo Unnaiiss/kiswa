@@ -56,7 +56,7 @@ function blankVariantRow(): VariantEditState {
 const inputClass =
   "w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-zinc-50 placeholder:text-zinc-600 outline-none focus:border-amber-400";
 const cellInputClass =
-  "w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1.5 text-sm text-zinc-50 outline-none focus:border-amber-400";
+  "w-full rounded-md border border-zinc-800 bg-canvas px-2 py-1.5 text-sm text-zinc-50 outline-none focus:border-amber-400";
 
 export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProps) {
   const [productType, setProductType] = useState<ProductType>(
@@ -533,7 +533,7 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
                           onChange={(e) =>
                             updateVariant(v.key, { isActive: e.target.checked })
                           }
-                          className="size-4 rounded border-zinc-700 bg-zinc-950"
+                          className="size-4 rounded border-zinc-700 bg-canvas"
                         />
                       </label>
                       <button

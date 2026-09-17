@@ -21,7 +21,7 @@ import { buildCustomerWhatsAppUrl, buildStatusUpdateMessage } from "@/lib/whatsa
 import type { OrderStatus, Sale } from "@/lib/firestore/types";
 
 const inputClass =
-  "w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-50 outline-none focus:border-amber-400";
+  "w-full rounded-lg border border-zinc-800 bg-canvas px-3 py-2 text-sm text-zinc-50 outline-none focus:border-amber-400";
 
 function StatusHistoryTimeline({ sale }: { sale: Sale }) {
   // Sales recorded before statusHistory existed have none at all — synthesize
@@ -697,7 +697,7 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
                     setNextStatus(e.target.value as OrderStatus);
                     setSaved(false);
                   }}
-                  className="flex-1 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-zinc-50 outline-none focus:border-amber-400"
+                  className="flex-1 rounded-lg border border-zinc-800 bg-canvas px-3 py-2 text-sm text-zinc-50 outline-none focus:border-amber-400"
                 >
                   <option value="">Select next status…</option>
                   {options.map((opt) => (

@@ -138,7 +138,7 @@ export function ComboTable({ combos, loading, onEdit }: ComboTableProps) {
               <span className="cursor-grab text-zinc-600 active:cursor-grabbing" aria-hidden>
                 <GripVertical size={18} />
               </span>
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-800 bg-canvas">
                 {combo.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={combo.imageUrl} alt={combo.title} className="h-full w-full object-cover" />

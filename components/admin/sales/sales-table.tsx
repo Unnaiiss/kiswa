@@ -67,7 +67,7 @@ export function SalesTable({
                     type="checkbox"
                     checked={selectedIds.has(sale.id)}
                     onChange={() => onToggleSelect(sale.id)}
-                    className="size-4 cursor-pointer rounded border-zinc-700 bg-zinc-950 accent-amber-400"
+                    className="size-4 cursor-pointer rounded border-zinc-700 bg-canvas accent-amber-400"
                   />
                 </td>
                 <td className="cursor-pointer px-4 py-2.5 font-medium text-amber-400" onClick={() => onSelect(sale)}>

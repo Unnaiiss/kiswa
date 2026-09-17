@@ -385,7 +385,7 @@ export function WhatsAppOrderScreen() {
     <div className="flex h-[calc(100dvh-8rem)] min-h-[32rem] flex-col overflow-hidden rounded-xl border border-zinc-800 lg:flex-row">
       <div className="flex flex-1 flex-col overflow-hidden">
         {combos.length > 0 && (
-          <div className="shrink-0 overflow-x-auto border-b border-zinc-800 bg-zinc-950 p-3">
+          <div className="shrink-0 overflow-x-auto border-b border-zinc-800 bg-canvas p-3">
             <div className="flex gap-3">
               {combos.map((combo) => (
                 <div key={combo.id} className="w-32 shrink-0">
@@ -406,7 +406,7 @@ export function WhatsAppOrderScreen() {
           bottomPadding
         />
       </div>
-      <aside className="hidden w-[26rem] shrink-0 border-l border-zinc-800 bg-zinc-950 lg:flex lg:flex-col">
+      <aside className="hidden w-[26rem] shrink-0 border-l border-zinc-800 bg-canvas lg:flex lg:flex-col">
         {billPanel}
       </aside>
 
@@ -426,7 +426,7 @@ export function WhatsAppOrderScreen() {
       )}
 
       {mobileBillOpen && (
-        <div className="fixed inset-0 z-40 flex flex-col bg-zinc-950 lg:hidden">
+        <div className="fixed inset-0 z-40 flex flex-col bg-canvas lg:hidden">
           <div className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3">
             <h2 className="text-lg font-semibold text-zinc-50">Current Order</h2>
             <button

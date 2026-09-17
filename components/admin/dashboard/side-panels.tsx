@@ -119,7 +119,7 @@ export function RefundFlagsPanel() {
         {flags.map((flag) => (
           <li
             key={flag.id}
-            className="rounded-lg border border-red-400/20 bg-zinc-950/40 p-3 text-sm"
+            className="rounded-lg border border-red-400/20 bg-canvas/40 p-3 text-sm"
           >
             <div className="flex items-center justify-between">
               <span className="font-medium text-zinc-50">{flag.customerName}</span>

@@ -19,7 +19,7 @@ export function ComboTile({ combo, fulfillable, onTap }: ComboTileProps) {
       className={`flex flex-col overflow-hidden rounded-xl border text-left transition-colors ${
         fulfillable
           ? "cursor-pointer border-amber-400/40 bg-amber-400/5 active:border-amber-400"
-          : "cursor-not-allowed border-zinc-900 bg-zinc-950 opacity-50"
+          : "cursor-not-allowed border-zinc-900 bg-canvas opacity-50"
       }`}
     >
       <div className="relative aspect-square bg-zinc-900">
@@ -32,7 +32,7 @@ export function ComboTile({ combo, fulfillable, onTap }: ComboTileProps) {
           </div>
         )}
         {!fulfillable && (
-          <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/70">
+          <div className="absolute inset-0 flex items-center justify-center bg-canvas/70">
             <span className="text-xs font-semibold uppercase tracking-wide text-red-400">
               Unavailable
             </span>
