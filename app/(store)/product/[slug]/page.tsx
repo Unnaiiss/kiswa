@@ -1,17 +1,32 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProductBySlug } from "@/lib/store/queries";
 import { ProductGallery } from "@/components/store/product-gallery";
-import { VariantSelector } from "@/components/store/variant-selector";
-import { ImportedBuyBox } from "@/components/store/imported-buy-box";
+import { ProductBuyBox, ProductBuyBoxFallback } from "@/components/store/product-buy-box";
 import { FragranceNotes } from "@/components/store/fragrance-notes";
+
+// Was missing from this page while every other storefront listing/detail
+// page already had it — meant every single tap on a product card did a full,
+// uncached Firestore round-trip before the page could render (and blocked
+// next/link's prefetch from ever having anything cached to prefetch), which
+// is what made opening a product feel slow/unresponsive rather than instant.
+// Stock/pricing accuracy isn't weakened by this: checkout/recordSale always
+// re-derive both live and authoritatively regardless of what this page shows.
+export const revalidate = 60;
+
+// Required (even as an empty list) for a dynamic `[slug]` route to actually
+// get on-demand ISR caching at all — without it, Next.js renders every
+// request from scratch regardless of `revalidate` above. dynamicParams stays
+// at its default (true), so any slug not in this list is still generated on
+// first visit and then cached for `revalidate` seconds, same as the ones
+// that would've been listed here.
+export async function generateStaticParams() {
+  return [];
+}
 
 interface ProductPageProps {
   params: Promise<{ slug: string }>;
-  // variant: preselects a variant from a deep link (e.g. a Meta catalog
-  // ad click) — read by VariantSelector, ignored by ImportedBuyBox (which
-  // has only the one "unit" variant, nothing to preselect).
-  searchParams: Promise<{ gift?: string; variant?: string }>;
 }
 
 export async function generateMetadata({
@@ -41,11 +56,8 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProductPage({
-  params,
-  searchParams,
-}: ProductPageProps) {
-  const [{ slug }, { gift, variant }] = await Promise.all([params, searchParams]);
+export default async function ProductPage({ params }: ProductPageProps) {
+  const { slug } = await params;
   const product = await getProductBySlug(slug);
 
   if (!product) notFound();
@@ -72,11 +84,9 @@ export default async function ProductPage({
 
           <div className="h-px w-full bg-kiswa-border" />
 
-          {product.productType === "imported" ? (
-            <ImportedBuyBox product={product} giftMode={gift === "1"} />
-          ) : (
-            <VariantSelector product={product} giftMode={gift === "1"} initialVariantId={variant} />
-          )}
+          <Suspense fallback={<ProductBuyBoxFallback product={product} />}>
+            <ProductBuyBox product={product} />
+          </Suspense>
         </div>
       </div>
     </main>

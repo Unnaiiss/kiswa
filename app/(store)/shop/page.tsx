@@ -1,9 +1,16 @@
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getActiveProducts } from "@/lib/store/queries";
 import { getCategories } from "@/lib/store/categories";
-import { ShopGrid, type ShopTypeFilter } from "@/components/store/shop-grid";
+import { ShopGrid } from "@/components/store/shop-grid";
+import { ShopGridWithFilters } from "@/components/store/shop-grid-with-filters";
 import { Reveal } from "@/components/store/reveal";
 
+// This page previously took `searchParams` directly, which forces fully
+// dynamic, uncached rendering on every request (same issue fixed on
+// product/[slug] and offers/[slug] — see their own comments) — the
+// category/type filter read moved into ShopGridWithFilters instead so this
+// page itself can stay ISR-cacheable.
 export const revalidate = 60;
 
 export const metadata: Metadata = {
@@ -12,20 +19,9 @@ export const metadata: Metadata = {
     "Browse the full KISWA collection of attar oils and perfume sprays.",
 };
 
-export default async function ShopPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ category?: string; type?: string }>;
-}) {
-  const [products, params] = await Promise.all([
-    getActiveProducts(),
-    searchParams,
-  ]);
+export default async function ShopPage() {
+  const products = await getActiveProducts();
   const categories = getCategories(products);
-  const initialType: ShopTypeFilter | undefined =
-    params.type === "oil" || params.type === "spray" || params.type === "imported"
-      ? params.type
-      : undefined;
 
   return (
     <main className="flex-1 px-6 py-20 sm:py-28">
@@ -43,12 +39,9 @@ export default async function ShopPage({
           </p>
         </Reveal>
 
-        <ShopGrid
-          products={products}
-          categories={categories}
-          initialCategory={params.category}
-          initialType={initialType}
-        />
+        <Suspense fallback={<ShopGrid products={products} categories={categories} />}>
+          <ShopGridWithFilters products={products} categories={categories} />
+        </Suspense>
       </div>
     </main>
   );

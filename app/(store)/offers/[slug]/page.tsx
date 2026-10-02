@@ -8,6 +8,16 @@ import { Reveal } from "@/components/store/reveal";
 import { ComboAddFixed } from "@/components/store/combo-add-fixed";
 import { ComboPicker } from "@/components/store/combo-picker";
 
+// Same fix as product/[slug] — this detail page was the one combo route
+// still doing a fully dynamic, uncached fetch on every tap from a ComboCard.
+export const revalidate = 60;
+
+// Required (even empty) for a dynamic [slug] route to get on-demand ISR
+// caching at all — see product/[slug]/page.tsx's own comment on this.
+export async function generateStaticParams() {
+  return [];
+}
+
 interface ComboPageProps {
   params: Promise<{ slug: string }>;
 }
