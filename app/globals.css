@@ -240,6 +240,22 @@
   }
 }
 
+/* Mobile Safari/Chrome auto-zoom the whole page on focus of any form field
+   whose computed font-size is under 16px — this is what caused the
+   "page zooms in" complaint on phones, not a viewport/pinch-zoom setting.
+   Most of this app's hand-rolled inputs/selects/textareas use text-sm
+   (14px); overriding just the font-size here (not touching padding/layout)
+   keeps every field's zoom-free on mobile without editing each component's
+   className. shadcn's own Input/Textarea are already 16px below their
+   md: breakpoint, so this is a no-op for them. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
 /* ---- Printable receipts/invoices ----
    Named pages (`page:`) scope each @page size to its own element so the
    80mm thermal receipt and the A4 customer invoice don't fight over a
