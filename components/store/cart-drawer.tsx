@@ -14,6 +14,7 @@ import { useSiteSettings } from "@/lib/store/site-settings-context";
 import { ONLINE_PAYMENTS_ENABLED } from "@/lib/config/featureFlags";
 import { useOrderGate } from "@/lib/auth/useOrderGate";
 import { SignInToOrderPrompt } from "./sign-in-to-order-prompt";
+import { ProductImage } from "./product-image";
 import type { CartItem } from "@/lib/cart/types";
 
 export function CartDrawer() {
@@ -88,8 +89,12 @@ export function CartDrawer() {
                       key={line.lineId}
                       className="flex gap-4 border-b border-kiswa-border/60 py-4 last:border-none"
                     >
-                      <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-md border border-kiswa-border bg-kiswa-surface-2">
-                        <div className="h-8 w-3 rounded-full bg-gradient-to-b from-kiswa-gold-soft to-kiswa-gold-dim" />
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-md border border-kiswa-border bg-kiswa-surface-2">
+                        <ProductImage
+                          name={line.productName}
+                          imageUrls={line.imageUrl ? [line.imageUrl] : []}
+                          sizes="64px"
+                        />
                       </div>
                       <div className="flex flex-1 flex-col gap-1">
                         <p className="text-sm leading-snug text-kiswa-ink">

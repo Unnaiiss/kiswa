@@ -324,6 +324,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           sizeMl: 0,
           unitPrice,
           oilMlPerUnit: 0,
+          imageUrl: combo.imageUrl ?? null,
           qty,
           combo,
         },

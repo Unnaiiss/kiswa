@@ -14,6 +14,7 @@ const giftSchema = z.object({
 const comboSchema = z.object({
   comboId: z.string(),
   comboTitle: z.string(),
+  imageUrl: z.string().nullable().optional(),
   components: z.array(
     z.object({
       productId: z.string(),
@@ -37,6 +38,7 @@ const cartItemSchema = z.object({
   sizeMl: z.number(),
   unitPrice: z.number(),
   oilMlPerUnit: z.number(),
+  imageUrl: z.string().nullable().optional(),
   qty: z.number().int().positive(),
   gift: giftSchema.optional(),
   combo: comboSchema.optional(),

@@ -416,6 +416,7 @@ export interface SavedCartItem {
   sizeMl: number;
   unitPrice: number;
   oilMlPerUnit: number;
+  imageUrl?: string | null;
   qty: number;
   gift?: {
     recipientName: string;

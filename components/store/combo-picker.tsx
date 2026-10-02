@@ -60,6 +60,7 @@ export function ComboPicker({
       {
         comboId: combo.id,
         comboTitle: combo.title,
+        imageUrl: combo.imageUrl,
         components,
         selections,
       },

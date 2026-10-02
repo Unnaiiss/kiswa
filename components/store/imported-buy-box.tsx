@@ -98,6 +98,7 @@ export function ImportedBuyBox({
       sizeMl: 0,
       unitPrice: product.priceInr,
       oilMlPerUnit: 0,
+      imageUrl: product.imageUrls[0] ?? null,
     };
   }
 

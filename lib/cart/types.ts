@@ -20,6 +20,10 @@ export interface ComboCartComponent {
 export interface ComboCartDetails {
   comboId: string;
   comboTitle: string;
+  /** Snapshot of the combo's own imageUrl, carried onto the cart line so the
+   * bag can show a picture without re-fetching the combo. Null when the
+   * combo has none. */
+  imageUrl?: string | null;
   /** Display contents — combo.items for 'fixed', the customer's grouped
    * picks for 'choose-any'. */
   components: ComboCartComponent[];
@@ -51,6 +55,10 @@ export interface CartItem {
    * (hide/disable unfulfillable combos) and authoritatively in recordSale,
    * not in the cart. */
   oilMlPerUnit: number;
+  /** Snapshot of the product's (or combo's) primary image at the moment it
+   * was added — avoids re-fetching product data just to render the bag.
+   * Null/absent falls back to the monogram placeholder. */
+  imageUrl?: string | null;
   qty: number;
   /** Present only for gift lines. Gifting doesn't change stock/oil logic —
    * it's purely presentation/checkout metadata. */

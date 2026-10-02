@@ -20,6 +20,7 @@ export function ComboAddFixed({
       {
         comboId: combo.id,
         comboTitle: combo.title,
+        imageUrl: combo.imageUrl,
         components: combo.items.map((i) => ({
           productId: i.productId,
           variantId: i.variantId,

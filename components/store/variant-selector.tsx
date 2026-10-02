@@ -179,6 +179,7 @@ export function VariantSelector({
       sizeMl: selectedVariant.sizeMl,
       unitPrice: selectedVariant.priceInr,
       oilMlPerUnit: selectedVariant.oilMlPerUnit,
+      imageUrl: product.imageUrls[0] ?? null,
     };
   }
 
