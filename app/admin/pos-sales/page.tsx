@@ -1,15 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Download, FileText } from "lucide-react";
 import { useSalesInRange } from "@/lib/admin/useSalesInRange";
-import { daysAgo, dayKey, saleHasGift } from "@/lib/admin/salesAggregation";
+import { daysAgo, dayKey, posStaffLabel, saleHasGift } from "@/lib/admin/salesAggregation";
+import { downloadTextFile, salesToCsv } from "@/lib/admin/exportSales";
 import {
   normalizeOrderStatus,
   nextValidStatuses,
   ORDER_STATUS_LABELS,
 } from "@/lib/orderFulfillment";
 import { adminFetch } from "@/lib/admin/apiClient";
-import { PosSalesTable, posStaffLabel } from "@/components/admin/pos-sales/pos-sales-table";
+import { PosSalesTable } from "@/components/admin/pos-sales/pos-sales-table";
+import { PosSalesReport } from "@/components/admin/pos-sales/pos-sales-report";
 import { SaleDetail } from "@/components/admin/sales/sale-detail";
 import { StatCard } from "@/components/admin/dashboard/stat-card";
 import { QueryErrorBanner } from "@/components/admin/query-error-banner";
@@ -102,6 +105,29 @@ export default function AdminPosSalesPage() {
     return [...map.entries()].sort((a, b) => b[1].revenue - a[1].revenue);
   }, [filtered]);
 
+  const filterSummary = useMemo(() => {
+    const parts: string[] = [];
+    if (staff !== "all") parts.push(`Staff: ${staff}`);
+    if (paymentMethod !== "all") parts.push(`Payment: ${paymentMethod}`);
+    if (giftOnly) parts.push("Gift orders only");
+    if (search.trim()) parts.push(`Search: "${search.trim()}"`);
+    return parts.length > 0 ? parts.join(" · ") : null;
+  }, [staff, paymentMethod, giftOnly, search]);
+
+  function downloadCsv() {
+    const csv = salesToCsv(filtered);
+    downloadTextFile(`kiswa-pos-sales-${fromStr}-to-${toStr}.csv`, csv, "text/csv;charset=utf-8");
+  }
+
+  function downloadPdf() {
+    // There's no PDF-generation library in this app — every other printable
+    // document here (invoice, receipt, packing slip, gift card) already
+    // uses the browser's own print-to-PDF via window.print() against a
+    // dedicated print stylesheet (see app/globals.css), so this follows the
+    // same established pattern rather than adding a new dependency.
+    window.print();
+  }
+
   const selectedSales = filtered.filter((s) => selectedIds.has(s.id));
   const bulkOptions = useMemo(() => {
     if (selectedSales.length === 0) return [];
@@ -143,12 +169,35 @@ export default function AdminPosSalesPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-4 sm:p-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-zinc-50">POS Sales</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          In-store counter sales only — {filtered.length} shown. For online orders too, use Sales.
-        </p>
+    <>
+    <div className="flex flex-col gap-6 p-4 sm:p-6 print:hidden">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-zinc-50">POS Sales</h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            In-store counter sales only — {filtered.length} shown. For online orders too, use Sales.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={downloadCsv}
+            disabled={filtered.length === 0}
+            className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm text-zinc-300 hover:border-amber-400 hover:text-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Download size={16} />
+            CSV
+          </button>
+          <button
+            type="button"
+            onClick={downloadPdf}
+            disabled={filtered.length === 0}
+            className="flex cursor-pointer items-center gap-2 rounded-lg bg-amber-400 px-4 py-2 text-sm font-semibold text-zinc-950 hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <FileText size={16} />
+            PDF
+          </button>
+        </div>
       </div>
 
       {error && <QueryErrorBanner error={error} />}
@@ -305,5 +354,8 @@ export default function AdminPosSalesPage() {
 
       {selected && <SaleDetail sale={selected} onClose={() => setSelectedId(null)} />}
     </div>
+
+    <PosSalesReport sales={filtered} fromStr={fromStr} toStr={toStr} filterSummary={filterSummary} />
+    </>
   );
 }

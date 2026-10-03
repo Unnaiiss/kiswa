@@ -2,7 +2,7 @@
 
 import { Gift, Package } from "lucide-react";
 import type { OrderStatus, Sale } from "@/lib/firestore/types";
-import { saleHasCombo, saleHasGift } from "@/lib/admin/salesAggregation";
+import { posStaffLabel, saleHasCombo, saleHasGift } from "@/lib/admin/salesAggregation";
 import { normalizeOrderStatus, ORDER_STATUS_LABELS } from "@/lib/orderFulfillment";
 import { formatInr } from "@/lib/pricing";
 
@@ -16,15 +16,6 @@ const STATUS_STYLE: Record<OrderStatus, string> = {
   cancelled: "bg-red-500/10 text-red-400",
   returned: "bg-orange-500/10 text-orange-400",
 };
-
-/** Who rang up a POS sale — the first statusHistory entry is seeded from
- * recordSale's own createdByUid/createdByName (see lib/server/recordSale.ts),
- * so this is available on every offline sale without a separate lookup.
- * Sales recorded before statusHistory existed fall back to the raw uid,
- * same convention as sale-detail.tsx's own synthesized timeline entry. */
-export function posStaffLabel(sale: Sale): string {
-  return sale.statusHistory?.[0]?.changedByName || sale.createdByUid;
-}
 
 export function PosSalesTable({
   sales,

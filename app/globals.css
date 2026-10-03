@@ -274,7 +274,9 @@
   #packing-slip-a4,
   #packing-slip-a4 *,
   #packing-slip-thermal,
-  #packing-slip-thermal * {
+  #packing-slip-thermal *,
+  #pos-sales-report,
+  #pos-sales-report * {
     visibility: visible;
     color: #000 !important;
     background: transparent !important;
@@ -333,6 +335,14 @@
     font-size: 12px;
     page: packing-slip-thermal;
   }
+  /* Deliberately NOT position: absolute like every document above — this
+     report's length depends on the admin's chosen date range (could be one
+     bill or several hundred), so it needs to paginate across as many A4
+     pages as it takes rather than being pinned to a single page's bounds. */
+  #pos-sales-report {
+    width: 100%;
+    page: pos-sales-report;
+  }
   @page pos-receipt {
     size: 80mm auto;
     margin: 0;
@@ -352,5 +362,9 @@
   @page packing-slip-thermal {
     size: 80mm auto;
     margin: 0;
+  }
+  @page pos-sales-report {
+    size: A4;
+    margin: 15mm;
   }
 }

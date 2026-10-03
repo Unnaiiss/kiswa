@@ -19,6 +19,16 @@ export function itemVariantLabel(item: SaleItem): string {
   return formatVariantLabel(parseVariantType(item.variantId), item.sizeMl);
 }
 
+/** Who rang up a POS sale — the first statusHistory entry is seeded from
+ * recordSale's own createdByUid/createdByName (see lib/server/recordSale.ts
+ * and "Order fulfillment" in CLAUDE.md), so this is available on every
+ * offline sale without a separate lookup. Sales recorded before
+ * statusHistory existed fall back to the raw uid, same convention as
+ * sale-detail.tsx's own synthesized timeline entry. */
+export function posStaffLabel(sale: Sale): string {
+  return sale.statusHistory?.[0]?.changedByName || sale.createdByUid;
+}
+
 /** Local-calendar-day key (not UTC) — must match the local-time arithmetic in
  * startOfDay/startOfMonth/daysAgo below, or every bucket ends up one day off
  * for any timezone ahead of UTC (e.g. IST), silently dropping today's sales. */
