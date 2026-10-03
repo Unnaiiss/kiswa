@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Package,
   Receipt,
+  Store,
   Tag,
   X,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { href: "/admin/whatsapp-orders", label: "WhatsApp Orders", icon: MessageCircle, exact: false },
   { href: "/admin/stock", label: "Stock", icon: Boxes, exact: false },
   { href: "/admin/sales", label: "Sales", icon: Receipt, exact: false },
+  { href: "/admin/pos-sales", label: "POS Sales", icon: Store, exact: false },
   { href: "/admin/reports", label: "Reports", icon: BarChart3, exact: false },
 ];
 

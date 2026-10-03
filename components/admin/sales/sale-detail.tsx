@@ -415,6 +415,14 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
             <p className="text-xs text-zinc-500 uppercase">Channel</p>
             <p className="text-zinc-50 capitalize">{sale.channel}</p>
           </div>
+          {sale.channel === "offline" && (
+            <div>
+              <p className="text-xs text-zinc-500 uppercase">Staff</p>
+              <p className="text-zinc-50">
+                {sale.statusHistory?.[0]?.changedByName || sale.createdByUid}
+              </p>
+            </div>
+          )}
           <div>
             <p className="text-xs text-zinc-500 uppercase">Payment</p>
             <p className="text-zinc-50 capitalize">
