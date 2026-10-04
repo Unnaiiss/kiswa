@@ -1,16 +1,16 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import { getActiveProducts } from "@/lib/store/queries";
 import { getCategories } from "@/lib/store/categories";
 import { ShopGrid } from "@/components/store/shop-grid";
-import { ShopGridWithFilters } from "@/components/store/shop-grid-with-filters";
 import { Reveal } from "@/components/store/reveal";
 
 // This page previously took `searchParams` directly, which forces fully
 // dynamic, uncached rendering on every request (same issue fixed on
 // product/[slug] and offers/[slug] — see their own comments) — the
-// category/type filter read moved into ShopGridWithFilters instead so this
-// page itself can stay ISR-cacheable.
+// category/type filter read now happens inside ShopGrid itself, off
+// window.location rather than Next's searchParams (see that component's own
+// comment for why), so this page stays ISR-cacheable with no Suspense
+// boundary needed at all.
 export const revalidate = 60;
 
 export const metadata: Metadata = {
@@ -39,9 +39,7 @@ export default async function ShopPage() {
           </p>
         </Reveal>
 
-        <Suspense fallback={<ShopGrid products={products} categories={categories} />}>
-          <ShopGridWithFilters products={products} categories={categories} />
-        </Suspense>
+        <ShopGrid products={products} categories={categories} />
       </div>
     </main>
   );

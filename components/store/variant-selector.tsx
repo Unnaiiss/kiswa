@@ -42,23 +42,27 @@ const TYPE_META: Record<
 
 export function VariantSelector({
   product,
-  giftMode = false,
-  initialVariantId,
 }: {
   /** Always an attar product — the product page renders ImportedBuyBox
    * instead for imported products, which have no variants to select. */
   product: StoreProduct & { productType: "attar" };
-  /** True when navigated here from /gift — makes "Send as Gift" the primary
-   * CTA instead of "Add to Bag" (both stay available either way). */
-  giftMode?: boolean;
-  /** Preselects a variant from a ?variant= query param — e.g. a Meta
-   * catalog ad deep link, so the click lands on the exact SKU it
-   * advertised. Falls back to the first available type/size (unchanged
-   * prior behavior) when absent or not a real active variant. */
-  initialVariantId?: string;
 }) {
   const { items, addItem, open } = useCart();
   const router = useRouter();
+
+  // True when navigated here with ?gift=1 (e.g. from /gift) — makes "Send as
+  // Gift" the primary CTA instead of "Add to Bag" (both stay available
+  // either way). Read off window.location directly in an effect rather than
+  // as a prop seeded from the page's own searchParams: that page is ISR-
+  // cached and must stay that way (see its own comment), and routing this
+  // through next/navigation's useSearchParams() would need a <Suspense>
+  // boundary around the whole buy box — which, tried first, caused a worse
+  // bug than the one it fixed (see components/store/shop-grid.tsx's own
+  // comment for the identical failure mode: React fully unmounts a Suspense
+  // fallback and remounts its resolved children fresh, so right after
+  // hydration the buy box's buttons got torn down and rebuilt — a tap
+  // landing in that window was lost, needing a second tap to register).
+  const [giftMode, setGiftMode] = useState(false);
 
   // Every variant of this product is bottled from the same oil pool, so oil
   // already committed to OTHER lines of this product in the cart (any
@@ -83,13 +87,7 @@ export function VariantSelector({
     [activeVariants],
   );
 
-  const initialVariant = initialVariantId
-    ? activeVariants.find((v) => v.variantId === initialVariantId)
-    : undefined;
-
-  const [selectedType, setSelectedType] = useState<VariantType>(
-    initialVariant?.type ?? types[0],
-  );
+  const [selectedType, setSelectedType] = useState<VariantType>(types[0]);
 
   const sizesForType = useMemo(
     () =>
@@ -99,9 +97,27 @@ export function VariantSelector({
     [activeVariants, selectedType],
   );
 
-  const [selectedSizeMl, setSelectedSizeMl] = useState<number>(
-    initialVariant?.sizeMl ?? sizesForType[0]?.sizeMl,
-  );
+  const [selectedSizeMl, setSelectedSizeMl] = useState<number>(sizesForType[0]?.sizeMl);
+
+  // Seeds giftMode and the selected variant from ?gift=1 / ?variant=<id>
+  // (e.g. a Meta catalog ad deep link landing on the exact SKU it
+  // advertised) once, right after mount — see giftMode's own comment above
+  // for why this reads window.location directly instead of a prop.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("gift") === "1") setGiftMode(true);
+    const variantId = params.get("variant");
+    const initialVariant = variantId
+      ? activeVariants.find((v) => v.variantId === variantId)
+      : undefined;
+    if (initialVariant) {
+      setSelectedType(initialVariant.type);
+      setSelectedSizeMl(initialVariant.sizeMl);
+    }
+    // Deliberately run-once-on-mount only — activeVariants is derived from
+    // `product`, which this component never changes products under.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const selectedVariant =
     activeVariants.find(

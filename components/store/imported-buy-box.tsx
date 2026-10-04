@@ -29,13 +29,21 @@ import { SignInToOrderPrompt } from "./sign-in-to-order-prompt";
  * quantity stepper and the Add to Bag / Send as Gift / WhatsApp actions. */
 export function ImportedBuyBox({
   product,
-  giftMode = false,
 }: {
   product: StoreProduct & { productType: "imported" };
-  giftMode?: boolean;
 }) {
   const { items, addItem, open } = useCart();
   const router = useRouter();
+
+  // True when navigated here with ?gift=1 — see variant-selector.tsx's own
+  // comment on why this reads window.location directly (in an effect)
+  // rather than as a prop seeded from the page's own searchParams.
+  const [giftMode, setGiftMode] = useState(false);
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("gift") === "1") {
+      setGiftMode(true);
+    }
+  }, []);
 
   // Units already committed to other lines of this product in the cart
   // reduce what's left to add right now (same product can't have more than

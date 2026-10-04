@@ -1,9 +1,9 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getProductBySlug } from "@/lib/store/queries";
 import { ProductGallery } from "@/components/store/product-gallery";
-import { ProductBuyBox, ProductBuyBoxFallback } from "@/components/store/product-buy-box";
+import { VariantSelector } from "@/components/store/variant-selector";
+import { ImportedBuyBox } from "@/components/store/imported-buy-box";
 import { FragranceNotes } from "@/components/store/fragrance-notes";
 
 // Was missing from this page while every other storefront listing/detail
@@ -84,9 +84,11 @@ export default async function ProductPage({ params }: ProductPageProps) {
 
           <div className="h-px w-full bg-kiswa-border" />
 
-          <Suspense fallback={<ProductBuyBoxFallback product={product} />}>
-            <ProductBuyBox product={product} />
-          </Suspense>
+          {product.productType === "imported" ? (
+            <ImportedBuyBox product={product} />
+          ) : (
+            <VariantSelector product={product} />
+          )}
         </div>
       </div>
     </main>
