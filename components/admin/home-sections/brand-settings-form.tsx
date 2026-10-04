@@ -195,7 +195,7 @@ export function BrandSettingsForm({ siteSettings }: { siteSettings: SiteSettings
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
             Brand name
@@ -242,14 +242,14 @@ export function BrandSettingsForm({ siteSettings }: { siteSettings: SiteSettings
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <UrlField label="Instagram URL" placeholder="https://www.instagram.com/kiswaprfms" value={instagramUrl} onChange={setInstagramUrl} />
         <UrlField label="Facebook URL" placeholder="https://facebook.com/…" value={facebookUrl} onChange={setFacebookUrl} />
         <UrlField label="YouTube URL" placeholder="https://youtube.com/@…" value={youtubeUrl} onChange={setYoutubeUrl} />
         <UrlField label="Map URL" placeholder="https://maps.google.com/…" value={mapUrl} onChange={setMapUrl} />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
             Email <span className="text-zinc-600">(optional)</span>

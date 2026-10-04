@@ -4,6 +4,12 @@ import { useMemo, useState } from "react";
 import { useStockMovements } from "@/lib/admin/useStockMovements";
 import { QueryErrorBanner } from "@/components/admin/query-error-banner";
 import type { Product, StockMovementReason } from "@/lib/firestore/types";
+import {
+  MobileRowCard,
+  MobileRowCardList,
+  MobileRowField,
+  MobileRowHeader,
+} from "@/components/admin/mobile-row-card";
 
 const REASON_LABEL: Record<StockMovementReason, string> = {
   opening_stock: "Opening stock",
@@ -34,7 +40,7 @@ export function MovementHistory({ products }: { products: Product[] }) {
         <select
           value={productId}
           onChange={(e) => setProductId(e.target.value)}
-          className={inputClass}
+          className={`w-full sm:w-auto ${inputClass}`}
         >
           <option value="">All products</option>
           {sortedProducts.map((p) => (
@@ -52,7 +58,32 @@ export function MovementHistory({ products }: { products: Product[] }) {
       ) : movements.length === 0 ? (
         <p className="text-sm text-zinc-500">No stock movements match.</p>
       ) : (
-        <div className="max-h-[28rem] overflow-auto rounded-xl border border-zinc-800">
+        <>
+        <MobileRowCardList>
+          {movements.map((m) => (
+            <MobileRowCard key={m.id}>
+              <MobileRowHeader>
+                <span className="font-medium text-zinc-50">{m.productName}</span>
+                <span className={`shrink-0 font-semibold ${m.mlChange >= 0 ? "text-green-400" : "text-red-400"}`}>
+                  {m.mlChange >= 0 ? `+${m.mlChange}` : m.mlChange} {(m.unit ?? "ml") === "unit" ? "unit(s)" : "ml"}
+                </span>
+              </MobileRowHeader>
+              <MobileRowField label="Date">
+                {m.createdAt.toDate().toLocaleString("en-IN", {
+                  day: "2-digit",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </MobileRowField>
+              <MobileRowField label="Variant">{m.variantLabel ?? "—"}</MobileRowField>
+              <MobileRowField label="Reason">{REASON_LABEL[m.reason]}</MobileRowField>
+              {m.note && <MobileRowField label="Note">{m.note}</MobileRowField>}
+            </MobileRowCard>
+          ))}
+        </MobileRowCardList>
+
+        <div className="hidden max-h-[28rem] overflow-auto rounded-xl border border-zinc-800 sm:block">
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 border-b border-zinc-800 bg-zinc-900 text-xs tracking-wide text-zinc-500 uppercase">
               <tr>
@@ -101,6 +132,7 @@ export function MovementHistory({ products }: { products: Product[] }) {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

@@ -12,6 +12,7 @@ import {
 } from "@/lib/orderFulfillment";
 import { adminFetch } from "@/lib/admin/apiClient";
 import { PosSalesTable } from "@/components/admin/pos-sales/pos-sales-table";
+import { MobileRowCard, MobileRowCardList, MobileRowField } from "@/components/admin/mobile-row-card";
 import { PosSalesReport } from "@/components/admin/pos-sales/pos-sales-report";
 import { SaleDetail } from "@/components/admin/sales/sale-detail";
 import { StatCard } from "@/components/admin/dashboard/stat-card";
@@ -212,7 +213,19 @@ export default function AdminPosSalesPage() {
       </div>
 
       {byStaff.length > 0 && (
-        <div className="overflow-x-auto rounded-xl border border-zinc-800">
+        <>
+        <MobileRowCardList>
+          {byStaff.map(([name, stats]) => (
+            <MobileRowCard key={name}>
+              <div className="flex items-center justify-between">
+                <span className="font-medium text-zinc-50">{name}</span>
+                <span className="font-semibold text-zinc-50">{formatInr(stats.revenue)}</span>
+              </div>
+              <MobileRowField label="Bills">{stats.count}</MobileRowField>
+            </MobileRowCard>
+          ))}
+        </MobileRowCardList>
+        <div className="hidden overflow-x-auto rounded-xl border border-zinc-800 sm:block">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-zinc-800 bg-zinc-900 text-xs tracking-wide text-zinc-500 uppercase">
               <tr>
@@ -232,35 +245,38 @@ export default function AdminPosSalesPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col flex-wrap gap-3 sm:flex-row sm:items-center">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name, phone, or invoice…"
-          className={`${inputClass} min-w-[16rem]`}
+          className={`${inputClass} w-full sm:min-w-[16rem] sm:w-auto`}
         />
-        <input
-          type="date"
-          value={fromStr}
-          max={toStr}
-          onChange={(e) => setFromStr(e.target.value)}
-          className={inputClass}
-        />
-        <span className="text-zinc-500">to</span>
-        <input
-          type="date"
-          value={toStr}
-          min={fromStr}
-          onChange={(e) => setToStr(e.target.value)}
-          className={inputClass}
-        />
+        <div className="flex items-center gap-3">
+          <input
+            type="date"
+            value={fromStr}
+            max={toStr}
+            onChange={(e) => setFromStr(e.target.value)}
+            className={`${inputClass} w-full sm:w-auto`}
+          />
+          <span className="shrink-0 text-zinc-500">to</span>
+          <input
+            type="date"
+            value={toStr}
+            min={fromStr}
+            onChange={(e) => setToStr(e.target.value)}
+            className={`${inputClass} w-full sm:w-auto`}
+          />
+        </div>
         <select
           value={staff}
           onChange={(e) => setStaff(e.target.value)}
-          className={inputClass}
+          className={`${inputClass} w-full sm:w-auto`}
         >
           <option value="all">All staff</option>
           {staffNames.map((name) => (
@@ -272,14 +288,14 @@ export default function AdminPosSalesPage() {
         <select
           value={paymentMethod}
           onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod | "all")}
-          className={inputClass}
+          className={`${inputClass} w-full sm:w-auto`}
         >
           <option value="all">All payment methods</option>
           <option value="cash">Cash</option>
           <option value="upi">UPI</option>
           <option value="card">Card</option>
         </select>
-        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300">
+        <label className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 sm:w-auto">
           <input
             type="checkbox"
             checked={giftOnly}

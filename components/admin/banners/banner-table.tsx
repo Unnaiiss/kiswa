@@ -150,69 +150,73 @@ export function BannerTable({ banners, combos, products, loading, onEdit }: Bann
               onDragOver={(e) => handleDragOver(e, banner.id)}
               onDrop={handleDrop}
               onDragEnd={() => setDragId(null)}
-              className={`flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 transition-opacity ${
+              className={`flex flex-col gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 p-3 transition-opacity sm:flex-row sm:items-center ${
                 dragId === banner.id ? "opacity-50" : ""
               }`}
             >
-              <span
-                className="cursor-grab text-zinc-600 active:cursor-grabbing"
-                aria-hidden
-              >
-                <GripVertical size={18} />
-              </span>
-              <div className="flex h-14 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-800 bg-canvas">
-                {thumbSrc ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={thumbSrc} alt={title} className="h-full w-full object-cover" />
-                ) : (
-                  <Package className="text-zinc-700" size={20} />
-                )}
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <p className="truncate text-sm font-medium text-zinc-50">{title}</p>
-                  {banner.bannerType === "combo" && (
-                    <span className="shrink-0 rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
-                      Combo
-                    </span>
+              <div className="flex items-center gap-3">
+                <span
+                  className="hidden shrink-0 cursor-grab text-zinc-600 active:cursor-grabbing sm:block"
+                  aria-hidden
+                >
+                  <GripVertical size={18} />
+                </span>
+                <div className="flex h-14 w-24 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-zinc-800 bg-canvas">
+                  {thumbSrc ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={thumbSrc} alt={title} className="h-full w-full object-cover" />
+                  ) : (
+                    <Package className="text-zinc-700" size={20} />
                   )}
                 </div>
-                <p
-                  className={`truncate text-xs ${comboWarning ? "flex items-center gap-1 text-amber-400" : "text-zinc-500"}`}
-                >
-                  {comboWarning && <AlertTriangle size={12} className="shrink-0" />}
-                  {subtitle}
-                </p>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="truncate text-sm font-medium text-zinc-50">{title}</p>
+                    {banner.bannerType === "combo" && (
+                      <span className="shrink-0 rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] uppercase tracking-wide text-zinc-400">
+                        Combo
+                      </span>
+                    )}
+                  </div>
+                  <p
+                    className={`truncate text-xs ${comboWarning ? "flex items-center gap-1 text-amber-400" : "text-zinc-500"}`}
+                  >
+                    {comboWarning && <AlertTriangle size={12} className="shrink-0" />}
+                    {subtitle}
+                  </p>
+                </div>
               </div>
-              <button
-                type="button"
-                onClick={() => toggleActive(banner)}
-                disabled={busyId === banner.id}
-                className={`shrink-0 cursor-pointer rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                  banner.isActive
-                    ? "bg-green-500/10 text-green-400 hover:bg-green-500/20"
-                    : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700"
-                }`}
-              >
-                {banner.isActive ? "Active" : "Inactive"}
-              </button>
-              <button
-                type="button"
-                onClick={() => onEdit(banner)}
-                aria-label={`Edit ${title}`}
-                className="shrink-0 cursor-pointer rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-amber-400"
-              >
-                <Pencil size={16} />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDelete(banner)}
-                disabled={busyId === banner.id}
-                aria-label={`Delete ${title}`}
-                className="shrink-0 cursor-pointer rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Trash2 size={16} />
-              </button>
+              <div className="flex shrink-0 items-center gap-2 border-t border-zinc-800 pt-3 sm:border-t-0 sm:pt-0">
+                <button
+                  type="button"
+                  onClick={() => toggleActive(banner)}
+                  disabled={busyId === banner.id}
+                  className={`shrink-0 cursor-pointer rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                    banner.isActive
+                      ? "bg-green-500/10 text-green-400 hover:bg-green-500/20"
+                      : "bg-zinc-800 text-zinc-500 hover:bg-zinc-700"
+                  }`}
+                >
+                  {banner.isActive ? "Active" : "Inactive"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onEdit(banner)}
+                  aria-label={`Edit ${title}`}
+                  className="shrink-0 cursor-pointer rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-amber-400"
+                >
+                  <Pencil size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(banner)}
+                  disabled={busyId === banner.id}
+                  aria-label={`Delete ${title}`}
+                  className="ml-auto shrink-0 cursor-pointer rounded-lg p-2 text-zinc-400 hover:bg-zinc-800 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-50 sm:ml-0"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
             </div>
           );
         })}

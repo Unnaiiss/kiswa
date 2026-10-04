@@ -113,7 +113,7 @@ function ShippingForm({ sale, onSaved }: { sale: Sale; onSaved: () => void }) {
         <Truck size={12} />
         Courier &amp; tracking
       </p>
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input
           className={inputClass}
           placeholder="Courier name"
@@ -275,7 +275,7 @@ function RefundForm({ sale }: { sale: Sale }) {
         </button>
       ) : (
         <div className="flex flex-col gap-2">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as "pending" | "completed")}
@@ -391,7 +391,7 @@ export function SaleDetail({ sale, onClose }: { sale: Sale; onClose: () => void 
   return (
     <Modal title={`Invoice ${sale.invoiceNo}`} onClose={onClose}>
       <div className="flex flex-col gap-4">
-        <div className="grid grid-cols-2 gap-3 text-sm">
+        <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
           <div>
             <p className="flex items-center gap-1.5 text-xs text-zinc-500 uppercase">
               Customer

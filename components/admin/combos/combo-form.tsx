@@ -282,7 +282,7 @@ export function ComboForm({ mode, combo, defaultOrder, onClose, onSaved }: Combo
       widthClassName="max-w-3xl"
     >
       <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
               Title
@@ -325,7 +325,7 @@ export function ComboForm({ mode, combo, defaultOrder, onClose, onSaved }: Combo
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
               Desktop image (optional)
@@ -401,7 +401,7 @@ export function ComboForm({ mode, combo, defaultOrder, onClose, onSaved }: Combo
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
               Combo price (₹)
@@ -469,15 +469,15 @@ export function ComboForm({ mode, combo, defaultOrder, onClose, onSaved }: Combo
                   return (
                     <li
                       key={it.key}
-                      className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm"
+                      className="flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm"
                     >
-                      <span className="text-zinc-200">
+                      <span className="min-w-0 truncate text-zinc-200">
                         {product ? productLabel(product, it.variantId) : it.productId} × {it.qty}
                       </span>
                       <button
                         type="button"
                         onClick={() => setItems((prev) => prev.filter((x) => x.key !== it.key))}
-                        className="cursor-pointer text-zinc-500 hover:text-red-400"
+                        className="shrink-0 cursor-pointer text-zinc-500 hover:text-red-400"
                       >
                         <Trash2 size={15} />
                       </button>
@@ -515,9 +515,9 @@ export function ComboForm({ mode, combo, defaultOrder, onClose, onSaved }: Combo
                   return (
                     <li
                       key={v.key}
-                      className="flex items-center justify-between rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm"
+                      className="flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm"
                     >
-                      <span className="text-zinc-200">
+                      <span className="min-w-0 truncate text-zinc-200">
                         {product ? productLabel(product, v.variantId) : v.productId}
                       </span>
                       <button
@@ -525,7 +525,7 @@ export function ComboForm({ mode, combo, defaultOrder, onClose, onSaved }: Combo
                         onClick={() =>
                           setEligibleVariants((prev) => prev.filter((x) => x.key !== v.key))
                         }
-                        className="cursor-pointer text-zinc-500 hover:text-red-400"
+                        className="shrink-0 cursor-pointer text-zinc-500 hover:text-red-400"
                       >
                         <Trash2 size={15} />
                       </button>
@@ -548,7 +548,7 @@ export function ComboForm({ mode, combo, defaultOrder, onClose, onSaved }: Combo
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
               Valid from (optional)
@@ -573,7 +573,7 @@ export function ComboForm({ mode, combo, defaultOrder, onClose, onSaved }: Combo
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
               Order

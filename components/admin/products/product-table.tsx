@@ -5,6 +5,12 @@ import { Pencil, Search } from "lucide-react";
 import { ProductImage } from "@/components/store/product-image";
 import type { Product, ProductType } from "@/lib/firestore/types";
 import { formatInr, getStartingPrice } from "@/lib/pricing";
+import {
+  MobileRowCard,
+  MobileRowCardList,
+  MobileRowField,
+  MobileRowHeader,
+} from "@/components/admin/mobile-row-card";
 
 interface ProductTableProps {
   products: Product[];
@@ -36,7 +42,7 @@ export function ProductTable({ products, loading, onEdit }: ProductTableProps) {
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative max-w-sm flex-1">
+        <div className="relative w-full sm:max-w-sm sm:flex-1">
           <Search
             className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-zinc-500"
             size={16}
@@ -51,7 +57,7 @@ export function ProductTable({ products, loading, onEdit }: ProductTableProps) {
         <select
           value={typeFilter}
           onChange={(e) => setTypeFilter(e.target.value as ProductType | "all")}
-          className="cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-zinc-50 outline-none focus:border-amber-400"
+          className="w-full cursor-pointer rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2.5 text-sm text-zinc-50 outline-none focus:border-amber-400 sm:w-auto"
         >
           {TYPE_FILTERS.map((f) => (
             <option key={f.value} value={f.value}>
@@ -66,7 +72,59 @@ export function ProductTable({ products, loading, onEdit }: ProductTableProps) {
       ) : filtered.length === 0 ? (
         <p className="text-sm text-zinc-500">No products match &ldquo;{search}&rdquo;.</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-zinc-800">
+        <>
+        <MobileRowCardList>
+          {filtered.map((product) => {
+            const isImported = product.productType === "imported";
+            return (
+              <MobileRowCard key={product.id} onClick={() => onEdit(product)}>
+                <MobileRowHeader>
+                  <span className="flex items-center gap-3">
+                    <span className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-zinc-800">
+                      <ProductImage
+                        name={product.name}
+                        imageUrls={product.imageUrls}
+                        className="h-full w-full"
+                        sizes="40px"
+                      />
+                    </span>
+                    <span className="font-medium text-zinc-50">{product.name}</span>
+                  </span>
+                  <Pencil size={16} className="mt-1 shrink-0 text-zinc-400" />
+                </MobileRowHeader>
+                <MobileRowField label="Type">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      isImported ? "bg-sky-500/10 text-sky-400" : "bg-purple-500/10 text-purple-400"
+                    }`}
+                  >
+                    {isImported ? "Imported" : "Attar"}
+                  </span>
+                </MobileRowField>
+                <MobileRowField label="Category">{product.category}</MobileRowField>
+                <MobileRowField label="Price">
+                  {isImported ? formatInr(product.priceInr) : formatInr(getStartingPrice(product.variants))}
+                </MobileRowField>
+                <MobileRowField label="Stock">
+                  {isImported
+                    ? `${product.unitStock} unit${product.unitStock === 1 ? "" : "s"}`
+                    : `${Number(product.oilStockMl.toFixed(1))} ml`}
+                </MobileRowField>
+                <MobileRowField label="Status">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      product.isActive ? "bg-green-500/10 text-green-400" : "bg-zinc-800 text-zinc-500"
+                    }`}
+                  >
+                    {product.isActive ? "Active" : "Pending"}
+                  </span>
+                </MobileRowField>
+              </MobileRowCard>
+            );
+          })}
+        </MobileRowCardList>
+
+        <div className="hidden overflow-x-auto rounded-xl border border-zinc-800 sm:block">
           <table className="w-full text-left text-sm">
             <thead className="border-b border-zinc-800 bg-zinc-900 text-xs tracking-wide text-zinc-500 uppercase">
               <tr>
@@ -149,6 +207,7 @@ export function ProductTable({ products, loading, onEdit }: ProductTableProps) {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

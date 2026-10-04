@@ -286,7 +286,7 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
               Category
@@ -311,7 +311,7 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
         </div>
 
         {productType === "imported" && (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
                 Size label
@@ -370,7 +370,7 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="flex cursor-pointer items-center gap-2 text-sm text-zinc-300">
             <input
               type="checkbox"
@@ -415,7 +415,7 @@ export function ProductForm({ mode, product, onClose, onSaved }: ProductFormProp
         </div>
 
         {productType === "imported" ? (
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
                 Price (₹)

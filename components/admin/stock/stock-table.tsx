@@ -3,6 +3,12 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import type { Product } from "@/lib/firestore/types";
+import {
+  MobileRowCard,
+  MobileRowCardList,
+  MobileRowField,
+  MobileRowHeader,
+} from "@/components/admin/mobile-row-card";
 
 export interface StockRow {
   productId: string;
@@ -68,7 +74,7 @@ export function StockTable({ products, loading, onStocktake }: StockTableProps) 
   return (
     <div>
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <div className="relative max-w-sm flex-1">
+        <div className="relative w-full sm:max-w-sm sm:flex-1">
           <Search
             className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-zinc-500"
             size={16}
@@ -96,7 +102,42 @@ export function StockTable({ products, loading, onStocktake }: StockTableProps) 
       ) : filtered.length === 0 ? (
         <p className="text-sm text-zinc-500">No products match.</p>
       ) : (
-        <div className="max-h-[32rem] overflow-auto rounded-xl border border-zinc-800">
+        <>
+        <MobileRowCardList>
+          {filtered.map((row) => {
+            const low = row.amount <= row.threshold;
+            return (
+              <MobileRowCard key={row.productId} onClick={() => onStocktake(row)}>
+                <MobileRowHeader>
+                  <span className="font-medium text-zinc-50">{row.productName}</span>
+                  {!row.isActive ? (
+                    <span className="shrink-0 rounded-full bg-zinc-800 px-2 py-0.5 text-xs text-zinc-500">
+                      Inactive
+                    </span>
+                  ) : low ? (
+                    <span className="shrink-0 rounded-full bg-red-500/10 px-2 py-0.5 text-xs text-red-400">
+                      Low stock
+                    </span>
+                  ) : (
+                    <span className="shrink-0 rounded-full bg-green-500/10 px-2 py-0.5 text-xs text-green-400">
+                      OK
+                    </span>
+                  )}
+                </MobileRowHeader>
+                <MobileRowField label="Stock">
+                  <span className={`font-semibold ${low ? "text-red-400" : "text-zinc-300"}`}>
+                    {formatAmount(row)}
+                  </span>
+                </MobileRowField>
+                <MobileRowField label="Threshold">
+                  {formatAmount({ kind: row.kind, amount: row.threshold })}
+                </MobileRowField>
+              </MobileRowCard>
+            );
+          })}
+        </MobileRowCardList>
+
+        <div className="hidden max-h-[32rem] overflow-auto rounded-xl border border-zinc-800 sm:block">
           <table className="w-full text-left text-sm">
             <thead className="sticky top-0 border-b border-zinc-800 bg-zinc-900 text-xs tracking-wide text-zinc-500 uppercase">
               <tr>
@@ -156,6 +197,7 @@ export function StockTable({ products, loading, onStocktake }: StockTableProps) 
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

@@ -127,33 +127,35 @@ export default function AdminSalesPage() {
 
       {error && <QueryErrorBanner error={error} />}
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col flex-wrap gap-3 sm:flex-row sm:items-center">
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name, phone, email, or invoice…"
-          className={`${inputClass} min-w-[16rem]`}
+          className={`${inputClass} w-full sm:min-w-[16rem] sm:w-auto`}
         />
-        <input
-          type="date"
-          value={fromStr}
-          max={toStr}
-          onChange={(e) => setFromStr(e.target.value)}
-          className={inputClass}
-        />
-        <span className="text-zinc-500">to</span>
-        <input
-          type="date"
-          value={toStr}
-          min={fromStr}
-          onChange={(e) => setToStr(e.target.value)}
-          className={inputClass}
-        />
+        <div className="flex items-center gap-3">
+          <input
+            type="date"
+            value={fromStr}
+            max={toStr}
+            onChange={(e) => setFromStr(e.target.value)}
+            className={`${inputClass} w-full sm:w-auto`}
+          />
+          <span className="shrink-0 text-zinc-500">to</span>
+          <input
+            type="date"
+            value={toStr}
+            min={fromStr}
+            onChange={(e) => setToStr(e.target.value)}
+            className={`${inputClass} w-full sm:w-auto`}
+          />
+        </div>
         <select
           value={channel}
           onChange={(e) => setChannel(e.target.value as SaleChannel | "all")}
-          className={inputClass}
+          className={`${inputClass} w-full sm:w-auto`}
         >
           <option value="all">All channels</option>
           <option value="online">Online</option>
@@ -162,7 +164,7 @@ export default function AdminSalesPage() {
         <select
           value={paymentMethod}
           onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod | "all")}
-          className={inputClass}
+          className={`${inputClass} w-full sm:w-auto`}
         >
           <option value="all">All payment methods</option>
           <option value="razorpay">Razorpay</option>
@@ -173,7 +175,7 @@ export default function AdminSalesPage() {
         <select
           value={orderStatus}
           onChange={(e) => setOrderStatus(e.target.value as OrderStatus | "all")}
-          className={inputClass}
+          className={`${inputClass} w-full sm:w-auto`}
         >
           <option value="all">All statuses</option>
           {ALL_STATUSES.map((s) => (
@@ -182,7 +184,7 @@ export default function AdminSalesPage() {
             </option>
           ))}
         </select>
-        <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300">
+        <label className="flex w-full cursor-pointer items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-300 sm:w-auto">
           <input
             type="checkbox"
             checked={giftOnly}
