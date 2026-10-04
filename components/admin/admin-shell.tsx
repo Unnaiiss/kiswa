@@ -69,6 +69,60 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+/** The current page's own nav label — shown in the mobile header in place
+ * of the static "Kiswa Admin" wordmark (which stays as the drawer's own
+ * header instead), so a staff member glancing at the top bar can confirm
+ * which screen they're on without it eating space better spent on the
+ * sign-out button. Falls back to "Dashboard" for the one route (`/admin`
+ * itself) that's also the fallback match. */
+function currentPageLabel(pathname: string): string {
+  const exact = NAV_ITEMS.find((item) => item.exact && pathname === item.href);
+  if (exact) return exact.label;
+  const prefix = NAV_ITEMS.find((item) => !item.exact && pathname.startsWith(item.href));
+  return prefix?.label ?? "Dashboard";
+}
+
+function initials(label: string): string {
+  const trimmed = label.trim();
+  if (!trimmed) return "?";
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function ProfileBlock({
+  session,
+  onSignOut,
+}: {
+  session: SessionClaims;
+  onSignOut: () => void;
+}) {
+  const displayName = session.name || session.email || "Account";
+  return (
+    <div className="border-t border-zinc-800 p-3">
+      <div className="flex items-center gap-2.5 px-1">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-amber-400/10 text-xs font-semibold text-amber-400">
+          {initials(displayName)}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm text-zinc-200">{displayName}</p>
+          {session.role && (
+            <p className="text-[11px] tracking-wide text-zinc-500 capitalize">{session.role}</p>
+          )}
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onSignOut}
+        className="mt-3 flex w-full cursor-pointer items-center gap-2 rounded-lg border border-zinc-800 px-3 py-2.5 text-sm font-medium text-zinc-300 hover:border-red-400/40 hover:bg-red-400/10 hover:text-red-400"
+      >
+        <LogOut size={16} />
+        Sign out
+      </button>
+    </div>
+  );
+}
+
 export function AdminShell({
   session,
   children,
@@ -77,6 +131,7 @@ export function AdminShell({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   async function handleSignOut() {
@@ -86,19 +141,35 @@ export function AdminShell({
 
   return (
     <div className="flex h-dvh flex-col bg-canvas text-zinc-50 md:flex-row">
-      <header className="flex shrink-0 items-center justify-between border-b border-zinc-800 px-4 py-3 md:hidden">
+      <header className="flex shrink-0 items-center justify-between gap-2 border-b border-zinc-800 px-3 py-3 md:hidden">
         <button
           type="button"
           onClick={() => setMobileNavOpen(true)}
           aria-label="Open menu"
-          className="cursor-pointer rounded-lg p-2 text-zinc-400 hover:text-amber-400"
+          className="flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-zinc-400 hover:text-amber-400"
         >
           <Menu size={22} />
         </button>
-        <p className="text-sm font-semibold tracking-[0.2em] text-amber-400 uppercase">
-          Kiswa Admin
+        <p className="min-w-0 flex-1 truncate text-center text-sm font-semibold text-zinc-50">
+          {currentPageLabel(pathname)}
         </p>
-        <ThemeToggle className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-zinc-400 hover:text-amber-400" />
+        <div className="flex shrink-0 items-center gap-1">
+          <ThemeToggle className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-zinc-400 hover:text-amber-400" />
+          {/* Always-visible, one-tap sign-out — previously only reachable
+              from the desktop sidebar, which is hidden entirely on mobile,
+              so there was no way to sign out from a phone without opening
+              the drawer (which, before this, had no sign-out control in it
+              either — see ProfileBlock below). */}
+          <button
+            type="button"
+            onClick={handleSignOut}
+            aria-label="Sign out"
+            title="Sign out"
+            className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-zinc-400 hover:text-red-400"
+          >
+            <LogOut size={20} />
+          </button>
+        </div>
       </header>
 
       {mobileNavOpen && (
@@ -107,7 +178,7 @@ export function AdminShell({
             className="fixed inset-0 bg-black/70"
             onClick={() => setMobileNavOpen(false)}
           />
-          <div className="relative flex w-64 flex-col border-r border-zinc-800 bg-canvas">
+          <div className="relative flex w-72 max-w-[85vw] flex-col border-r border-zinc-800 bg-canvas">
             <div className="flex items-center justify-between px-4 py-3">
               <p className="text-sm font-semibold tracking-[0.2em] text-amber-400 uppercase">
                 Kiswa Admin
@@ -121,7 +192,10 @@ export function AdminShell({
                 <X size={20} />
               </button>
             </div>
-            <NavLinks onNavigate={() => setMobileNavOpen(false)} />
+            <div className="flex-1 overflow-y-auto">
+              <NavLinks onNavigate={() => setMobileNavOpen(false)} />
+            </div>
+            <ProfileBlock session={session} onSignOut={handleSignOut} />
           </div>
         </div>
       )}
@@ -136,19 +210,7 @@ export function AdminShell({
         <div className="flex-1 overflow-y-auto">
           <NavLinks />
         </div>
-        <div className="border-t border-zinc-800 p-3">
-          <p className="truncate px-3 text-xs text-zinc-500">
-            {session.name || session.email}
-          </p>
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="mt-2 flex w-full cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm text-zinc-400 hover:bg-zinc-900 hover:text-red-400"
-          >
-            <LogOut size={16} />
-            Sign out
-          </button>
-        </div>
+        <ProfileBlock session={session} onSignOut={handleSignOut} />
       </aside>
 
       <main className="flex-1 overflow-y-auto">{children}</main>
