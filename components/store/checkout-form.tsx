@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Loader2, MapPin, Plus, ShoppingBag, Star, Truck } from "lucide-react";
 import { useCart } from "./cart-provider";
 import { formatInr } from "@/lib/pricing";
 import { INDIAN_STATES } from "@/lib/store/indian-states";
+import { useAddressAutocomplete } from "@/lib/store/useAddressAutocomplete";
 import {
   loadRazorpayCheckout,
   type RazorpayHandlerResponse,
@@ -200,6 +201,13 @@ function GuestDetailsForm({
     onChange({ ...value, [key]: val });
   }
 
+  const line1Ref = useRef<HTMLInputElement>(null);
+  // Picking a Google suggestion fills line1 itself plus city/district/
+  // state/pincode in one update — house/flat number, the optional line2,
+  // and any landmark stay exactly what the visitor already typed, since
+  // Google's "address" result type doesn't know about those.
+  useAddressAutocomplete(line1Ref, (address) => onChange({ ...value, ...address }));
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -254,10 +262,11 @@ function GuestDetailsForm({
           Address line 1
         </label>
         <input
+          ref={line1Ref}
           className={inputClass}
           value={value.line1}
           onChange={(e) => set("line1", e.target.value)}
-          placeholder="Flat / house no., building, street"
+          placeholder="Start typing to search, or enter manually"
           autoComplete="address-line1"
         />
         {guestFieldError(errors, "line1")}
