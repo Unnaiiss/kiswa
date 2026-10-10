@@ -93,23 +93,40 @@ export function useAddressAutocomplete(
     loadGoogleMapsPlaces().then((loaded) => {
       if (cancelled || !loaded || !inputRef.current) return;
 
-      autocomplete = new window.google!.maps.places.Autocomplete(inputRef.current, {
-        fields: ["address_components", "geometry", "name"],
-        types: ["address"],
-        componentRestrictions: { country: "in" },
-      });
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete!.getPlace();
-        if (!place.address_components) {
-          // The visitor typed free text and pressed Enter without picking a
-          // suggestion, or the Place Details lookup failed — leave every
-          // field exactly as typed rather than showing an alert() or
-          // clearing anything (see this module's own doc comment).
+      // google.maps.places can load without the (legacy) Autocomplete class
+      // actually being usable — e.g. a project with only "Places API (New)"
+      // enabled and not the older "Places API" the classic Autocomplete
+      // constructor needs — so this is wrapped rather than left to throw
+      // inside an unhandled promise rejection a visitor would never see.
+      try {
+        if (!window.google?.maps?.places?.Autocomplete) {
+          console.error(
+            "[Google Maps] Script loaded, but google.maps.places.Autocomplete is unavailable. " +
+              "In Google Cloud Console, enable the LEGACY 'Places API' for this project — " +
+              "'Places API (New)' alone is not enough for this constructor.",
+          );
           return;
         }
-        callbackRef.current(parsePlace(place));
-      });
-      setAvailable(true);
+        autocomplete = new window.google.maps.places.Autocomplete(inputRef.current, {
+          fields: ["address_components", "geometry", "name"],
+          types: ["address"],
+          componentRestrictions: { country: "in" },
+        });
+        autocomplete.addListener("place_changed", () => {
+          const place = autocomplete!.getPlace();
+          if (!place.address_components) {
+            // The visitor typed free text and pressed Enter without picking
+            // a suggestion, or the Place Details lookup failed — leave
+            // every field exactly as typed rather than showing an alert()
+            // or clearing anything (see this module's own doc comment).
+            return;
+          }
+          callbackRef.current(parsePlace(place));
+        });
+        setAvailable(true);
+      } catch (err) {
+        console.error("[Google Maps] Failed to initialize address autocomplete:", err);
+      }
     });
 
     return () => {
