@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { Loader2, MapPin, Plus, ShoppingBag, Star, Truck } from "lucide-react";
 import { useCart } from "./cart-provider";
 import { formatInr } from "@/lib/pricing";
 import { INDIAN_STATES } from "@/lib/store/indian-states";
 import { useAddressAutocomplete } from "@/lib/store/useAddressAutocomplete";
+import { AddressSuggestionsDropdown } from "@/components/store/address-suggestions-dropdown";
 import {
   loadRazorpayCheckout,
   type RazorpayHandlerResponse,
@@ -201,12 +202,13 @@ function GuestDetailsForm({
     onChange({ ...value, [key]: val });
   }
 
-  const line1Ref = useRef<HTMLInputElement>(null);
   // Picking a Google suggestion fills line1 itself plus city/district/
   // state/pincode in one update — house/flat number, the optional line2,
   // and any landmark stay exactly what the visitor already typed, since
   // Google's "address" result type doesn't know about those.
-  useAddressAutocomplete(line1Ref, (address) => onChange({ ...value, ...address }));
+  const { suggestions, loading, selectSuggestion } = useAddressAutocomplete(value.line1, (address) =>
+    onChange({ ...value, ...address }),
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -257,18 +259,18 @@ function GuestDetailsForm({
           </p>
         </div>
       </div>
-      <div>
+      <div className="relative">
         <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
           Address line 1
         </label>
         <input
-          ref={line1Ref}
           className={inputClass}
           value={value.line1}
           onChange={(e) => set("line1", e.target.value)}
           placeholder="Start typing to search, or enter manually"
           autoComplete="address-line1"
         />
+        <AddressSuggestionsDropdown suggestions={suggestions} loading={loading} onSelect={selectSuggestion} />
         {guestFieldError(errors, "line1")}
       </div>
       <div>

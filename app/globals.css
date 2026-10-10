@@ -256,43 +256,6 @@
   }
 }
 
-/* ---- Google Places Autocomplete dropdown (lib/store/useAddressAutocomplete.ts) ----
-   The Maps JS API appends its own suggestion list (.pac-container) straight
-   to <body>, styled as a plain white box by default — jarring against this
-   app's dark+gold theme. It's not a component we render, so it can't take
-   Tailwind classes; this is the one place in the app a handful of plain
-   CSS rules target a third-party-owned class name directly. Only colors/
-   borders are touched — layout/positioning stays exactly what Google's own
-   script computes, so the dropdown still tracks the input correctly. */
-.pac-container {
-  background-color: var(--kiswa-surface);
-  border: 1px solid var(--kiswa-border);
-  border-radius: 0.5rem;
-  margin-top: 4px;
-  font-family: var(--font-body), sans-serif;
-  box-shadow: 0 16px 40px -18px rgba(0, 0, 0, 0.5);
-}
-.pac-item {
-  padding: 0.5rem 0.75rem;
-  border-top-color: var(--kiswa-border);
-  color: var(--kiswa-ink-muted);
-  font-size: 0.875rem;
-  cursor: pointer;
-}
-.pac-item:hover,
-.pac-item-selected {
-  background-color: var(--kiswa-surface-2);
-}
-.pac-item-query {
-  color: var(--kiswa-ink);
-}
-.pac-matched {
-  color: var(--kiswa-gold);
-}
-.pac-icon {
-  display: none;
-}
-
 /* ---- Printable receipts/invoices ----
    Named pages (`page:`) scope each @page size to its own element so the
    80mm thermal receipt and the A4 customer invoice don't fight over a

@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { INDIAN_STATES } from "@/lib/store/indian-states";
 import { addressFieldErrors } from "@/lib/auth/customerValidation";
 import { useAddressAutocomplete } from "@/lib/store/useAddressAutocomplete";
+import { AddressSuggestionsDropdown } from "@/components/store/address-suggestions-dropdown";
 import type { PlainAddress } from "./address-list";
 
 const inputClass =
@@ -62,12 +63,13 @@ export function AddressForm({
     setForm((f) => ({ ...f, [key]: value }));
   }
 
-  const line1Ref = useRef<HTMLInputElement>(null);
   // Same autocomplete wiring as checkout-form.tsx's GuestDetailsForm — see
   // lib/store/useAddressAutocomplete.ts's own doc comment. Only fills
   // line1/city/district/state/pincode; label, full name, phone, line2, and
   // landmark are never touched by it.
-  useAddressAutocomplete(line1Ref, (address) => setForm((f) => ({ ...f, ...address })));
+  const { suggestions, loading, selectSuggestion } = useAddressAutocomplete(form.line1, (address) =>
+    setForm((f) => ({ ...f, ...address })),
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -175,18 +177,18 @@ export function AddressForm({
         {fieldError(errors, "phone")}
       </div>
 
-      <div>
+      <div className="relative">
         <label className="mb-1.5 block text-xs uppercase tracking-wide text-kiswa-ink-muted">
           Address line 1
         </label>
         <input
-          ref={line1Ref}
           className={inputClass}
           value={form.line1}
           onChange={(e) => set("line1", e.target.value)}
           placeholder="Start typing to search, or enter manually"
           autoComplete="address-line1"
         />
+        <AddressSuggestionsDropdown suggestions={suggestions} loading={loading} onSelect={selectSuggestion} />
         {fieldError(errors, "line1")}
       </div>
 

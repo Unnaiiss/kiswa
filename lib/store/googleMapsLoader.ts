@@ -69,8 +69,8 @@ export function loadGoogleMapsPlaces(): Promise<boolean> {
         "[Google Maps] Authentication failed — the API key was rejected. " +
           "Check in Google Cloud Console: (1) the key's 'Application restrictions' " +
           "(HTTP referrers) actually include this exact domain, (2) 'Maps JavaScript API' " +
-          "and 'Places API' (the LEGACY one, not only 'Places API (New)') are both enabled " +
-          "for this project, and (3) billing is enabled on the project.",
+          "and 'Places API (New)' are both enabled for this project, and (3) billing is " +
+          "enabled on the project.",
       );
       settle(false);
     };
