@@ -293,7 +293,7 @@ export function BannerCarousel({ banners }: { banners: StoreBanner[] }) {
   return (
     <div className="w-full px-[5%] pt-3 sm:px-[6%] md:mx-auto md:max-w-[1200px] md:px-6 md:pt-4">
       <section
-        className="group relative w-full overflow-hidden rounded-[20px] bg-kiswa-surface shadow-[0_16px_40px_-18px_rgba(0,0,0,0.5)] aspect-[3/4] md:aspect-[16/9] md:rounded-[28px]"
+        className="group relative w-full overflow-hidden rounded-[20px] bg-kiswa-surface shadow-[0_16px_40px_-18px_rgba(0,0,0,0.5)] aspect-[3/4] md:aspect-[12/5] md:rounded-[28px]"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
         onTouchStart={handleTouchStart}
