@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, signOut } from "firebase/auth";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react";
 import { auth } from "@/lib/firebase/client";
 import { establishSession } from "@/lib/auth/session";
 
@@ -18,6 +18,7 @@ export function LoginForm({ redirectParam }: { redirectParam?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -84,14 +85,25 @@ export function LoginForm({ redirectParam }: { redirectParam?: string }) {
             <label className="mb-1.5 block text-xs uppercase tracking-wide text-zinc-400">
               Password
             </label>
-            <input
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3.5 text-lg text-zinc-50 outline-none focus:border-amber-400"
-              placeholder="••••••••"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 py-3.5 pl-4 pr-14 text-lg text-zinc-50 outline-none focus:border-amber-400"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-0 flex w-14 cursor-pointer items-center justify-center text-zinc-400 transition-colors hover:text-amber-400"
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
           </div>
 
           {error && (
