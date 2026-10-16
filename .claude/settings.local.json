@@ -1,5 +1,10 @@
 {
   "enabledMcpjsonServers": [
     "firebase"
-  ]
+  ],
+  "permissions": {
+    "allow": [
+      "Bash(npx tsx *)"
+    ]
+  }
 }

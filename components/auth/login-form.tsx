@@ -14,6 +14,29 @@ function destinationForRole(role: string, redirectParam?: string): string {
   return redirectParam?.startsWith("/pos") ? redirectParam : "/pos";
 }
 
+// Firebase rejects a locked-out or misconfigured sign-in with the same catch
+// as a wrong password; distinguishing them saves a lot of guessing.
+function loginErrorMessage(err: unknown): string {
+  const code = (err as { code?: string })?.code;
+  switch (code) {
+    case "auth/invalid-credential":
+    case "auth/wrong-password":
+    case "auth/user-not-found":
+    case "auth/invalid-email":
+      return "Incorrect email or password.";
+    case "auth/too-many-requests":
+      return "Too many failed attempts. Wait a few minutes and try again.";
+    case "auth/user-disabled":
+      return "This account has been disabled.";
+    case "auth/network-request-failed":
+      return "Network error. Check your connection and try again.";
+    case undefined:
+      return "Signed in, but couldn't start a session. Please try again.";
+    default:
+      return `Sign-in failed (${code}).`;
+  }
+}
+
 export function LoginForm({ redirectParam }: { redirectParam?: string }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -46,8 +69,8 @@ export function LoginForm({ redirectParam }: { redirectParam?: string }) {
       await establishSession(idToken);
       router.push(destinationForRole(role, redirectParam));
       router.refresh();
-    } catch {
-      setError("Incorrect email or password.");
+    } catch (err) {
+      setError(loginErrorMessage(err));
       setSubmitting(false);
     }
   }
